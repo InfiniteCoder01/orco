@@ -7,17 +7,8 @@ pub use codespan_reporting::term::{
     Config,
 };
 
-pub enum DiagnosticWriter {
-    StandardStream(StandardStream, Config),
-}
-
-impl Default for DiagnosticWriter {
-    fn default() -> Self {
-        Self::StandardStream(StandardStream::stderr(ColorChoice::Auto), Config::default())
-    }
-}
-
 impl<'a> Codebase<'a> {
+    /// Report a diagnostic
     pub fn report(&self, diagnostic: Diagnostic<<Self as Files<'a>>::FileId>) {
         match &self.diagnostic_writer {
             DiagnosticWriter::StandardStream(writer, config) => {
@@ -49,6 +40,26 @@ impl<'a> Codebase<'a> {
                     }
                 }
             }
+        }
+    }
+}
+
+/// The diagnostic writer
+pub enum DiagnosticWriter {
+    /// Render diagnostics to console using codespan
+    StandardStream(StandardStream, Config),
+}
+
+impl Default for DiagnosticWriter {
+    fn default() -> Self {
+        Self::StandardStream(StandardStream::stderr(ColorChoice::Auto), Config::default())
+    }
+}
+
+impl std::fmt::Debug for DiagnosticWriter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::StandardStream(_, _) => f.debug_struct("StandardStream").finish(),
         }
     }
 }

@@ -1,11 +1,14 @@
 use super::*;
 use std::collections::HashMap;
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+/// An intermediate representation of a module/namespace
 pub struct Module {
     items: HashMap<Symbol, Item>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+/// An intermediate representation of an item
 pub struct Item {}
 
 // impl std::fmt::Debug for Module {

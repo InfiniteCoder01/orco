@@ -3,6 +3,7 @@ use codespan_reporting::files::{Error, Files};
 use std::{borrow::Cow, path::Path};
 
 impl<'a> Codebase<'a> {
+    /// Add a new source file to the codebase, providing the source code manually
     pub fn add_file(
         &mut self,
         path: impl Into<Cow<'a, Path>>,
@@ -12,6 +13,7 @@ impl<'a> Codebase<'a> {
         self.files.len() - 1
     }
 
+    /// Add a new source file to the codebase, reading it from the file system
     pub fn read_file(
         &mut self,
         path: &Path,
@@ -51,7 +53,8 @@ impl<'a> Files<'a> for Codebase<'a> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// A source file
 pub struct File<'a> {
     path: Cow<'a, Path>,
     source: Cow<'a, str>,
@@ -90,11 +93,12 @@ impl<'a> File<'a> {
     }
 }
 
-pub struct FileName<'a>(&'a Path);
-
-impl std::fmt::Display for FileName<'_> {
+impl<'a> std::fmt::Debug for File<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0.display())
+        f.debug_struct("File")
+            .field("path", &self.path)
+            .field("source", &self.source)
+            .finish()
     }
 }
 
@@ -123,5 +127,23 @@ impl<'a> Files<'a> for File<'a> {
         let next_line_start = self.line_start(line_index + 1)?;
 
         Ok(line_start..next_line_start)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// A wrapped Path
+pub struct FileName<'a>(&'a Path);
+
+impl std::fmt::Display for FileName<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.display())
+    }
+}
+
+impl std::ops::Deref for FileName<'_> {
+    type Target = Path;
+
+    fn deref(&self) -> &Self::Target {
+        self.0
     }
 }
