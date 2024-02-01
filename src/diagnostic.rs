@@ -7,9 +7,9 @@ pub use codespan_reporting::term::{
     Config,
 };
 
-impl<'a> Codebase<'a> {
+impl Codebase {
     /// Report a diagnostic
-    pub fn report(&self, diagnostic: Diagnostic<<Self as Files<'a>>::FileId>) {
+    pub fn report(&self, diagnostic: Diagnostic<<Self as Files<'_>>::FileId>) {
         match &self.diagnostic_writer {
             DiagnosticWriter::StandardStream(writer, config) => {
                 if let Err(err) =

@@ -11,25 +11,11 @@ pub mod diagnostic;
 /// Intermediate Representation lives here
 pub mod ir;
 
-pub use codebase::{Codebase, Symbol};
+pub use codebase::{Codebase, FileId, Symbol};
 pub use diagnostic::{Diagnostic, Label, Severity};
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-/// An input for the parser
-pub enum Input<'a> {
-    /// Take source code from the file
-    File(&'a std::path::Path),
-    /// Take source code from the string
-    String(&'a str),
-}
 
 /// A compilation unit
 pub trait Unit {
-    /// Parse the unit from the input
-    fn parse(input: Input) -> Self
-    where
-        Self: Sized;
-
     /// Build the IR from this unit
     fn build(self, codebase: &Codebase) -> ir::Module;
     /// Build a single item inside of this unit and return it's IR
@@ -40,11 +26,11 @@ pub trait Unit {
     ) -> &ir::Item;
 }
 
-impl Codebase<'_> {
+impl Codebase {
     /// Parse a string path into a vector of symbols
     pub fn parse_path(&mut self, path: &str) -> Vec<Symbol> {
         path.split("::")
-            .map(|segment| self.interner.get_or_intern(segment))
+            .map(|segment| self.interned(segment))
             .collect()
     }
 }

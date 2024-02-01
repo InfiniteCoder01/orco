@@ -1,5 +1,7 @@
 use super::*;
+use std::sync::Mutex;
 pub use string_interner::StringInterner;
+
 /// A symbol inside of a string interner, see [`Codebase::interner`]
 pub type Symbol = string_interner::DefaultSymbol;
 
@@ -9,36 +11,56 @@ pub use file::*;
 
 /// Codebase, holds string interner, all the source files, all compilation units and handles
 /// diagnostics
-pub struct Codebase<'a> {
+pub struct Codebase {
     /// String interner, see [`StringInterner`]
-    pub interner: StringInterner,
+    pub interner: Mutex<StringInterner>,
     /// Compilation units
-    pub units: std::collections::HashMap<Symbol, Box<dyn Unit>>,
+    pub units: std::collections::HashMap<Symbol, Mutex<Box<dyn Unit + Send + Sync>>>,
     /// Diagnostic writer, used to configure, how diagnostics are rendered
     pub diagnostic_writer: diagnostic::DiagnosticWriter,
-    files: Vec<File<'a>>,
+    files: std::sync::Mutex<Vec<File>>,
 }
 
-impl<'a> Codebase<'a> {
+impl Codebase {
     /// Create a new codebase, use this if you want to specify a custom diagnostic renderer.
     /// Otherwise use [`Codebase::default`]
     pub fn new(diagnostic_writer: diagnostic::DiagnosticWriter) -> Self {
         Self {
-            interner: StringInterner::new(),
-            files: Vec::new(),
+            interner: Mutex::new(StringInterner::new()),
+            files: std::sync::Mutex::new(Vec::new()),
             diagnostic_writer,
             units: std::collections::HashMap::new(),
         }
     }
+
+    /// Intern a symbol or (if exists) get it's interned version
+    pub fn interned(&self, symbol: impl AsRef<str>) -> Symbol {
+        self.interner.lock().unwrap().get_or_intern(symbol)
+    }
+
+    /// Resolve a symbol to a string
+    pub fn resolve_symbol(&self, symbol: Symbol) -> String {
+        if let Some(symbol) = self.interner.lock().unwrap().resolve(symbol) {
+            symbol.to_owned()
+        } else {
+            use string_interner::Symbol;
+            self.report(
+                Diagnostic::new(Severity::Bug)
+                    .with_message("Failed to resolve symbol")
+                    .with_notes(vec![format!("Symbol: {}", symbol.to_usize())]),
+            );
+            "<error>".to_owned()
+        }
+    }
 }
 
-impl<'a> Default for Codebase<'a> {
+impl Default for Codebase {
     fn default() -> Self {
         Self::new(diagnostic::DiagnosticWriter::default())
     }
 }
 
-impl<'a> std::fmt::Debug for Codebase<'a> {
+impl std::fmt::Debug for Codebase {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Codebase")
             .field(
@@ -46,11 +68,7 @@ impl<'a> std::fmt::Debug for Codebase<'a> {
                 &self
                     .units
                     .keys()
-                    .map(|unit| {
-                        self.interner
-                            .resolve(*unit)
-                            .expect("failed to resolve unit name")
-                    })
+                    .map(|unit| self.resolve_symbol(*unit))
                     .collect::<Vec<_>>(),
             )
             .field("diagnostic_writer", &self.diagnostic_writer)
