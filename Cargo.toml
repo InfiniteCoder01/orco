@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-codespan-reporting = "0.11.1"
+codespan-reporting = { git = "https://github.com/InfiniteCoder01/codespan", branch = "with_note-and-with_label" }
 memmap2 = "0.9.4"
 string-interner = "0.14.0"
 

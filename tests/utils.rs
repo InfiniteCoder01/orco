@@ -4,7 +4,7 @@ use orco::*;
 use test_utils::*;
 
 #[test]
-fn test_interner() {
+fn interner() {
     assert_stderr(
         |codebase| {
             use string_interner::symbol::Symbol as _;
@@ -20,8 +20,8 @@ fn test_interner() {
 }
 
 #[test]
-fn test_parse_path() {
-    let mut codebase = Codebase::default();
+fn parse_path() {
+    let codebase = Codebase::default();
     assert_eq!(
         codebase.parse_path("foo::bar::baz"),
         vec![

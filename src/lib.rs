@@ -12,12 +12,12 @@ pub mod diagnostic;
 pub mod ir;
 
 pub use codebase::{Codebase, FileId, Symbol};
-pub use diagnostic::{Diagnostic, Label, Severity};
+pub use diagnostic::{Diagnostic, Label};
 
 /// A compilation unit
 pub trait Unit {
-    /// Build the IR from this unit
-    fn build(self, codebase: &Codebase) -> ir::Module;
+    /// Visit all items in this unit, building them in process
+    fn visit_items(&self, codebase: &Codebase, visitor: &dyn Fn(&[Symbol], &ir::Item));
     /// Build a single item inside of this unit and return it's IR
     fn get_item(
         &self,
@@ -28,9 +28,18 @@ pub trait Unit {
 
 impl Codebase {
     /// Parse a string path into a vector of symbols
-    pub fn parse_path(&mut self, path: &str) -> Vec<Symbol> {
+    pub fn parse_path(&self, path: &str) -> Vec<Symbol> {
         path.split("::")
             .map(|segment| self.interned(segment))
             .collect()
+    }
+
+    /// Append a path to std::path::Path. Useful for module resolution
+    pub fn append_path(&self, root: &std::path::Path, path: &[Symbol]) -> std::path::PathBuf {
+        let mut root = root.to_path_buf();
+        for segment in path {
+            root.push(self.resolve_symbol(*segment));
+        }
+        root
     }
 }

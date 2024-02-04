@@ -5,16 +5,16 @@ use test_utils::*;
 
 #[test]
 #[should_panic]
-fn test_diagnostics() {
+fn diagnostics() {
     assert_stderr(
         |codebase| {
             let file = codebase.add_file("test.rs", "ERROR");
             codebase.report(
-                Diagnostic::new(Severity::Error)
+                Diagnostic::error()
                     .with_message("Example error")
                     .with_code("Example")
-                    .with_labels(vec![Label::primary(file, 0..5).with_message("Here!")])
-                    .with_notes(vec!["Note...".to_owned()]),
+                    .with_label(Label::primary(file, 0..5).with_message("Here!"))
+                    .with_note("Note..."),
             )
         },
         "",
@@ -23,15 +23,15 @@ fn test_diagnostics() {
 
 #[test]
 #[should_panic]
-fn test_fallback_diagnostics() {
+fn fallback() {
     assert_stderr(
         |codebase| {
             codebase.report(
-                Diagnostic::new(Severity::Error)
+                Diagnostic::error()
                     .with_message("Example error")
                     .with_code("Example")
-                    .with_labels(vec![Label::primary(0, 0..5).with_message("Here!")])
-                    .with_notes(vec!["Note...".to_owned()]),
+                    .with_label(Label::primary(0, 0..5).with_message("Here!"))
+                    .with_note("Note..."),
             );
         },
         "",

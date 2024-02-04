@@ -15,7 +15,7 @@ pub struct Codebase {
     /// String interner, see [`StringInterner`]
     pub interner: Mutex<StringInterner>,
     /// Compilation units
-    pub units: std::collections::HashMap<Symbol, Mutex<Box<dyn Unit + Send + Sync>>>,
+    pub units: std::collections::HashMap<Symbol, Mutex<Box<dyn Unit + Send>>>,
     /// Diagnostic writer, used to configure, how diagnostics are rendered
     pub diagnostic_writer: diagnostic::DiagnosticWriter,
     files: std::sync::Mutex<Vec<File>>,
@@ -45,7 +45,7 @@ impl Codebase {
         } else {
             use string_interner::Symbol;
             self.report(
-                Diagnostic::new(Severity::Bug)
+                Diagnostic::bug()
                     .with_message("Failed to resolve symbol")
                     .with_notes(vec![format!("Symbol: {}", symbol.to_usize())]),
             );
