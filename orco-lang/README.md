@@ -1,5 +1,6 @@
 # OrCo
 OrCo compiler toolchain
+This crate contains OrCo IR (formly OrCo language) and tools to work with it
 
 ## Goals
 OrCo has the following goals:

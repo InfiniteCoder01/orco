@@ -1,0 +1,12 @@
+[package]
+name = "orco"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+codespan-reporting = { git = "https://github.com/InfiniteCoder01/codespan", branch = "with_note-and-with_label" }
+memmap2 = "0.9.4"
+string-interner = "0.15.0"
+
+[dev-dependencies]
+gag = "1.0.0"

@@ -1,8 +1,7 @@
+#![warn(missing_docs)]
 //! OrCo is the base crate for OrCo compiler toolchain.
 //! It's used in parser and backend crates as a glue.
 //! See [Codebase] to get started.
-
-#![warn(missing_docs)]
 
 /// Codebase lives here
 pub mod codebase;
@@ -16,14 +15,8 @@ pub use diagnostic::{Diagnostic, Label};
 
 /// A compilation unit
 pub trait Unit {
-    /// Visit all items in this unit, building them in process
-    fn visit_items(&self, codebase: &Codebase, visitor: &dyn Fn(&[Symbol], &ir::Item));
-    /// Build a single item inside of this unit and return it's IR
-    fn get_item(
-        &self,
-        others: &std::collections::HashMap<String, Box<dyn Unit>>,
-        path: &[Symbol],
-    ) -> &ir::Item;
+    /// Build all items in this unit, visiting them one by one
+    fn visit_items(&self, codebase: &Codebase, visitor: &mut dyn FnMut(&[Symbol], &ir::Item));
 }
 
 impl Codebase {

@@ -13,9 +13,7 @@ pub use file::*;
 /// diagnostics
 pub struct Codebase {
     /// String interner, see [`StringInterner`]
-    pub interner: Mutex<StringInterner>,
-    /// Compilation units
-    pub units: std::collections::HashMap<Symbol, Mutex<Box<dyn Unit + Send>>>,
+    pub interner: Mutex<StringInterner<string_interner::DefaultBackend>>,
     /// Diagnostic writer, used to configure, how diagnostics are rendered
     pub diagnostic_writer: diagnostic::DiagnosticWriter,
     files: std::sync::Mutex<Vec<File>>,
@@ -27,9 +25,8 @@ impl Codebase {
     pub fn new(diagnostic_writer: diagnostic::DiagnosticWriter) -> Self {
         Self {
             interner: Mutex::new(StringInterner::new()),
-            files: std::sync::Mutex::new(Vec::new()),
             diagnostic_writer,
-            units: std::collections::HashMap::new(),
+            files: std::sync::Mutex::new(Vec::new()),
         }
     }
 
@@ -63,14 +60,6 @@ impl Default for Codebase {
 impl std::fmt::Debug for Codebase {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Codebase")
-            .field(
-                "units",
-                &self
-                    .units
-                    .keys()
-                    .map(|unit| self.resolve_symbol(*unit))
-                    .collect::<Vec<_>>(),
-            )
             .field("diagnostic_writer", &self.diagnostic_writer)
             .field("files", &self.files)
             .finish()

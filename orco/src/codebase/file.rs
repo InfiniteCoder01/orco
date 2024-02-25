@@ -19,7 +19,7 @@ impl Codebase {
     }
 
     /// Get the source of a file, report a bug, if it doesn't exist
-    pub fn get(&self, id: FileId) -> Option<Arc<str>> {
+    pub fn get_file(&self, id: FileId) -> Option<Arc<str>> {
         match self.source(id) {
             Ok(source) => Some(source),
             Err(err) => {
