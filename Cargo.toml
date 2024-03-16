@@ -1,3 +1,7 @@
 [workspace]
 resolver = "1"
-members = ["*"]
+members = [
+    "orco",
+    "orco-lang",
+    "orco-cli",
+]
