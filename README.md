@@ -1,5 +1,6 @@
 # OrCo
 OrCo compiler toolchain
+[Developed on streams](https://www.youtube.com/playlist?list=PLvZASPqsD2VjqJ6968gEhoLlCn0i0rqHH)
 
 ## Goals
 OrCo has the following goals:
