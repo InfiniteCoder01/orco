@@ -1,6 +1,7 @@
 use std::path::Path;
 
 fn main() {
+    env_logger::init();
     let krate = Path::new("orco-lang/samples/simple.orco");
     orco_lang::Crate::parse(krate);
     // let krate = Path::new("crates/orco-rust/samples/simple.rs");

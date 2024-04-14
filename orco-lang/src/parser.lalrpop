@@ -1,0 +1,50 @@
+grammar;
+use crate::parser_utils;
+use parser_utils::Named;
+
+// Lexer
+use crate::lexer::{Token, Operator, Error};
+extern {
+    type Location = usize;
+    type Error = Error;
+
+    enum Token {
+        "ident" => Token::Ident(<String>),
+        "(" => Token::Operator(Operator::LParen),
+        ")" => Token::Operator(Operator::RParen),
+    }
+}
+
+// AST
+use orco::ir;
+
+pub Type: ir::Type = {
+    "ident" => if let Some(bytes) = parser_utils::numeric_type_size(&<>, "i") {
+        ir::Type::Int(bytes)
+    } else if let Some(bytes) = parser_utils::numeric_type_size(&<>, "u") {
+        ir::Type::Unsigned(bytes)
+    } else if let Some(bytes) = parser_utils::numeric_type_size(&<>, "f") {
+        ir::Type::Float(bytes)
+    } else {
+        match <>.as_str() {
+            "bool" => ir::Type::Bool,
+            "char" => ir::Type::Char,
+            _ => ir::Type::Custom(<>)
+        }
+    },
+    ! => ir::Type::Error,
+};
+
+pub FunctionSignature: Named<ir::item::function::Signature> =
+        <return_type:Type> <name:"ident"> "(" ")"
+        => Named::new(name, ir::item::function::Signature::new(return_type));
+
+pub Function: Named<ir::item::function::Function> = FunctionSignature => <>.map(|signature| ir::item::function::Function::new(signature));
+
+pub Item: Named<ir::Item> = {
+    Function => <>.map(|function| ir::Item::Function(function)),
+};
+
+pub Module: ir::Module = Item* => ir::Module {
+    items: <>.into_iter().map(|item| (item.name, item.value)).collect(),
+};

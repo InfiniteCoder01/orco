@@ -1,0 +1,22 @@
+[package]
+name = "orco-backend-cranelift"
+version = "0.0.1"
+edition = "2021"
+authors = ["InfiniteCoder <info@infinitecoder.org>"]
+description = "Cranelift backend for OrCo"
+repository = "https://github.com/infinitecoder/orco"
+license = "MIT OR Apache-2.0"
+keywords = ["orco", "compiler", "cranelift", "backend", "wasm"]
+categories = [
+    "compilers",
+    "api-bindings",
+    "wasm",
+]
+
+[dependencies]
+cranelift-codegen = "0.106.1"
+cranelift-frontend = "0.106.1"
+cranelift-module = "0.106.1"
+cranelift-object = "0.106.1"
+log = "0.4.21"
+orco = { path = "../../orco", version = "0.0.1" }

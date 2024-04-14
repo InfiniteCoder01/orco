@@ -1,11 +1,22 @@
 [package]
 name = "orco-lang"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
+authors = ["InfiniteCoder <info@infiniteoder.org"]
+description = "OrCo language frontend (parser) for OrCo compiler"
+readme = "README.md"
+repository = "https://github.com/infinitecoder/orco"
+license = "MIT OR Apache-2.0"
+keywords = ["orco", "compiler", "parser", "language"]
+categories = [
+    "compilers",
+    "parser-implementations",
+]
 
-[build-dependencies] # <-- We added this and everything after!
+[build-dependencies]
 lalrpop = "0.20.0"
 
 [dependencies]
 lalrpop-util = { version = "0.20.0", features = ["lexer", "unicode"] }
-orco = { path = "../orco" }
+logos = "0.14.0"
+orco = { path = "../orco", version = "0.0.1" }
