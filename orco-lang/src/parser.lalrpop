@@ -1,23 +1,34 @@
 grammar;
 use crate::parser_utils;
 use parser_utils::Named;
+use orco::ir;
 
 // Lexer
-use crate::lexer::{Token, Operator, Error};
+use crate::lexer::*;
+use orco::ir::expression::Constant;
 extern {
     type Location = usize;
     type Error = Error;
 
     enum Token {
+        "fn" => Token::Keyword(Keyword::Fn),
+        "extern" => Token::Keyword(Keyword::Extern),
+        "return" => Token::Keyword(Keyword::Return),
         "ident" => Token::Ident(<String>),
+        "constant" => Token::Constant(<Constant>),
         "(" => Token::Operator(Operator::LParen),
         ")" => Token::Operator(Operator::RParen),
+        "[" => Token::Operator(Operator::LBracket),
+        "]" => Token::Operator(Operator::RBracket),
+        "{" => Token::Operator(Operator::LBrace),
+        "}" => Token::Operator(Operator::RBrace),
+        ";" => Token::Operator(Operator::Semicolon),
+        "->" => Token::Operator(Operator::Arrow),
     }
 }
 
 // AST
-use orco::ir;
-
+// * Types
 pub Type: ir::Type = {
     "ident" => if let Some(bytes) = parser_utils::numeric_type_size(&<>, "i") {
         ir::Type::Int(bytes)
@@ -35,14 +46,45 @@ pub Type: ir::Type = {
     ! => ir::Type::Error,
 };
 
+// * Expressions
+pub Block: ir::expression::Block = "{" <Statement*> "}" => ir::expression::Block::new(<>);
+
+pub BlockExpression: ir::Expression = {
+    Block => ir::Expression::Block(<>),
+};
+
+pub LineExpression: ir::Expression = {
+    "return" <Expression> => ir::Expression::Return(Box::new(<>)),
+    "constant" => ir::Expression::Constant(<>),
+    <name:"ident"> "(" ")" => ir::Expression::FunctionCall { name },
+};
+
+pub Expression: ir::Expression = {
+    BlockExpression => <>,
+    LineExpression => <>,
+};
+
+pub Statement: ir::Expression = {
+    <BlockExpression> ";"? => <>,
+    <LineExpression> ";" => <>,
+};
+
+// * Items
 pub FunctionSignature: Named<ir::item::function::Signature> =
-        <return_type:Type> <name:"ident"> "(" ")"
+        "fn" <name:"ident"> "(" ")" "->" <return_type:Type>
         => Named::new(name, ir::item::function::Signature::new(return_type));
 
-pub Function: Named<ir::item::function::Function> = FunctionSignature => <>.map(|signature| ir::item::function::Function::new(signature));
+pub Function: Named<ir::item::function::Function> =
+        <signature:FunctionSignature> <body:Block>
+        => Named::new(signature.name, ir::item::function::Function::new(signature.value, body));
+
+pub ExternalItem: Named<ir::Item> = {
+    "extern" <FunctionSignature> ";" => <>.map(ir::Item::ExternalFunction),
+};
 
 pub Item: Named<ir::Item> = {
-    Function => <>.map(|function| ir::Item::Function(function)),
+    Function => <>.map(ir::Item::Function),
+    ExternalItem => <>,
 };
 
 pub Module: ir::Module = Item* => ir::Module {

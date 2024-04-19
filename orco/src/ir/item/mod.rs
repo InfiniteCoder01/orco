@@ -2,10 +2,34 @@ use super::*;
 
 /// A function
 pub mod function;
+pub use function::Function;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// An item
 pub enum Item {
     /// A function
     Function(function::Function),
+    /// External function
+    ExternalFunction(function::Signature),
+}
+
+impl Item {
+    /// Format
+    pub fn format(&self, f: &mut std::fmt::Formatter<'_>, name: Option<&str>) -> std::fmt::Result {
+        match self {
+            Item::Function(function) => function.format(f, name),
+            Item::ExternalFunction(function) => {
+                write!(f, "extern ")?;
+                function.format(f, name)?;
+                write!(f, ";")?;
+                Ok(())
+            }
+        }
+    }
+}
+
+impl std::fmt::Display for Item {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.format(f, None)
+    }
 }

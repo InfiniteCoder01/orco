@@ -6,11 +6,13 @@ use lalrpop_util::lalrpop_mod;
 /// Lexer (splits input into tokens)
 pub mod lexer;
 
-pub(crate) mod parser_utils;
+/// Different utils for the parser
+pub mod parser_utils;
 lalrpop_mod!(#[allow(missing_docs)] pub parser);
 
 /// A compilation unit
 pub struct Crate {
+    /// The root module
     pub root: orco::ir::Module,
 }
 

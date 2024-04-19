@@ -23,6 +23,13 @@ pub enum Type {
     Error,
 }
 
+impl Type {
+    /// Create a new unit type
+    pub fn unit() -> Self {
+        Self::Unit
+    }
+}
+
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

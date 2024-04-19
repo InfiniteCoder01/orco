@@ -1,1 +1,5 @@
-i32 main()
+extern fn getchar() -> i32;
+
+fn main() -> i32 {
+    return getchar();
+}

@@ -16,6 +16,7 @@ categories = [
 
 [dependencies]
 codespan-reporting = { git = "https://github.com/InfiniteCoder01/codespan", branch = "with_note-and-with_label" }
+indent = "0.1.1"
 
 [dev-dependencies]
 gag = "1.0.0"
