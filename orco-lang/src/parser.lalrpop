@@ -22,10 +22,14 @@ extern {
         "]" => Token::Operator(Operator::RBracket),
         "{" => Token::Operator(Operator::LBrace),
         "}" => Token::Operator(Operator::RBrace),
+        "," => Token::Operator(Operator::Comma),
+        ":" => Token::Operator(Operator::Colon),
         ";" => Token::Operator(Operator::Semicolon),
         "->" => Token::Operator(Operator::Arrow),
     }
 }
+
+Comma<T>: Vec<T> = <v0:(<T> ",")*> <e1:T?> => v0.into_iter().chain(e1).collect();
 
 // AST
 // * Types
@@ -56,7 +60,7 @@ pub BlockExpression: ir::Expression = {
 pub LineExpression: ir::Expression = {
     "return" <Expression> => ir::Expression::Return(Box::new(<>)),
     "constant" => ir::Expression::Constant(<>),
-    <name:"ident"> "(" ")" => ir::Expression::FunctionCall { name },
+    <name:"ident"> "(" <args:Comma<Expression>> ")" => ir::Expression::FunctionCall { name,  args },
 };
 
 pub Expression: ir::Expression = {
@@ -70,9 +74,11 @@ pub Statement: ir::Expression = {
 };
 
 // * Items
+FunctionSignatureArgument: (String, ir::Type) = <"ident"> ":" <Type> => (<>);
+ReturnType: ir::Type = "->" <Type> => <>;
 pub FunctionSignature: Named<ir::item::function::Signature> =
-        "fn" <name:"ident"> "(" ")" "->" <return_type:Type>
-        => Named::new(name, ir::item::function::Signature::new(return_type));
+        "fn" <name:"ident"> "(" <args:Comma<FunctionSignatureArgument>> ")" <return_type:ReturnType?>
+        => Named::new(name, ir::item::function::Signature::new(args, return_type.unwrap_or(ir::Type::unit())));
 
 pub Function: Named<ir::item::function::Function> =
         <signature:FunctionSignature> <body:Block>

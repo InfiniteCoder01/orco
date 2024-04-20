@@ -33,7 +33,7 @@ impl crate::Object {
             Some(4) => cranelift_codegen::ir::types::I32,
             Some(8) => cranelift_codegen::ir::types::I64,
             Some(16) => todo!("128 bit constant doesn't fit into immediate"),
-            None => panic!("Cranelift backend requires type inference and type checking to be done beforehand"),
+            None => panic!("Integer constant type is unknown. Cranelift backend requires type inference and type checking to be done beforehand"),
             _ => panic!("Invalid integer size: {:?}", size),
         },
         value as i64,

@@ -30,7 +30,7 @@ impl crate::Object {
             let mut builder = FunctionBuilder::new(&mut ctx.func, &mut function_ctx);
             let block = builder.create_block();
             builder.switch_to_block(block);
-            self.build_block(&mut builder, &function.body);
+            self.build_block(&mut builder, &function.body.borrow());
         }
         self.object.define_function(id, &mut ctx).unwrap();
     }
@@ -41,7 +41,11 @@ pub fn convert_signature(
 ) -> cranelift_codegen::ir::Signature {
     use cranelift_codegen::ir::AbiParam;
     cranelift_codegen::ir::Signature {
-        params: vec![],
+        params: signature
+            .args
+            .iter()
+            .map(|(_, arg)| AbiParam::new(crate::types::convert(arg)))
+            .collect(),
         returns: if signature.return_type == orco::ir::Type::Unit {
             vec![]
         } else {

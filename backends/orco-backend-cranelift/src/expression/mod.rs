@@ -21,11 +21,16 @@ impl crate::Object {
             orco::ir::expression::Expression::Constant(value) => {
                 self.build_constant(builder, value)
             }
-            orco::ir::expression::Expression::FunctionCall { name } => {
-                let function = self
-                    .object
-                    .declare_func_in_func(*self.functions.get(name).unwrap(), builder.func);
-                let instruction = builder.ins().call(function, &[]);
+            orco::ir::expression::Expression::FunctionCall { name, args } => {
+                let function = self.object.declare_func_in_func(
+                    *self
+                        .functions
+                        .get(name)
+                        .unwrap_or_else(|| panic!("Function {} is not defined", name)),
+                    builder.func,
+                );
+                let args = args.iter().map(|arg| self.build_expression(builder, arg).expect("Can't pass a unit type as an argument to a function, did you run type checking/inference?")).collect::<Vec<_>>();
+                let instruction = builder.ins().call(function, &args);
                 builder.inst_results(instruction).first().copied()
             }
         }

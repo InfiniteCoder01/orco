@@ -19,10 +19,10 @@ pub struct Module {
 
 impl Module {
     /// Infer types in the whole module
-    pub fn infer_types(&mut self) {
-        for item in self.items.values_mut() {
+    pub fn infer_types(&self) {
+        for item in self.items.values() {
             if let Item::Function(function) = item {
-                function.infer_types();
+                function.infer_types(self);
             }
         }
     }

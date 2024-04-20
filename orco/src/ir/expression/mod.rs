@@ -1,4 +1,4 @@
-use crate::ir::Type;
+use crate::{ir::Type, TypeInferenceInfo};
 
 /// Constant value
 pub mod constant;
@@ -21,17 +21,32 @@ pub enum Expression {
     FunctionCall {
         /// Function name
         name: String,
+        /// Arguments
+        args: Vec<Expression>,
     },
 }
 
 impl Expression {
     /// Infer types
-    pub fn infer_types(&mut self, target_type: &Type, return_type: &Type) {
+    pub fn infer_types(&mut self, target_type: &Type, type_inference: &TypeInferenceInfo) {
         match self {
             Expression::Constant(constant) => constant.infer_types(target_type),
-            Expression::Block(block) => block.infer_types(target_type, return_type),
-            Expression::Return(expr) => expr.infer_types(return_type, return_type),
-            Expression::FunctionCall { .. } => (),
+            Expression::Block(block) => block.infer_types(target_type, type_inference),
+            Expression::Return(expr) => {
+                expr.infer_types(type_inference.return_type, type_inference)
+            }
+            Expression::FunctionCall { name, args } => {
+                if let Some(signature) = type_inference
+                    .module
+                    .items
+                    .get(name)
+                    .and_then(|item| item.function_signature())
+                {
+                    for (arg, signature_arg) in std::iter::zip(args, &signature.args) {
+                        arg.infer_types(&signature_arg.1, type_inference);
+                    }
+                }
+            }
         }
     }
 }
@@ -42,7 +57,17 @@ impl std::fmt::Display for Expression {
             Expression::Constant(constant) => write!(f, "{}", constant),
             Expression::Block(block) => write!(f, "{}", block),
             Expression::Return(expr) => write!(f, "return {}", expr),
-            Expression::FunctionCall { name } => write!(f, "{}()", name),
+            Expression::FunctionCall { name, args } => {
+                write!(f, "{}(", name)?;
+                for (index, arg) in args.iter().enumerate() {
+                    if index > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", arg)?;
+                }
+                write!(f, ")")?;
+                Ok(())
+            }
         }
     }
 }

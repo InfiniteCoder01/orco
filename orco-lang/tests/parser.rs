@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::num::NonZeroU16;
 
 use orco::ir;
@@ -44,18 +45,35 @@ fn function() {
             "main".to_owned(),
             ir::item::function::Function {
                 signature: ir::item::function::Signature {
+                    args: vec![],
                     return_type: ir::Type::Int(NonZeroU16::new(4).unwrap()),
                 },
-                body: ir::expression::Block {
-                    expressions: vec![ir::expression::Expression::Return(Box::new(
+                body: RefCell::new(ir::expression::Block::new(vec![
+                    ir::expression::Expression::Return(Box::new(
                         ir::expression::Expression::Constant(
                             ir::expression::Constant::UnsignedInteger {
                                 value: 42,
                                 size: None
                             }
                         )
-                    ))]
-                }
+                    ))
+                ]))
+            }
+        ))
+    );
+    assert_eq!(
+        parser::FunctionParser::new().parse(Lexer::new("fn foo(bar: f32) {}")),
+        Ok(orco_lang::parser_utils::Named::new(
+            "foo".to_owned(),
+            ir::item::function::Function {
+                signature: ir::item::function::Signature {
+                    args: vec![(
+                        "bar".to_owned(),
+                        ir::Type::Float(NonZeroU16::new(4).unwrap())
+                    )],
+                    return_type: ir::Type::unit(),
+                },
+                body: RefCell::default()
             }
         ))
     );

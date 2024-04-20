@@ -22,6 +22,8 @@ pub enum Token {
     #[token("]", |_| Operator::RBracket)]
     #[token("{", |_| Operator::LBrace)]
     #[token("}", |_| Operator::RBrace)]
+    #[token(",", |_| Operator::Comma)]
+    #[token(":", |_| Operator::Colon)]
     #[token(";", |_| Operator::Semicolon)]
     #[token("->", |_| Operator::Arrow)]
     Operator(Operator),
@@ -94,6 +96,10 @@ pub enum Operator {
     LBrace,
     /// }
     RBrace,
+    /// ,
+    Comma,
+    /// :
+    Colon,
     /// ;
     Semicolon,
     /// ->

@@ -4,7 +4,7 @@ use super::*;
 pub mod function;
 pub use function::Function;
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 /// An item
 pub enum Item {
     /// A function
@@ -24,6 +24,15 @@ impl Item {
                 write!(f, ";")?;
                 Ok(())
             }
+        }
+    }
+
+    /// Get a function signature of this item if this item is a function in any way (normal
+    /// function, extern function, etc.)
+    pub fn function_signature(&self) -> Option<&function::Signature> {
+        match self {
+            Item::Function(function) => Some(&function.signature),
+            Item::ExternalFunction(signature) => Some(signature),
         }
     }
 }

@@ -1,7 +1,7 @@
 use super::*;
 
 /// Block expression, contains multiple expressions (something along { expr1; expr2; })
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Block {
     /// Block content
     pub expressions: Vec<Expression>,
@@ -14,9 +14,9 @@ impl Block {
     }
 
     /// Infer types
-    pub fn infer_types(&mut self, _target_type: &Type, return_type: &Type) {
+    pub fn infer_types(&mut self, _target_type: &Type, type_inference: &TypeInferenceInfo) {
         for expression in &mut self.expressions {
-            expression.infer_types(&Type::Unit, return_type);
+            expression.infer_types(&Type::Unit, type_inference);
         }
     }
 }

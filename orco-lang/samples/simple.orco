@@ -1,5 +1,5 @@
-extern fn getchar() -> i32;
+extern fn div(numerator: i32, denominator: i32) -> i64;
 
-fn main() -> i32 {
-    return getchar();
+fn main() -> i64 {
+    return div(7, 2);
 }

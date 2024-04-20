@@ -5,11 +5,11 @@
 /// Intermediate Representation lives here
 pub mod ir;
 
-/// A compilation unit
-pub trait Unit {
-    /// Build all items in this unit, visiting them one by one
-    fn visit_items(&self, visitor: &mut dyn FnMut(&str, &ir::Item));
+/// Type inference information for a function
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TypeInferenceInfo<'a> {
+    /// Module
+    pub module: &'a ir::Module,
+    /// Return type of a function
+    pub return_type: &'a ir::Type,
 }
-
-/// Backend
-pub trait Backend {}
