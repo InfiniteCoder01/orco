@@ -26,6 +26,11 @@ extern {
         ":" => Token::Operator(Operator::Colon),
         ";" => Token::Operator(Operator::Semicolon),
         "->" => Token::Operator(Operator::Arrow),
+        "+" => Token::Operator(Operator::Plus),
+        "-" => Token::Operator(Operator::Minus),
+        "*" => Token::Operator(Operator::Star),
+        "/" => Token::Operator(Operator::Slash),
+        "%" => Token::Operator(Operator::Percent),
     }
 }
 
@@ -51,33 +56,51 @@ pub Type: ir::Type = {
 };
 
 // * Expressions
+
+BinaryOperator<Level>: ir::expression::BinaryOperator = {
+    "+" if Level == "Additive" => ir::expression::BinaryOperator::Add,
+    "-" if Level == "Additive" => ir::expression::BinaryOperator::Sub,
+    "*" if Level == "Multiplicative" => ir::expression::BinaryOperator::Mul,
+    "/" if Level == "Multiplicative" => ir::expression::BinaryOperator::Div,
+    "%" if Level == "Multiplicative" => ir::expression::BinaryOperator::Mod,
+};
+
+pub LineExpression: ir::Expression = {
+    #[precedence(level="0")]
+    "constant" => ir::Expression::Constant(<>),
+
+    #[precedence(level="1")] #[assoc(side="left")]
+    Expression BinaryOperator<"Multiplicative"> Expression => ir::Expression::BinaryOp(<>),
+    #[precedence(level="2")] #[assoc(side="left")]
+    Expression BinaryOperator<"Additive"> Expression => ir::Expression::BinaryOp(<>),
+
+    #[precedence(level="0")]
+    <name:"ident"> "(" <args:Comma<Expression>> ")" => ir::Expression::FunctionCall { name,  args },
+
+    #[precedence(level="3")]
+    #[inline]
+    "return" <Expression> => ir::Expression::Return(Box::new(<>)),
+};
+
 pub Block: ir::expression::Block = "{" <Statement*> "}" => ir::expression::Block::new(<>);
 
 pub BlockExpression: ir::Expression = {
     Block => ir::Expression::Block(<>),
 };
 
-pub LineExpression: ir::Expression = {
-    "return" <Expression> => ir::Expression::Return(Box::new(<>)),
-    "constant" => ir::Expression::Constant(<>),
-    <name:"ident"> "(" <args:Comma<Expression>> ")" => ir::Expression::FunctionCall { name,  args },
-};
-
 pub Expression: ir::Expression = {
-    BlockExpression => <>,
-    LineExpression => <>,
+    LineExpression,
+    BlockExpression,
 };
 
 pub Statement: ir::Expression = {
-    <BlockExpression> ";"? => <>,
-    <LineExpression> ";" => <>,
+    <LineExpression> ";",
+    <BlockExpression> ";"?,
 };
 
 // * Items
-FunctionSignatureArgument: (String, ir::Type) = <"ident"> ":" <Type> => (<>);
-ReturnType: ir::Type = "->" <Type> => <>;
 pub FunctionSignature: Named<ir::item::function::Signature> =
-        "fn" <name:"ident"> "(" <args:Comma<FunctionSignatureArgument>> ")" <return_type:ReturnType?>
+        "fn" <name:"ident"> "(" <args:Comma<(<"ident"> ":" <Type>)>> ")" <return_type:("->" <Type>)?>
         => Named::new(name, ir::item::function::Signature::new(args, return_type.unwrap_or(ir::Type::unit())));
 
 pub Function: Named<ir::item::function::Function> =
@@ -90,7 +113,7 @@ pub ExternalItem: Named<ir::Item> = {
 
 pub Item: Named<ir::Item> = {
     Function => <>.map(ir::Item::Function),
-    ExternalItem => <>,
+    ExternalItem,
 };
 
 pub Module: ir::Module = Item* => ir::Module {

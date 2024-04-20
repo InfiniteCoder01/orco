@@ -13,10 +13,10 @@ pub use block::Block;
 pub enum Expression {
     /// A constant value
     Constant(Constant),
+    /// Binary Operation
+    BinaryOp(Box<Expression>, BinaryOperator, Box<Expression>),
     /// Block expression, contains multiple expressions (something along { expr1; expr2; })
     Block(Block),
-    /// Return a value
-    Return(Box<Expression>),
     /// Function call
     FunctionCall {
         /// Function name
@@ -24,6 +24,8 @@ pub enum Expression {
         /// Arguments
         args: Vec<Expression>,
     },
+    /// Return a value
+    Return(Box<Expression>),
 }
 
 impl Expression {
@@ -31,10 +33,11 @@ impl Expression {
     pub fn infer_types(&mut self, target_type: &Type, type_inference: &TypeInferenceInfo) {
         match self {
             Expression::Constant(constant) => constant.infer_types(target_type),
-            Expression::Block(block) => block.infer_types(target_type, type_inference),
-            Expression::Return(expr) => {
-                expr.infer_types(type_inference.return_type, type_inference)
+            Expression::BinaryOp(lhs, _, rhs) => {
+                lhs.infer_types(target_type, type_inference);
+                rhs.infer_types(target_type, type_inference);
             }
+            Expression::Block(block) => block.infer_types(target_type, type_inference),
             Expression::FunctionCall { name, args } => {
                 if let Some(signature) = type_inference
                     .module
@@ -47,6 +50,9 @@ impl Expression {
                     }
                 }
             }
+            Expression::Return(expr) => {
+                expr.infer_types(type_inference.return_type, type_inference)
+            }
         }
     }
 }
@@ -55,8 +61,8 @@ impl std::fmt::Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Expression::Constant(constant) => write!(f, "{}", constant),
+            Expression::BinaryOp(lhs, op, rhs) => write!(f, "({} {} {})", lhs, op, rhs),
             Expression::Block(block) => write!(f, "{}", block),
-            Expression::Return(expr) => write!(f, "return {}", expr),
             Expression::FunctionCall { name, args } => {
                 write!(f, "{}(", name)?;
                 for (index, arg) in args.iter().enumerate() {
@@ -68,6 +74,34 @@ impl std::fmt::Display for Expression {
                 write!(f, ")")?;
                 Ok(())
             }
+            Expression::Return(expr) => write!(f, "return {}", expr),
+        }
+    }
+}
+
+/// Binary operators
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum BinaryOperator {
+    /// Addition
+    Add,
+    /// Subtraction
+    Sub,
+    /// Multiplication
+    Mul,
+    /// Division
+    Div,
+    /// Modulo (Division Reminder)
+    Mod,
+}
+
+impl std::fmt::Display for BinaryOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BinaryOperator::Add => write!(f, "+"),
+            BinaryOperator::Sub => write!(f, "-"),
+            BinaryOperator::Mul => write!(f, "*"),
+            BinaryOperator::Div => write!(f, "/"),
+            BinaryOperator::Mod => write!(f, "%"),
         }
     }
 }

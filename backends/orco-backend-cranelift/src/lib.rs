@@ -36,22 +36,6 @@ pub fn build(module: &orco::ir::Module) {
     trace!("Compiling module:\n{}", module);
     let mut object = Object::new("x86_64-unknown-linux-gnu");
 
-    // let puts_id = object
-    //     .declare_function(
-    //         "puts",
-    //         cranelift_module::Linkage::Import,
-    //         &Signature {
-    //             params: vec![AbiParam::new(cranelift_codegen::ir::types::I64)],
-    //             returns: vec![AbiParam::new(cranelift_codegen::ir::types::I32)],
-    //             call_conv: cranelift_codegen::isa::CallConv::SystemV,
-    //         },
-    //     )
-    //     .unwrap();
-
-    // let message_id = object
-    //     .declare_data("message", cranelift_module::Linkage::Export, false, false)
-    //     .unwrap();
-
     for (name, item) in &module.items {
         match item {
             orco::ir::Item::Function(function) => {
@@ -72,22 +56,6 @@ pub fn build(module: &orco::ir::Module) {
             object.build_function(name, function);
         }
     }
-    // object
-    //     .define_data(
-    //         message_id,
-    //         &cranelift_module::DataDescription {
-    //             init: cranelift_module::Init::Bytes {
-    //                 contents: (*b"Hello, world!\n\0").into(),
-    //             },
-    //             function_decls: Default::default(),
-    //             data_decls: Default::default(),
-    //             function_relocs: Default::default(),
-    //             data_relocs: Default::default(),
-    //             custom_segment_section: Default::default(),
-    //             align: Default::default(),
-    //         },
-    //     )
-    //     .unwrap();
 
     let object = object.object.finish();
     std::fs::write("foo.o", object.emit().unwrap()).unwrap();

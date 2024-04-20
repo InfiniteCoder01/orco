@@ -12,15 +12,13 @@ impl crate::Object {
         expression: &orco::ir::Expression,
     ) -> Option<Value> {
         match expression {
-            orco::ir::Expression::Block(block) => self.build_block(builder, block),
-            orco::ir::Expression::Return(value) => {
-                let ret = self.build_expression(builder, value);
-                builder.ins().return_(&ret.into_iter().collect::<Vec<_>>());
-                None
-            }
             orco::ir::expression::Expression::Constant(value) => {
                 self.build_constant(builder, value)
             }
+            orco::ir::expression::Expression::BinaryOp(lhs, op, rhs) => {
+                self.build_expression(builder, lhs)
+            }
+            orco::ir::Expression::Block(block) => self.build_block(builder, block),
             orco::ir::expression::Expression::FunctionCall { name, args } => {
                 let function = self.object.declare_func_in_func(
                     *self
@@ -32,6 +30,11 @@ impl crate::Object {
                 let args = args.iter().map(|arg| self.build_expression(builder, arg).expect("Can't pass a unit type as an argument to a function, did you run type checking/inference?")).collect::<Vec<_>>();
                 let instruction = builder.ins().call(function, &args);
                 builder.inst_results(instruction).first().copied()
+            }
+            orco::ir::Expression::Return(value) => {
+                let ret = self.build_expression(builder, value);
+                builder.ins().return_(&ret.into_iter().collect::<Vec<_>>());
+                None
             }
         }
     }

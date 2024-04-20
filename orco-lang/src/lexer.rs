@@ -26,6 +26,11 @@ pub enum Token {
     #[token(":", |_| Operator::Colon)]
     #[token(";", |_| Operator::Semicolon)]
     #[token("->", |_| Operator::Arrow)]
+    #[token("+", |_| Operator::Plus)]
+    #[token("-", |_| Operator::Minus)]
+    #[token("*", |_| Operator::Star)]
+    #[token("/", |_| Operator::Slash)]
+    #[token("%", |_| Operator::Percent)]
     Operator(Operator),
     /// Constant
     #[regex("[0-9][0-9_]*", |lex| parse_unsigned(lex.slice(), "", 10))]
@@ -104,6 +109,16 @@ pub enum Operator {
     Semicolon,
     /// ->
     Arrow,
+    /// +
+    Plus,
+    /// -
+    Minus,
+    /// *
+    Star,
+    /// /
+    Slash,
+    /// %
+    Percent,
 }
 
 // * Lexer

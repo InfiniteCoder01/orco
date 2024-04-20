@@ -8,7 +8,8 @@ pub mod lexer;
 
 /// Different utils for the parser
 pub mod parser_utils;
-lalrpop_mod!(#[allow(missing_docs)] pub parser);
+// lalrpop_mod!(#[allow(missing_docs)] pub parser);
+pub mod parser;
 
 /// A compilation unit
 pub struct Crate {
