@@ -13,10 +13,16 @@ pub enum Type {
     Bool,
     /// Character
     Char,
-    /// Unit type, can only hold one value
-    Unit,
+
     /// Never type, can't hold any value
     Never,
+
+    /// Pointer type
+    Pointer(Box<Type>),
+
+    /// Unit type, can only hold one value
+    Unit,
+
     /// Custom type, f.e. a struct or a type alias
     Custom(String),
     /// Error type
@@ -38,8 +44,9 @@ impl std::fmt::Display for Type {
             Self::Float(size) => write!(f, "f{}", size.get() * 8),
             Self::Bool => write!(f, "bool"),
             Self::Char => write!(f, "char"),
-            Self::Unit => write!(f, "()"),
             Self::Never => write!(f, "!"),
+            Self::Pointer(r#type) => write!(f, "{}*", r#type),
+            Self::Unit => write!(f, "()"),
             Self::Custom(name) => write!(f, "{}", name),
             Self::Error => write!(f, "<ERROR>"),
         }

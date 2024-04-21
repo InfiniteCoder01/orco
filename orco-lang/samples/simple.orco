@@ -1,3 +1,5 @@
+extern fn puts(message: char*);
+
 fn main() -> i32 {
-    return 21 * 2;
+    return 0;
 }

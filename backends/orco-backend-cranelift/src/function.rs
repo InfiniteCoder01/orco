@@ -11,7 +11,7 @@ impl crate::Object {
         signature: &orco::ir::item::function::Signature,
     ) -> cranelift_module::FuncId {
         trace!("Declaring function {}", name);
-        let sig = convert_signature(signature);
+        let sig = self.convert_function_signature(signature);
         let id = self.object.declare_function(name, linkage, &sig).unwrap();
         self.functions.insert(name.to_string(), id);
         id
@@ -22,9 +22,16 @@ impl crate::Object {
         trace!("OrCo IR:\n{}", function);
 
         let id = *self.functions.get(name).expect("Function wasn't declared");
-        let sig = convert_signature(&function.signature);
+        let sig = self.convert_function_signature(&function.signature);
         let mut ctx = Context::new();
-        ctx.func = Function::with_name_signature(UserFuncName::user(0, id.as_u32()), sig);
+        ctx.func = Function::with_name_signature(
+            if cfg!(debug_assertions) {
+                UserFuncName::testcase(name)
+            } else {
+                UserFuncName::user(0, id.as_u32())
+            },
+            sig,
+        );
         {
             let mut function_ctx = FunctionBuilderContext::new();
             let mut builder = FunctionBuilder::new(&mut ctx.func, &mut function_ctx);
@@ -34,23 +41,24 @@ impl crate::Object {
         }
         self.object.define_function(id, &mut ctx).unwrap();
     }
-}
 
-pub fn convert_signature(
-    signature: &orco::ir::item::function::Signature,
-) -> cranelift_codegen::ir::Signature {
-    use cranelift_codegen::ir::AbiParam;
-    cranelift_codegen::ir::Signature {
-        params: signature
-            .args
-            .iter()
-            .map(|(_, arg)| AbiParam::new(crate::types::convert(arg)))
-            .collect(),
-        returns: if signature.return_type == orco::ir::Type::Unit {
-            vec![]
-        } else {
-            vec![AbiParam::new(crate::types::convert(&signature.return_type))]
-        },
-        call_conv: cranelift_codegen::isa::CallConv::SystemV,
+    pub fn convert_function_signature(
+        &self,
+        signature: &orco::ir::item::function::Signature,
+    ) -> cranelift_codegen::ir::Signature {
+        use cranelift_codegen::ir::AbiParam;
+        cranelift_codegen::ir::Signature {
+            params: signature
+                .args
+                .iter()
+                .map(|(_, arg)| AbiParam::new(self.convert(arg)))
+                .collect(),
+            returns: if signature.return_type == orco::ir::Type::Unit {
+                vec![]
+            } else {
+                vec![AbiParam::new(self.convert(&signature.return_type))]
+            },
+            call_conv: cranelift_codegen::isa::CallConv::SystemV,
+        }
     }
 }

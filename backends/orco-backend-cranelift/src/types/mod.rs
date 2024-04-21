@@ -1,12 +1,17 @@
-pub fn convert(r#type: &orco::ir::Type) -> cranelift_codegen::ir::Type {
-    match r#type {
-        orco::ir::Type::Int(bytes) | orco::ir::Type::Unsigned(bytes) => integer(*bytes),
-        orco::ir::Type::Float(bytes) => match bytes.get() {
-            4 => cranelift_codegen::ir::types::F32,
-            8 => cranelift_codegen::ir::types::F64,
-            _ => unimplemented!("Unsupported float size: {}", bytes),
-        },
-        _ => todo!("type {:?}", r#type),
+use cranelift_module::Module;
+
+impl crate::Object {
+    pub fn convert(&self, r#type: &orco::ir::Type) -> cranelift_codegen::ir::Type {
+        match r#type {
+            orco::ir::Type::Int(bytes) | orco::ir::Type::Unsigned(bytes) => integer(*bytes),
+            orco::ir::Type::Float(bytes) => match bytes.get() {
+                4 => cranelift_codegen::ir::types::F32,
+                8 => cranelift_codegen::ir::types::F64,
+                _ => unimplemented!("Unsupported float size: {}", bytes),
+            },
+            orco::ir::Type::Pointer(_) => self.object.target_config().pointer_type(),
+            _ => todo!("type {:?}", r#type),
+        }
     }
 }
 

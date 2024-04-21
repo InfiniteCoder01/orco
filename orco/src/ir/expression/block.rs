@@ -25,7 +25,11 @@ impl std::fmt::Display for Block {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{{")?;
         for expression in &self.expressions {
-            writeln!(f, "{};", indent::indent_all_by(4, format!("{expression}")))?;
+            write!(f, "{}", indent::indent_all_by(4, format!("{expression}")))?;
+            if !expression.is_block() {
+                write!(f, ";")?;
+            }
+            writeln!(f)?;
         }
         write!(f, "}}")?;
         Ok(())

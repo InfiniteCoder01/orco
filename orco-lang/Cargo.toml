@@ -13,10 +13,6 @@ categories = [
     "parser-implementations",
 ]
 
-[build-dependencies]
-lalrpop = "0.20.0"
-
 [dependencies]
-lalrpop-util = { version = "0.20.0", features = ["lexer", "unicode"] }
 logos = "0.14.0"
 orco = { path = "../orco", version = "0.0.1" }

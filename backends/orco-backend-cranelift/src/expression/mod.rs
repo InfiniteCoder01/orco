@@ -16,7 +16,15 @@ impl crate::Object {
                 self.build_constant(builder, value)
             }
             orco::ir::expression::Expression::BinaryOp(lhs, op, rhs) => {
-                self.build_expression(builder, lhs)
+                let lhs = self.build_expression(builder, lhs)?;
+                let rhs = self.build_expression(builder, rhs)?;
+                match op {
+                    orco::ir::expression::BinaryOp::Add => Some(builder.ins().iadd(lhs, rhs)),
+                    orco::ir::expression::BinaryOp::Sub => Some(builder.ins().isub(lhs, rhs)),
+                    orco::ir::expression::BinaryOp::Mul => Some(builder.ins().imul(lhs, rhs)),
+                    orco::ir::expression::BinaryOp::Div => Some(builder.ins().sdiv(lhs, rhs)),
+                    orco::ir::expression::BinaryOp::Mod => Some(builder.ins().srem(lhs, rhs)),
+                }
             }
             orco::ir::Expression::Block(block) => self.build_block(builder, block),
             orco::ir::expression::Expression::FunctionCall { name, args } => {
@@ -36,6 +44,7 @@ impl crate::Object {
                 builder.ins().return_(&ret.into_iter().collect::<Vec<_>>());
                 None
             }
+            orco::ir::Expression::Error => panic!("IR contains errors!"),
         }
     }
 }

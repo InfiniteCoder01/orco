@@ -14,7 +14,7 @@ pub enum Expression {
     /// A constant value
     Constant(Constant),
     /// Binary Operation
-    BinaryOp(Box<Expression>, BinaryOperator, Box<Expression>),
+    BinaryOp(Box<Expression>, BinaryOp, Box<Expression>),
     /// Block expression, contains multiple expressions (something along { expr1; expr2; })
     Block(Block),
     /// Function call
@@ -26,9 +26,19 @@ pub enum Expression {
     },
     /// Return a value
     Return(Box<Expression>),
+    /// Invalid expression
+    Error,
 }
 
 impl Expression {
+    /// Is this expression a block expression (f.e. a block, if statement, a for loop, etc.)
+    pub fn is_block(&self) -> bool {
+        match self {
+            Expression::Block(_) => true,
+            _ => false,
+        }
+    }
+
     /// Infer types
     pub fn infer_types(&mut self, target_type: &Type, type_inference: &TypeInferenceInfo) {
         match self {
@@ -53,6 +63,7 @@ impl Expression {
             Expression::Return(expr) => {
                 expr.infer_types(type_inference.return_type, type_inference)
             }
+            Expression::Error => (),
         }
     }
 }
@@ -75,13 +86,14 @@ impl std::fmt::Display for Expression {
                 Ok(())
             }
             Expression::Return(expr) => write!(f, "return {}", expr),
+            Expression::Error => write!(f, "<ERROR>"),
         }
     }
 }
 
 /// Binary operators
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum BinaryOperator {
+pub enum BinaryOp {
     /// Addition
     Add,
     /// Subtraction
@@ -94,14 +106,14 @@ pub enum BinaryOperator {
     Mod,
 }
 
-impl std::fmt::Display for BinaryOperator {
+impl std::fmt::Display for BinaryOp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BinaryOperator::Add => write!(f, "+"),
-            BinaryOperator::Sub => write!(f, "-"),
-            BinaryOperator::Mul => write!(f, "*"),
-            BinaryOperator::Div => write!(f, "/"),
-            BinaryOperator::Mod => write!(f, "%"),
+            BinaryOp::Add => write!(f, "+"),
+            BinaryOp::Sub => write!(f, "-"),
+            BinaryOp::Mul => write!(f, "*"),
+            BinaryOp::Div => write!(f, "/"),
+            BinaryOp::Mod => write!(f, "%"),
         }
     }
 }

@@ -1,4 +1,26 @@
-use std::num::NonZeroU16;
+use crate::lexer::*;
+use orco::ir;
+
+/// Parsers for expressions
+pub mod expression;
+/// Parsers for items (e.g. Function or Extern)
+pub mod item;
+/// Parsers for types
+pub mod r#type;
+
+/// Parse the whole file
+pub fn parse(parser: &mut Parser) -> ir::Module {
+    let mut module = ir::Module::default();
+    while !parser.eof() {
+        if let Some(item) = item::parse(parser) {
+            module.items.insert(item.name, item.value);
+        } else {
+            parser.expected_error("an item");
+            parser.next();
+        }
+    }
+    module
+}
 
 /// A named item (for example, if you parse a Function, you'll get Named<Function>, because the
 /// function itself doen't store a name)
@@ -23,11 +45,4 @@ impl<T> Named<T> {
             value: mapper(self.value),
         }
     }
-}
-
-pub(crate) fn numeric_type_size(name: &str, prefix: &str) -> Option<NonZeroU16> {
-    name.strip_prefix(prefix)
-        .and_then(|bits| bits.parse::<u32>().ok())
-        .and_then(|bits| (bits / 8).try_into().ok())
-        .and_then(NonZeroU16::new)
 }
