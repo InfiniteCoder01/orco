@@ -1,6 +1,8 @@
 use logos::Logos;
 use orco::ir::expression::Constant;
 
+pub mod unescape;
+
 /// Token (number, word, operator, comment, etc.)
 #[derive(Logos, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[logos(skip r"[ \t\n\f]+", error = Error)]
@@ -36,7 +38,27 @@ pub enum Token {
     #[regex("-0o[0-7][0-7_]*", |lex| parse_signed(lex.slice(), "0o", 8))]
     #[regex("0x[0-9a-fA-F][0-9a-fA-F_]*", |lex| parse_unsigned(lex.slice(), "0x", 16))]
     #[regex("-0x[0-9a-fA-F][0-9a-fA-F_]*", |lex| parse_signed(lex.slice(), "0x", 16))]
+    #[regex("c\"([^\"]|\\\\.)*\"", |lex| parse_cstring(lex.slice()))]
+    #[regex("c#\"([^\"]|\"[^#])*\"#", |lex| Constant::CString(lex.slice().as_bytes().to_vec()))]
     Constant(Constant),
+}
+
+fn parse_unsigned(slice: &str, prefix: &str, radix: u32) -> Result<Constant, Error> {
+    u128::from_str_radix(&slice.strip_prefix(prefix).unwrap().replace('_', ""), radix)
+        .map(|value| Constant::UnsignedInteger { value, size: None })
+        .map_err(|_| Error::IntegerOutOfBounds(slice.to_owned()))
+}
+
+fn parse_signed(slice: &str, prefix: &str, radix: u32) -> Result<Constant, Error> {
+    i128::from_str_radix(&slice.replace(prefix, "").replace('_', ""), radix)
+        .map(|value| Constant::SignedInteger { value, size: None })
+        .map_err(|_| Error::IntegerOutOfBounds(slice.to_owned()))
+}
+
+fn parse_cstring(slice: &str) -> Result<Constant, Error> {
+    let mut bytes = unescape::unescape(&slice[2..slice.len() - 1], 2)?;
+    bytes.push(0);
+    Ok(Constant::CString(bytes))
 }
 
 impl std::fmt::Display for Token {
@@ -57,27 +79,25 @@ pub enum Error {
     InvalidToken,
     /// Integer out of bounds
     IntegerOutOfBounds(String),
+    /// Invalid escape code
+    InvalidEscapeCode(usize, &'static str, char),
+    /// Invalid unicode codepoint
+    InvalidUnicodeCodepoint(usize, u32),
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::InvalidToken => write!(f, "Invalid token"),
-            Error::IntegerOutOfBounds(s) => write!(f, "Integer out of bounds: {}", s),
+            Error::IntegerOutOfBounds(message) => write!(f, "Integer out of bounds: {}", message),
+            Error::InvalidEscapeCode(_, expected, got) => {
+                write!(f, "Invalid escape code: expected {}, got {}", expected, got)
+            }
+            Error::InvalidUnicodeCodepoint(_, codepoint) => {
+                write!(f, "Invalid unicode codepoint: {}", codepoint)
+            }
         }
     }
-}
-
-fn parse_unsigned(slice: &str, prefix: &str, radix: u32) -> Result<Constant, Error> {
-    u128::from_str_radix(&slice.strip_prefix(prefix).unwrap().replace('_', ""), radix)
-        .map(|value| Constant::UnsignedInteger { value, size: None })
-        .map_err(|_| Error::IntegerOutOfBounds(slice.to_owned()))
-}
-
-fn parse_signed(slice: &str, prefix: &str, radix: u32) -> Result<Constant, Error> {
-    i128::from_str_radix(&slice.replace(prefix, "").replace('_', ""), radix)
-        .map(|value| Constant::SignedInteger { value, size: None })
-        .map_err(|_| Error::IntegerOutOfBounds(slice.to_owned()))
 }
 
 /// Operator (slash, comma, parens, +=, etc.)
