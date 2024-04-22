@@ -1,3 +1,4 @@
+use cranelift_module::Module;
 use log::trace;
 
 pub mod expression;
@@ -7,6 +8,7 @@ pub mod types;
 pub struct Object {
     pub object: cranelift_object::ObjectModule,
     pub functions: std::collections::HashMap<String, cranelift_module::FuncId>,
+    pub constant_data: Option<(cranelift_module::DataId, Vec<u8>)>,
 }
 
 impl Object {
@@ -28,6 +30,7 @@ impl Object {
         Self {
             object,
             functions: std::collections::HashMap::new(),
+            constant_data: None,
         }
     }
 }
@@ -55,6 +58,26 @@ pub fn build(module: &orco::ir::Module) {
         if let orco::ir::Item::Function(function) = item {
             object.build_function(name, function);
         }
+    }
+
+    if let Some((id, data)) = object.constant_data {
+        object
+            .object
+            .define_data(
+                id,
+                &cranelift_module::DataDescription {
+                    init: cranelift_module::Init::Bytes {
+                        contents: data.as_slice().into(),
+                    },
+                    function_decls: Default::default(),
+                    data_decls: Default::default(),
+                    function_relocs: Default::default(),
+                    data_relocs: Default::default(),
+                    custom_segment_section: Default::default(),
+                    align: Default::default(),
+                },
+            )
+            .unwrap();
     }
 
     let object = object.object.finish();

@@ -1,6 +1,7 @@
 use cranelift_codegen::ir::{InstBuilder, Value};
 use cranelift_frontend::FunctionBuilder;
-use cranelift_module::Module;
+
+pub mod pool;
 
 impl crate::Object {
     pub fn build_constant(
@@ -19,31 +20,7 @@ impl crate::Object {
                     *size,
                 ),
             orco::ir::expression::Constant::CString(bytes) => {
-                let id = self
-                    .object
-                    .declare_data("data", cranelift_module::Linkage::Hidden, false, false)
-                    .unwrap();
-                self.object
-                    .define_data(
-                        id,
-                        &cranelift_module::DataDescription {
-                            init: cranelift_module::Init::Bytes {
-                                contents: bytes.as_slice().into(),
-                            },
-                            function_decls: Default::default(),
-                            data_decls: Default::default(),
-                            function_relocs: Default::default(),
-                            data_relocs: Default::default(),
-                            custom_segment_section: Default::default(),
-                            align: Default::default(),
-                        },
-                    )
-                    .unwrap();
-
-                let local_id = self.object.declare_data_in_func(id, builder.func);
-                let pointer = self.object.target_config().pointer_type();
-                let local_symbol = builder.ins().symbol_value(pointer, local_id);
-                Some(local_symbol)
+                Some(self.add_constant_to_pool(builder, bytes))
             }
         }
     }

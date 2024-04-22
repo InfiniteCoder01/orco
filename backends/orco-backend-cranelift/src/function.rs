@@ -37,7 +37,10 @@ impl crate::Object {
             let mut builder = FunctionBuilder::new(&mut ctx.func, &mut function_ctx);
             let block = builder.create_block();
             builder.switch_to_block(block);
-            self.build_block(&mut builder, &function.body.borrow());
+            let return_value = self.build_block(&mut builder, &function.body.borrow());
+            // builder
+            //     .ins()
+            //     .return_(&return_value.into_iter().collect::<Vec<_>>());
         }
         self.object.define_function(id, &mut ctx).unwrap();
     }
