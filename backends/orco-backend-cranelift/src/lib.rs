@@ -35,11 +35,11 @@ impl Object {
     }
 }
 
-pub fn build(module: &orco::ir::Module) {
-    trace!("Compiling module:\n{}", module);
+pub fn build(root: &orco::ir::Module) {
+    trace!("Compiling module:\n{}", root);
     let mut object = Object::new("x86_64-unknown-linux-gnu");
 
-    for (name, item) in &module.items {
+    for (name, item) in &root.items {
         match item {
             orco::ir::Item::Function(function) => {
                 object.declare_function(
@@ -54,9 +54,9 @@ pub fn build(module: &orco::ir::Module) {
         }
     }
 
-    for (name, item) in &module.items {
+    for (name, item) in &root.items {
         if let orco::ir::Item::Function(function) = item {
-            object.build_function(name, function);
+            object.build_function(root, name, function);
         }
     }
 

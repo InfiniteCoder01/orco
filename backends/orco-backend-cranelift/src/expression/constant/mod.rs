@@ -29,10 +29,10 @@ impl crate::Object {
         &mut self,
         builder: &mut FunctionBuilder,
         value: i128,
-        size: Option<u16>,
+        size: Option<std::num::NonZeroU16>,
     ) -> Option<Value> {
         Some(builder.ins().iconst(
-        match size {
+        match size.map(std::num::NonZeroU16::get) {
             Some(1) => cranelift_codegen::ir::types::I8,
             Some(2) => cranelift_codegen::ir::types::I16,
             Some(4) => cranelift_codegen::ir::types::I32,

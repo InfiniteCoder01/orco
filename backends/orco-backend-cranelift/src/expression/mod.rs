@@ -42,6 +42,7 @@ impl crate::Object {
             orco::ir::Expression::Return(value) => {
                 let ret = self.build_expression(builder, value);
                 builder.ins().return_(&ret.into_iter().collect::<Vec<_>>());
+                builder.seal_block(builder.current_block().unwrap());
                 None
             }
             orco::ir::Expression::Error => panic!("IR contains errors!"),

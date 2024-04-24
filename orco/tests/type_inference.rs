@@ -9,19 +9,19 @@ fn overflow() {
         value: big_value - 1,
         size: None,
     };
-    big_unsigned.infer_types(&Type::Int(NonZeroU16::new(16).unwrap()));
+    big_unsigned.infer_and_check_types(&Type::Int(NonZeroU16::new(16).unwrap()));
     assert_eq!(
         big_unsigned,
         expression::Constant::SignedInteger {
             value: (big_value - 1) as _,
-            size: Some(16)
+            size: Some(NonZeroU16::new(16).unwrap())
         }
     );
     let mut big_unsigned = expression::Constant::UnsignedInteger {
         value: big_value,
         size: None,
     };
-    big_unsigned.infer_types(&Type::Int(NonZeroU16::new(16).unwrap()));
+    big_unsigned.infer_and_check_types(&Type::Int(NonZeroU16::new(16).unwrap()));
     assert_eq!(
         big_unsigned,
         expression::Constant::UnsignedInteger {

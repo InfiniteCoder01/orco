@@ -52,3 +52,14 @@ impl std::fmt::Display for Type {
         }
     }
 }
+
+impl std::ops::BitOr for Type {
+    type Output = Type;
+
+    fn bitor(self, rhs: Type) -> Self::Output {
+        match self {
+            Self::Never | Self::Error => rhs,
+            r#type => r#type,
+        }
+    }
+}

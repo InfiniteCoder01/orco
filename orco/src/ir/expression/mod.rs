@@ -39,29 +39,46 @@ impl Expression {
         }
     }
 
-    /// Infer types
-    pub fn infer_types(&mut self, target_type: &Type, type_inference: &TypeInferenceInfo) {
+    /// Get the type this expression evaluates to
+    pub fn get_type(&self, root: &crate::ir::Module) -> Type {
         match self {
-            Expression::Constant(constant) => constant.infer_types(target_type),
-            Expression::BinaryOp(lhs, _, rhs) => {
-                lhs.infer_types(target_type, type_inference);
-                rhs.infer_types(target_type, type_inference);
-            }
-            Expression::Block(block) => block.infer_types(target_type, type_inference),
-            Expression::FunctionCall { name, args } => {
-                if let Some(signature) = type_inference
-                    .module
+            Expression::Constant(constant) => constant.get_type(),
+            Expression::BinaryOp(lhs, _, rhs) => lhs.get_type(root) | rhs.get_type(root),
+            Expression::Block(block) => block.get_type(root),
+            Expression::FunctionCall { name, .. } => {
+                if let Some(signature) = root
                     .items
                     .get(name)
                     .and_then(|item| item.function_signature())
                 {
+                    signature.return_type.clone()
+                } else {
+                    Type::Error
+                }
+            }
+            Expression::Return(_) => Type::Never,
+            Expression::Error => Type::Error,
+        }
+    }
+
+    /// Infer types
+    pub fn infer_and_check_types(&mut self, target_type: &Type, type_info: &TypeInferenceInfo) {
+        match self {
+            Expression::Constant(constant) => constant.infer_and_check_types(target_type),
+            Expression::BinaryOp(lhs, _, rhs) => {
+                lhs.infer_and_check_types(target_type, type_info);
+                rhs.infer_and_check_types(target_type, type_info);
+            }
+            Expression::Block(block) => block.infer_and_check_types(target_type, type_info),
+            Expression::FunctionCall { name, args } => {
+                if let Some(signature) = type_info.signature(name) {
                     for (arg, signature_arg) in std::iter::zip(args, &signature.args) {
-                        arg.infer_types(&signature_arg.1, type_inference);
+                        arg.infer_and_check_types(&signature_arg.1, type_info);
                     }
                 }
             }
             Expression::Return(expr) => {
-                expr.infer_types(type_inference.return_type, type_inference)
+                expr.infer_and_check_types(type_info.return_type, type_info)
             }
             Expression::Error => (),
         }

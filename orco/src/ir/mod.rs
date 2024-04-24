@@ -18,11 +18,11 @@ pub struct Module {
 }
 
 impl Module {
-    /// Infer types in the whole module
-    pub fn infer_types(&self) {
+    /// Infer types for the whole module
+    pub fn infer_and_check_types(&self) {
         for item in self.items.values() {
             if let Item::Function(function) = item {
-                function.infer_types(self);
+                function.infer_and_check_types(self);
             }
         }
     }

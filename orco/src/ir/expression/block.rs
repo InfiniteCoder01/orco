@@ -13,10 +13,20 @@ impl Block {
         Self { expressions }
     }
 
+    /// Get the type this block evaluates to
+    pub fn get_type(&self, root: &crate::ir::Module) -> Type {
+        for expression in &self.expressions {
+            if expression.get_type(root) == Type::Never {
+                return Type::Never;
+            }
+        }
+        Type::Unit
+    }
+
     /// Infer types
-    pub fn infer_types(&mut self, _target_type: &Type, type_inference: &TypeInferenceInfo) {
+    pub fn infer_and_check_types(&mut self, _target_type: &Type, type_info: &TypeInferenceInfo) {
         for expression in &mut self.expressions {
-            expression.infer_types(&Type::Unit, type_inference);
+            expression.infer_and_check_types(&Type::Unit, type_info);
         }
     }
 }

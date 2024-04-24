@@ -17,7 +17,12 @@ impl crate::Object {
         id
     }
 
-    pub fn build_function(&mut self, name: &str, function: &orco::ir::item::function::Function) {
+    pub fn build_function(
+        &mut self,
+        root: &orco::ir::Module,
+        name: &str,
+        function: &orco::ir::item::function::Function,
+    ) {
         info!("Compiling function {}", name);
         trace!("OrCo IR:\n{}", function);
 
@@ -38,9 +43,13 @@ impl crate::Object {
             let block = builder.create_block();
             builder.switch_to_block(block);
             let return_value = self.build_block(&mut builder, &function.body.borrow());
-            // builder
-            //     .ins()
-            //     .return_(&return_value.into_iter().collect::<Vec<_>>());
+            if function.body.borrow().get_type(root) != orco::ir::Type::Never {
+                builder
+                    .ins()
+                    .return_(&return_value.into_iter().collect::<Vec<_>>());
+            }
+            builder.seal_all_blocks();
+            builder.finalize();
         }
         self.object.define_function(id, &mut ctx).unwrap();
     }

@@ -23,14 +23,14 @@ impl Function {
     }
 
     /// Infer types
-    pub fn infer_types(&self, module: &Module) {
+    pub fn infer_and_check_types(&self, root: &Module) {
         let type_inference = crate::TypeInferenceInfo {
-            module,
+            root,
             return_type: &self.signature.return_type,
         };
         self.body
             .borrow_mut()
-            .infer_types(&self.signature.return_type, &type_inference);
+            .infer_and_check_types(&self.signature.return_type, &type_inference);
     }
 
     /// Format

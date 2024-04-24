@@ -1,7 +1,11 @@
 extern fn puts(message: char*) -> i32;
 
-fn main() -> i32 {
+fn greet() {
     puts(c"Hello, World!");
     puts(c"Hello, There!");
+}
+
+fn main() -> i32 {
+    greet();
     return 0;
 }
