@@ -1,6 +1,6 @@
 use cranelift_module::Module;
 
-impl crate::Object {
+impl crate::Object<'_> {
     pub fn convert(&self, r#type: &orco::ir::Type) -> cranelift_codegen::ir::Type {
         match r#type {
             orco::ir::Type::Int(bytes) | orco::ir::Type::Unsigned(bytes) => integer(*bytes),

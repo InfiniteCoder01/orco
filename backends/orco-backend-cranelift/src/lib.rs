@@ -5,14 +5,15 @@ pub mod expression;
 pub mod function;
 pub mod types;
 
-pub struct Object {
+pub struct Object<'a> {
+    pub root: &'a orco::ir::Module,
     pub object: cranelift_object::ObjectModule,
     pub functions: std::collections::HashMap<String, cranelift_module::FuncId>,
     pub constant_data: Option<(cranelift_module::DataId, Vec<u8>)>,
 }
 
-impl Object {
-    pub fn new(isa: &str) -> Self {
+impl<'a> Object<'a> {
+    pub fn new(root: &'a orco::ir::Module, isa: &str) -> Self {
         let flag_builder = cranelift_codegen::settings::builder();
         let isa_builder = cranelift_codegen::isa::lookup_by_name(isa).unwrap();
         let isa = isa_builder
@@ -28,6 +29,7 @@ impl Object {
         );
 
         Self {
+            root,
             object,
             functions: std::collections::HashMap::new(),
             constant_data: None,
@@ -37,7 +39,7 @@ impl Object {
 
 pub fn build(root: &orco::ir::Module) {
     trace!("Compiling module:\n{}", root);
-    let mut object = Object::new("x86_64-unknown-linux-gnu");
+    let mut object = Object::new(root, "x86_64-unknown-linux-gnu");
 
     for (name, item) in &root.items {
         match item {

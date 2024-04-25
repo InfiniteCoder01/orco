@@ -3,7 +3,7 @@ use cranelift_frontend::*;
 use cranelift_module::Module;
 use log::{info, trace};
 
-impl crate::Object {
+impl crate::Object<'_> {
     pub fn declare_function(
         &mut self,
         name: &str,

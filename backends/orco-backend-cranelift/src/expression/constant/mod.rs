@@ -3,7 +3,7 @@ use cranelift_frontend::FunctionBuilder;
 
 pub mod pool;
 
-impl crate::Object {
+impl crate::Object<'_> {
     pub fn build_constant(
         &mut self,
         builder: &mut FunctionBuilder,

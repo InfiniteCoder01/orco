@@ -5,7 +5,7 @@ use cranelift_module::Module;
 pub mod block;
 pub mod constant;
 
-impl crate::Object {
+impl crate::Object<'_> {
     pub fn build_expression(
         &mut self,
         builder: &mut FunctionBuilder,
