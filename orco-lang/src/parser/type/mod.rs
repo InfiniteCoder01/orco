@@ -2,7 +2,8 @@ use super::*;
 use std::num::NonZeroU16;
 
 /// Parse a type
-pub fn parse(parser: &mut Parser) -> ir::Type {
+pub fn parse(parser: &mut Parser) -> Spanned<ir::Type> {
+    let start = parser.span().1.start;
     let mut r#type = if let Some(r#type) = parser.expect_ident("type") {
         if let Some(bytes) = numeric_type_size(&r#type, "i") {
             ir::Type::Int(bytes)
@@ -24,7 +25,7 @@ pub fn parse(parser: &mut Parser) -> ir::Type {
     while parser.match_opertor(Operator::Star) {
         r#type = ir::Type::Pointer(Box::new(r#type));
     }
-    r#type
+    parser.wrap_span(r#type, start)
 }
 
 fn numeric_type_size(name: &str, prefix: &str) -> Option<NonZeroU16> {

@@ -5,7 +5,7 @@ pub fn parse(parser: &mut Parser) -> Option<ir::expression::Block> {
     if parser.match_opertor(Operator::LBrace) {
         let mut block = ir::expression::Block::default();
         while !parser.match_opertor(Operator::RBrace) {
-            match expression::parse(parser) {
+            match expression::expect(parser) {
                 ir::Expression::Error => {
                     parser.next();
                 }

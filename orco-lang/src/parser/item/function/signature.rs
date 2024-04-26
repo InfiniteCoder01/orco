@@ -19,7 +19,7 @@ pub fn parse(parser: &mut Parser) -> ir::item::function::Signature {
     let return_type = if parser.match_opertor(Operator::Arrow) {
         r#type::parse(parser)
     } else {
-        ir::Type::unit()
+        parser.wrap_point(ir::Type::unit())
     };
     ir::item::function::Signature::new(args, return_type)
 }

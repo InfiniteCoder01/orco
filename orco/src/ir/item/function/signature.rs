@@ -1,17 +1,17 @@
 use super::*;
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 /// Function signature (i.e. parameters and return type)
 pub struct Signature {
     /// Function parameters
-    pub args: Vec<(String, Type)>,
+    pub args: Vec<(String, Spanned<Type>)>,
     /// Function return type
-    pub return_type: Type,
+    pub return_type: Spanned<Type>,
 }
 
 impl Signature {
     /// Create a new function signature
-    pub fn new(arguments: Vec<(String, Type)>, return_type: Type) -> Self {
+    pub fn new(arguments: Vec<(String, Spanned<Type>)>, return_type: Spanned<Type>) -> Self {
         Self {
             args: arguments,
             return_type,
@@ -25,14 +25,14 @@ impl Signature {
             write!(f, "{}", name)?;
         }
         write!(f, "(")?;
-        for (index, (name, ty)) in self.args.iter().enumerate() {
+        for (index, (name, r#type)) in self.args.iter().enumerate() {
             if index > 0 {
                 write!(f, ", ")?;
             }
-            write!(f, "{name}: {ty}")?;
+            write!(f, "{}: {}", name, **r#type)?;
         }
         write!(f, ")")?;
-        write!(f, " -> {}", self.return_type)?;
+        write!(f, " -> {}", *self.return_type)?;
         Ok(())
     }
 }

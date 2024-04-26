@@ -4,7 +4,7 @@ use super::*;
 pub mod signature;
 pub use signature::Signature;
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 /// A function
 pub struct Function {
     /// Function signature

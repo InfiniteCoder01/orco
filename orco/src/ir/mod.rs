@@ -1,3 +1,5 @@
+use crate::diagnostics::Spanned;
+
 /// Of course we are statically-typed
 pub mod types;
 pub use types::Type;

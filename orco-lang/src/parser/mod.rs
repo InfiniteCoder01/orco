@@ -1,5 +1,6 @@
 use crate::lexer::*;
 use orco::ir;
+use orco::diagnostics::Spanned;
 
 /// Parsers for expressions
 pub mod expression;

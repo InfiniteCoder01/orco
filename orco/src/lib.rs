@@ -1,9 +1,14 @@
-//! OrCo is the base crate for OrCo compiler toolchain.
-//! It's used in parser and backend crates as a glue.
+#![doc = include_str!("../README.md")]
 #![warn(missing_docs)]
 
+/// Diagnostics
+pub mod diagnostics;
 /// Intermediate Representation lives here
 pub mod ir;
+/// Source
+pub mod source;
+
+pub use source::*;
 
 /// Type inference information for a function
 #[derive(Clone, Debug, PartialEq, Eq)]

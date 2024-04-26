@@ -1,3 +1,4 @@
+#![doc = include_str!("../README.md")]
 use cranelift_module::Module;
 use log::trace;
 

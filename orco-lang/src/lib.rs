@@ -1,4 +1,4 @@
-//! OrCo language, IR for OrCo compiler toolchain
+#![doc = include_str!("../README.md")]
 #![warn(missing_docs)]
 
 /// Lexer (splits input into tokens)
@@ -18,7 +18,8 @@ impl Crate {
     pub fn parse(path: impl AsRef<std::path::Path>) -> Self {
         Self {
             root: parser::parse(&mut lexer::Parser::new(
-                &std::fs::read_to_string(path).unwrap(),
+                &lexer::Source(orco::Src::load(path.as_ref().to_path_buf()).unwrap()),
+                Box::new(orco::diagnostics::DefaultReporter::default()),
             )),
         }
     }

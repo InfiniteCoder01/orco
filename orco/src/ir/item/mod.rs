@@ -4,7 +4,7 @@ use super::*;
 pub mod function;
 pub use function::Function;
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 /// An item
 pub enum Item {
     /// A function

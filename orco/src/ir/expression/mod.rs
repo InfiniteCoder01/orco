@@ -51,7 +51,7 @@ impl Expression {
                     .get(name)
                     .and_then(|item| item.function_signature())
                 {
-                    signature.return_type.clone()
+                    (*signature.return_type).clone()
                 } else {
                     Type::Error
                 }

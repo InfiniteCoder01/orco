@@ -65,7 +65,7 @@ impl crate::Object<'_> {
                 .iter()
                 .map(|(_, arg)| AbiParam::new(self.convert(arg)))
                 .collect(),
-            returns: if signature.return_type == orco::ir::Type::Unit {
+            returns: if *signature.return_type == orco::ir::Type::Unit {
                 vec![]
             } else {
                 vec![AbiParam::new(self.convert(&signature.return_type))]
