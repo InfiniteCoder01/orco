@@ -4,16 +4,16 @@ use super::*;
 /// Function signature (i.e. parameters and return type)
 pub struct Signature {
     /// Function parameters
-    pub args: Vec<(String, Spanned<Type>)>,
+    pub args: Vec<(Spanned<String>, Spanned<Type>)>,
     /// Function return type
     pub return_type: Spanned<Type>,
 }
 
 impl Signature {
     /// Create a new function signature
-    pub fn new(arguments: Vec<(String, Spanned<Type>)>, return_type: Spanned<Type>) -> Self {
+    pub fn new(args: Vec<(Spanned<String>, Spanned<Type>)>, return_type: Spanned<Type>) -> Self {
         Self {
-            args: arguments,
+            args,
             return_type,
         }
     }
@@ -29,7 +29,7 @@ impl Signature {
             if index > 0 {
                 write!(f, ", ")?;
             }
-            write!(f, "{}: {}", name, **r#type)?;
+            write!(f, "{}: {}", name.inner, **r#type)?;
         }
         write!(f, ")")?;
         write!(f, " -> {}", *self.return_type)?;

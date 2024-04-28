@@ -1,7 +1,7 @@
 use cranelift_module::Module;
 
 impl crate::Object<'_> {
-    pub fn convert(&self, r#type: &orco::ir::Type) -> cranelift_codegen::ir::Type {
+    pub fn convert_type(&self, r#type: &orco::ir::Type) -> cranelift_codegen::ir::Type {
         match r#type {
             orco::ir::Type::Int(bytes) | orco::ir::Type::Unsigned(bytes) => integer(*bytes),
             orco::ir::Type::Float(bytes) => match bytes.get() {
@@ -10,6 +10,9 @@ impl crate::Object<'_> {
                 _ => unimplemented!("Unsupported float size: {}", bytes),
             },
             orco::ir::Type::Pointer(_) => self.object.target_config().pointer_type(),
+            orco::ir::Type::Wildcard => panic!("Type inference wasn't done properly"),
+            orco::ir::Type::TypeVariable(_) => panic!("Type inference wasn't done properly"),
+            orco::ir::Type::Error => panic!("IR contains errors!"),
             _ => todo!("type {:?}", r#type),
         }
     }

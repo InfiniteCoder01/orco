@@ -1,5 +1,5 @@
-pub use ariadne::*;
-pub use crate::{Src, Span};
+pub use crate::{Span, Src};
+pub use ariadne::{ColorGenerator, Label, ReportKind};
 
 /// Diagnostic report (error, warning, etc.)
 pub type Report<'a> = ariadne::Report<'a, Span>;
@@ -36,6 +36,12 @@ impl<T> std::ops::Deref for Spanned<T> {
     }
 }
 
+impl<T> std::ops::DerefMut for Spanned<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
 /// Error reporter
 pub trait ErrorReporter {
     /// Report an error
@@ -55,7 +61,7 @@ impl ErrorReporter for DefaultReporter {
             }
         }
 
-        if let Err(err) = report.eprint(FnCache::new(|id: &Src| Ok(Source(id.clone())))) {
+        if let Err(err) = report.eprint(ariadne::FnCache::new(|id: &Src| Ok(Source(id.clone())))) {
             log::error!("Failed to render diagnostic report: {}", err);
         }
     }

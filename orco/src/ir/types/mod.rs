@@ -1,3 +1,4 @@
+use crate::TypeVariableID;
 use std::num::NonZeroU16;
 
 /// A type enum consists of all builtin types and a custom variant
@@ -14,17 +15,21 @@ pub enum Type {
     /// Character
     Char,
 
-    /// Never type, can't hold any value
-    Never,
-
     /// Pointer type
     Pointer(Box<Type>),
+    /// Custom type, f.e. a struct or a type alias
+    Custom(String),
+
+    /// Never type, can't hold any value
+    Never,
 
     /// Unit type, can only hold one value
     Unit,
 
-    /// Custom type, f.e. a struct or a type alias
-    Custom(String),
+    /// A wildcard type (aka non-inferred)
+    Wildcard,
+    /// Type variable (used only during type inference)
+    TypeVariable(TypeVariableID),
     /// Error type
     Error,
 }
@@ -33,6 +38,23 @@ impl Type {
     /// Create a new unit type
     pub fn unit() -> Self {
         Self::Unit
+    }
+
+    /// Does this type morphs to the target type
+    pub fn morphs(&self, target_type: &Type) -> bool {
+        self == target_type
+            || self == &Type::Never
+            || self == &Type::Wildcard
+            || self == &Type::Error
+            || target_type == &Type::Never
+            || target_type == &Type::Wildcard
+            || target_type == &Type::Error
+    }
+
+    /// Is this type complete (nothing to infer)
+    /// TypeVariables are considered complete
+    pub fn complete(&self) -> bool {
+        !matches!(self, Self::Wildcard | Self::Error)
     }
 }
 
@@ -48,7 +70,18 @@ impl std::fmt::Display for Type {
             Self::Pointer(r#type) => write!(f, "{}*", r#type),
             Self::Unit => write!(f, "()"),
             Self::Custom(name) => write!(f, "{}", name),
+            Self::Wildcard => write!(f, "_"),
+            Self::TypeVariable(id) => write!(f, "{}", id),
             Self::Error => write!(f, "<ERROR>"),
+        }
+    }
+}
+
+impl std::ops::BitOrAssign for Type {
+    fn bitor_assign(&mut self, rhs: Type) {
+        match self {
+            Self::Never | Self::Error | Self::Wildcard => *self = rhs,
+            _ => (),
         }
     }
 }
@@ -56,10 +89,8 @@ impl std::fmt::Display for Type {
 impl std::ops::BitOr for Type {
     type Output = Type;
 
-    fn bitor(self, rhs: Type) -> Self::Output {
-        match self {
-            Self::Never | Self::Error => rhs,
-            r#type => r#type,
-        }
+    fn bitor(mut self, rhs: Type) -> Self::Output {
+        self |= rhs;
+        self
     }
 }

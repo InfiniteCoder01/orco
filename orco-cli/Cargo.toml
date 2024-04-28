@@ -15,7 +15,7 @@ categories = [
 ]
 
 [dependencies]
-clap = "4.4.18"
+clap = { version = "4.4.18", features = ["derive"] }
 rayon = "1.8.1"
 
 orco = { path = "../orco", version = "0.0.1" }

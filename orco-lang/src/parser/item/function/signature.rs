@@ -4,19 +4,19 @@ use super::*;
 pub fn parse(parser: &mut Parser) -> ir::item::function::Signature {
     parser.expect_operator(Operator::LParen);
     let mut args = Vec::new();
-    while !parser.match_opertor(Operator::RParen) {
+    while !parser.match_operator(Operator::RParen) {
         let name = parser
             .expect_ident("argument name")
-            .unwrap_or("_".to_owned());
+            .unwrap_or(parser.wrap_point("_".to_owned()));
         parser.expect_operator(Operator::Colon);
         let r#type = r#type::parse(parser);
         args.push((name, r#type));
-        if !parser.match_opertor(Operator::Comma) {
+        if !parser.match_operator(Operator::Comma) {
             parser.expect_operator(Operator::RParen);
             break;
         }
     }
-    let return_type = if parser.match_opertor(Operator::Arrow) {
+    let return_type = if parser.match_operator(Operator::Arrow) {
         r#type::parse(parser)
     } else {
         parser.wrap_point(ir::Type::unit())
@@ -28,5 +28,5 @@ pub fn parse(parser: &mut Parser) -> ir::item::function::Signature {
 pub fn parse_named(parser: &mut Parser) -> Option<Named<ir::item::function::Signature>> {
     parser
         .expect_ident("function name")
-        .map(|name| Named::new(name, parse(parser)))
+        .map(|name| Named::new(name.inner, parse(parser)))
 }

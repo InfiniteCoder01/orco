@@ -1,5 +1,4 @@
 use super::*;
-use std::num::NonZeroU16;
 
 /// Constant value
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -8,15 +7,15 @@ pub enum Constant {
     UnsignedInteger {
         /// Value
         value: u128,
-        /// Size in bytes, None to infer
-        size: Option<NonZeroU16>,
+        /// Type of this literal
+        r#type: Type,
     },
     /// Signed integer
     SignedInteger {
         /// Value
         value: i128,
-        /// Size in bytes, None to infer
-        size: Option<NonZeroU16>,
+        /// Type of this literal
+        r#type: Type,
     },
     /// C-Style String, bytes have to end with '\0'
     CString(Vec<u8>),
@@ -26,57 +25,55 @@ impl Constant {
     /// Get the type of the constant value
     pub fn get_type(&self) -> Type {
         match self {
-            Self::UnsignedInteger { size, .. } => size.map_or(Type::Error, Type::Unsigned),
-            Self::SignedInteger { size, .. } => size.map_or(Type::Error, Type::Int),
+            Self::UnsignedInteger { r#type, .. } => r#type.clone(),
+            Self::SignedInteger { r#type, .. } => r#type.clone(),
             Self::CString(_) => Type::Pointer(Box::new(Type::Char)),
         }
     }
 
     /// Infer types
-    pub fn infer_and_check_types(&mut self, target_type: &Type) {
+    pub fn infer_types(&mut self, target_type: &Type, type_inference: &mut TypeInference) -> Type {
         match self {
-            Self::UnsignedInteger { value, size } => {
-                if size.is_none() {
-                    match target_type {
-                        Type::Int(target_size) => {
-                            if let Ok(value) = (*value).try_into() {
-                                *self = Self::SignedInteger {
-                                    value,
-                                    size: Some(*target_size),
-                                }
-                            }
-                        }
-                        Type::Unsigned(target_size) => *size = Some(*target_size),
-                        _ => (),
-                    }
-                }
-            }
-            Self::SignedInteger { size, .. } => {
-                if size.is_none() {
-                    if let Type::Int(target_size) = target_type {
-                        *size = Some(*target_size)
-                    }
+            Self::UnsignedInteger { r#type, .. } | Self::SignedInteger { r#type, .. } => {
+                if !r#type.complete() {
+                    *r#type = if target_type.complete() {
+                        target_type.clone()
+                    } else {
+                        Type::TypeVariable(type_inference.alloc_type_variable(r#type.clone()))
+                    };
                 }
             }
             Self::CString(_) => (),
         }
+        self.get_type()
+    }
+
+    /// Finish and check types
+    pub fn finish_and_check_types(&mut self, type_inference: &mut TypeInference) -> Type {
+        match self {
+            Self::UnsignedInteger { r#type, .. } | Self::SignedInteger { r#type, .. } => {
+                type_inference.finish(r#type)
+            }
+            _ => (),
+        }
+        self.get_type()
     }
 }
 
 impl std::fmt::Display for Constant {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::UnsignedInteger { value, size } => {
+            Self::UnsignedInteger { value, r#type } => {
                 write!(f, "{}", value)?;
-                if let Some(size) = size {
-                    write!(f, "u{}", size.get() * 8)?;
+                if r#type != &Type::Wildcard {
+                    write!(f, "{}", r#type)?;
                 }
                 Ok(())
             }
-            Self::SignedInteger { value, size } => {
+            Self::SignedInteger { value, r#type } => {
                 write!(f, "{}", value)?;
-                if let Some(size) = size {
-                    write!(f, "i{}", size.get() * 8)?;
+                if r#type != &Type::Wildcard {
+                    write!(f, "{}", r#type)?;
                 }
                 Ok(())
             }

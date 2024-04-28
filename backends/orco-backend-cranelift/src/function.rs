@@ -63,12 +63,12 @@ impl crate::Object<'_> {
             params: signature
                 .args
                 .iter()
-                .map(|(_, arg)| AbiParam::new(self.convert(arg)))
+                .map(|(_, arg)| AbiParam::new(self.convert_type(arg)))
                 .collect(),
             returns: if *signature.return_type == orco::ir::Type::Unit {
                 vec![]
             } else {
-                vec![AbiParam::new(self.convert(&signature.return_type))]
+                vec![AbiParam::new(self.convert_type(&signature.return_type))]
             },
             call_conv: cranelift_codegen::isa::CallConv::SystemV,
         }

@@ -21,10 +21,10 @@ pub struct Module {
 
 impl Module {
     /// Infer types for the whole module
-    pub fn infer_and_check_types(&self) {
+    pub fn infer_and_check_types(&self, root: &Module, reporter: &mut dyn crate::diagnostics::ErrorReporter) {
         for item in self.items.values() {
             if let Item::Function(function) = item {
-                function.infer_and_check_types(self);
+                function.infer_and_check_types(root, reporter);
             }
         }
     }

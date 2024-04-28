@@ -1,12 +1,13 @@
 use super::*;
 
 /// Parse a block
-pub fn parse(parser: &mut Parser) -> Option<ir::expression::Block> {
-    if parser.match_opertor(Operator::LBrace) {
+pub fn parse(parser: &mut Parser) -> Option<Spanned<ir::expression::Block>> {
+    let start = parser.span().1.start;
+    if parser.match_operator(Operator::LBrace) {
         let mut block = ir::expression::Block::default();
-        while !parser.match_opertor(Operator::RBrace) {
+        while !parser.match_operator(Operator::RBrace) {
             match expression::expect(parser) {
-                ir::Expression::Error => {
+                ir::Expression::Error(_) => {
                     parser.next();
                 }
                 expression => {
@@ -17,18 +18,18 @@ pub fn parse(parser: &mut Parser) -> Option<ir::expression::Block> {
                 }
             }
         }
-        Some(block)
+        Some(parser.wrap_span(block, start))
     } else {
         None
     }
 }
 
 /// Expect a block
-pub fn expect(parser: &mut Parser) -> ir::expression::Block {
+pub fn expect(parser: &mut Parser) -> Spanned<ir::expression::Block> {
     if let Some(block) = parse(parser) {
         block
     } else {
         parser.expected_error("a block");
-        ir::expression::Block::default()
+        parser.wrap_point(ir::expression::Block::default())
     }
 }

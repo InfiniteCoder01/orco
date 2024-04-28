@@ -1,7 +1,7 @@
 use super::*;
 use std::num::NonZeroU16;
 
-/// Parse a type
+/// Parse a type, error if there is no
 pub fn parse(parser: &mut Parser) -> Spanned<ir::Type> {
     let start = parser.span().1.start;
     let mut r#type = if let Some(r#type) = parser.expect_ident("type") {
@@ -15,14 +15,14 @@ pub fn parse(parser: &mut Parser) -> Spanned<ir::Type> {
             match r#type.as_str() {
                 "bool" => ir::Type::Bool,
                 "char" => ir::Type::Char,
-                _ => ir::Type::Custom(r#type),
+                _ => ir::Type::Custom(r#type.inner),
             }
         }
     } else {
         parser.expected_error("a type");
         ir::Type::Error
     };
-    while parser.match_opertor(Operator::Star) {
+    while parser.match_operator(Operator::Star) {
         r#type = ir::Type::Pointer(Box::new(r#type));
     }
     parser.wrap_span(r#type, start)

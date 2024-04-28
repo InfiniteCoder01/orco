@@ -9,7 +9,7 @@ fn overflow() {
         value: big_value - 1,
         size: None,
     };
-    big_unsigned.infer_and_check_types(&Type::Int(NonZeroU16::new(16).unwrap()));
+    big_unsigned.infer_types(&Type::Int(NonZeroU16::new(16).unwrap()));
     assert_eq!(
         big_unsigned,
         expression::Constant::SignedInteger {
@@ -21,7 +21,7 @@ fn overflow() {
         value: big_value,
         size: None,
     };
-    big_unsigned.infer_and_check_types(&Type::Int(NonZeroU16::new(16).unwrap()));
+    big_unsigned.infer_types(&Type::Int(NonZeroU16::new(16).unwrap()));
     assert_eq!(
         big_unsigned,
         expression::Constant::UnsignedInteger {

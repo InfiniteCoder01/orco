@@ -12,5 +12,5 @@ pub fn parse(parser: &mut Parser) -> ir::item::Function {
 pub fn parse_named(parser: &mut Parser) -> Option<Named<ir::item::Function>> {
     parser
         .expect_ident("function name")
-        .map(|name| Named::new(name, parse(parser)))
+        .map(|name| Named::new(name.inner, parse(parser)))
 }

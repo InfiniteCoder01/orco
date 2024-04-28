@@ -31,8 +31,8 @@ impl crate::Object<'_> {
                 let function = self.object.declare_func_in_func(
                     *self
                         .functions
-                        .get(name)
-                        .unwrap_or_else(|| panic!("Function {} is not defined", name)),
+                        .get(&name.inner)
+                        .unwrap_or_else(|| panic!("Function {} is not defined", name.inner)),
                     builder.func,
                 );
                 let args = args.iter().map(|arg| self.build_expression(builder, arg).expect("Can't pass a unit type as an argument to a function, did you run type checking/inference?")).collect::<Vec<_>>();
@@ -45,7 +45,10 @@ impl crate::Object<'_> {
                 builder.seal_block(builder.current_block().unwrap());
                 None
             }
-            orco::ir::Expression::Error => panic!("IR contains errors!"),
+            orco::ir::Expression::VariableDeclaration { .. } => {
+                todo!()
+            }
+            orco::ir::Expression::Error(span) => panic!("IR contains errors at {:?}!", span),
         }
     }
 }

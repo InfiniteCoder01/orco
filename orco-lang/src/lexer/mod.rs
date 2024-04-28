@@ -87,6 +87,7 @@ pub enum Token {
     #[token("*", |_| Operator::Star)]
     #[token("/", |_| Operator::Slash)]
     #[token("%", |_| Operator::Percent)]
+    #[token("=", |_| Operator::Equal)]
     Operator(Operator),
     /// Constant
     #[regex("[0-9][0-9_]*", |lex| parse_unsigned(lex.slice(), "", 10))]
@@ -106,13 +107,19 @@ pub enum Token {
 
 fn parse_unsigned(slice: &str, prefix: &str, radix: u32) -> Result<Constant, Error> {
     u128::from_str_radix(&slice.strip_prefix(prefix).unwrap().replace('_', ""), radix)
-        .map(|value| Constant::UnsignedInteger { value, size: None })
+        .map(|value| Constant::UnsignedInteger {
+            value,
+            r#type: orco::ir::Type::Wildcard,
+        })
         .map_err(|_| Error::IntegerOutOfBounds)
 }
 
 fn parse_signed(slice: &str, prefix: &str, radix: u32) -> Result<Constant, Error> {
     i128::from_str_radix(&slice.replace(prefix, "").replace('_', ""), radix)
-        .map(|value| Constant::SignedInteger { value, size: None })
+        .map(|value| Constant::SignedInteger {
+            value,
+            r#type: orco::ir::Type::Wildcard,
+        })
         .map_err(|_| Error::IntegerOutOfBounds)
 }
 
@@ -180,6 +187,8 @@ pub enum Operator {
     Slash,
     /// %
     Percent,
+    /// =
+    Equal,
 }
 
 impl std::fmt::Display for Operator {
@@ -200,23 +209,21 @@ impl std::fmt::Display for Operator {
             Operator::Star => write!(f, "*"),
             Operator::Slash => write!(f, "/"),
             Operator::Percent => write!(f, "%"),
+            Operator::Equal => write!(f, "="),
         }
     }
 }
 
 /// Parser, holds lexer, current token and error reporter. Used throughout parsing process
-pub struct Parser<'source> {
-    reporter: Box<dyn orco::diagnostics::ErrorReporter>,
-    lexer: logos::Lexer<'source, Token>,
+pub struct Parser<'a> {
+    reporter: &'a mut dyn orco::diagnostics::ErrorReporter,
+    lexer: logos::Lexer<'a, Token>,
     peek: Option<Token>,
 }
 
-impl<'source> Parser<'source> {
+impl<'a> Parser<'a> {
     /// Create new parser from a source string
-    pub fn new(
-        source: &'source Source,
-        reporter: Box<dyn orco::diagnostics::ErrorReporter>,
-    ) -> Self {
+    pub fn new(source: &'a Source, reporter: &'a mut dyn orco::diagnostics::ErrorReporter) -> Self {
         Self {
             reporter,
             lexer: Token::lexer(source),
@@ -310,14 +317,16 @@ impl<'source> Parser<'source> {
         self.peek().is_none()
     }
 
+    /// Get the span from the start to the end of the current token
+    pub fn span_from(&mut self, start: usize) -> Span {
+        Span((**self.lexer.source()).clone(), start..self.span().1.start)
+    }
+
     /// Wrap an object in [`orco::Spanned`], starting at start, ending at the current position
     pub fn wrap_span<T>(&mut self, object: T, start: usize) -> Spanned<T> {
         Spanned {
             inner: object,
-            span: orco::diagnostics::Span(
-                (**self.lexer.source()).clone(),
-                start..self.span().1.start,
-            ),
+            span: self.span_from(start),
         }
     }
 
@@ -356,7 +365,7 @@ impl<'source> Parser<'source> {
     }
 
     /// Match an operator, consume if matched
-    pub fn match_opertor(&mut self, operator: Operator) -> bool {
+    pub fn match_operator(&mut self, operator: Operator) -> bool {
         self.fill();
         if self.peek == Some(Token::Operator(operator)) {
             self.peek.take();
@@ -367,11 +376,12 @@ impl<'source> Parser<'source> {
     }
 
     /// Match an identifier, consume if matched
-    pub fn match_ident(&mut self) -> Option<String> {
+    pub fn match_ident(&mut self) -> Option<Spanned<String>> {
         self.fill();
+        let span = self.span();
         let peek = self.peek.take();
         if let Some(Token::Ident(ident)) = peek {
-            Some(ident)
+            Some(Spanned { inner: ident, span })
         } else {
             self.peek = peek;
             None
@@ -379,11 +389,12 @@ impl<'source> Parser<'source> {
     }
 
     /// Match a constant, consume if matched
-    pub fn match_constant(&mut self) -> Option<Constant> {
+    pub fn match_constant(&mut self) -> Option<Spanned<Constant>> {
         self.fill();
+        let span = self.span();
         let peek = self.peek.take();
         if let Some(Token::Constant(value)) = peek {
-            Some(value)
+            Some(Spanned { inner: value, span })
         } else {
             self.peek = peek;
             None
@@ -391,13 +402,14 @@ impl<'source> Parser<'source> {
     }
 
     /// Match an error, consume if matched
-    pub fn match_error(&mut self) -> bool {
+    pub fn match_error(&mut self) -> Option<Span> {
         self.fill();
+        let span = self.span();
         if self.peek == Some(Token::Error) {
             self.peek.take();
-            true
+            Some(span)
         } else {
-            false
+            None
         }
     }
 
@@ -426,11 +438,12 @@ impl<'source> Parser<'source> {
 
     /// Expect an identifier to follow, if it is, consume and return it, else report an error
     /// "Expected {what}"
-    pub fn expect_ident(&mut self, what: &str) -> Option<String> {
+    pub fn expect_ident(&mut self, what: &str) -> Option<Spanned<String>> {
         self.fill();
+        let span = self.span();
         let peek = self.peek.take();
         if let Some(Token::Ident(ident)) = peek {
-            Some(ident)
+            Some(Spanned { inner: ident, span })
         } else {
             self.peek = peek;
             self.expected_error(what);
