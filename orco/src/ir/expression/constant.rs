@@ -49,10 +49,10 @@ impl Constant {
     }
 
     /// Finish and check types
-    pub fn finish_and_check_types(&mut self, type_inference: &mut TypeInference) -> Type {
+    pub fn finish_and_check_types(&mut self, span: Span, type_inference: &mut TypeInference) -> Type {
         match self {
             Self::UnsignedInteger { r#type, .. } | Self::SignedInteger { r#type, .. } => {
-                type_inference.finish(r#type)
+                type_inference.finish(r#type, "constant", span);
             }
             _ => (),
         }

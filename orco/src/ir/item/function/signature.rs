@@ -12,10 +12,7 @@ pub struct Signature {
 impl Signature {
     /// Create a new function signature
     pub fn new(args: Vec<(Spanned<String>, Spanned<Type>)>, return_type: Spanned<Type>) -> Self {
-        Self {
-            args,
-            return_type,
-        }
+        Self { args, return_type }
     }
 
     /// Format

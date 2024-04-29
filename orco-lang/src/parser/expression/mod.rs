@@ -45,7 +45,7 @@ pub fn parse(parser: &mut Parser) -> Option<ir::Expression> {
             mutable,
             r#type,
             value,
-            span: parser.span_from(start)
+            span: parser.span_from(start),
         })
     } else {
         binary_expression(parser, 0)

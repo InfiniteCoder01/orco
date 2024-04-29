@@ -24,11 +24,7 @@ impl Block {
     }
 
     /// Infer types
-    pub fn infer_types(
-        &mut self,
-        _target_type: &Type,
-        type_inference: &mut TypeInference,
-    ) -> Type {
+    pub fn infer_types(&mut self, _target_type: &Type, type_inference: &mut TypeInference) -> Type {
         let mut r#type = Type::Unit;
         for expression in &mut self.expressions {
             let expr_type = expression.infer_types(&Type::Wildcard, type_inference);
@@ -41,10 +37,7 @@ impl Block {
     }
 
     /// Finish and check types
-    pub fn finish_and_check_types(
-        &mut self,
-        type_inference: &mut TypeInference,
-    ) -> Type {
+    pub fn finish_and_check_types(&mut self, type_inference: &mut TypeInference) -> Type {
         let mut r#type = Type::Unit;
         let mut unreachable_span: Option<Span> = None;
         for expression in &mut self.expressions {

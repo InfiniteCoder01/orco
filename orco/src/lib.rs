@@ -93,7 +93,7 @@ impl<'a> TypeInference<'a> {
                     Ok([(_, (type1_ids, type1)), (type2_index, (type2_ids, type2))]) => {
                         type1_ids.append(type2_ids);
                         *type1 |= type2.clone();
-                        let r#type = ir::Type::TypeVariable(type1_ids[0].clone());
+                        let r#type = ir::Type::TypeVariable(type1_ids[0]);
                         self.type_table.remove(type2_index);
                         r#type
                     }
@@ -108,29 +108,25 @@ impl<'a> TypeInference<'a> {
                     .find(|(ids, _)| ids.contains(type_variable))
                     .expect("Invalid type variable!");
                 *type_variable |= r#type.clone();
-                ir::Type::TypeVariable(type_ids[0].clone())
+                ir::Type::TypeVariable(type_ids[0])
             }
             (lhs, rhs) => lhs.clone() | rhs.clone(),
         }
     }
 
     /// Finish a type, replace all type variables with concrete types
-    pub fn finish(&self, r#type: &mut ir::Type) {
-        match r#type {
-            ir::Type::TypeVariable(type_variable) => {
-                let (_, type_variable) = self
-                    .type_table
-                    .iter()
-                    .find(|(ids, _)| ids.contains(&type_variable))
-                    .expect("Invalid type variable!");
-                *r#type = type_variable.clone();
-            }
-            _ => (),
+    pub fn finish(&mut self, r#type: &mut ir::Type, what: &str, span: diagnostics::Span) {
+        if let ir::Type::TypeVariable(type_variable) = r#type {
+            let (_, type_variable) = self
+                .type_table
+                .iter()
+                .find(|(ids, _)| ids.contains(type_variable))
+                .expect("Invalid type variable!");
+            *r#type = type_variable.clone();
         }
 
         if !r#type.complete() {
-            todo!("Unable to infer types errror")
-            // self.reporter
+            self.reporter.report_type_error(format!("Could not infer type for {}", what), span, None);
         }
     }
 }

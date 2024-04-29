@@ -31,6 +31,10 @@ impl crate::Object<'_> {
         value: i128,
         r#type: &orco::ir::types::Type,
     ) -> Option<Value> {
-        Some(builder.ins().iconst(self.convert_type(r#type), value as i64))
+        Some(
+            builder
+                .ins()
+                .iconst(self.convert_type(r#type), value as i64),
+        )
     }
 }

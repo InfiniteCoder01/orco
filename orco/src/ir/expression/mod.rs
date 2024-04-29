@@ -119,7 +119,9 @@ impl Expression {
     /// Finish types and check them
     pub fn finish_and_check_types(&mut self, type_inference: &mut TypeInference) -> Type {
         let r#type = match self {
-            Expression::Constant(constant) => constant.inner.finish_and_check_types(type_inference),
+            Expression::Constant(constant) => constant
+                .inner
+                .finish_and_check_types(constant.span.clone(), type_inference),
             Expression::BinaryOp(lhs, op, rhs) => {
                 let lhs_type = lhs.finish_and_check_types(type_inference);
                 let rhs_type = rhs.finish_and_check_types(type_inference);
@@ -154,128 +156,84 @@ impl Expression {
             Expression::FunctionCall { name, args } => {
                 if let Some(signature) = type_inference.signature(name) {
                     if args.inner.len() != signature.args.len() {
-                        let mut colors = ColorGenerator::new();
-                        let report = Report::build(
-                            ReportKind::Error,
-                            args.span.0.clone(),
-                            args.span.1.start,
-                        )
-                        .with_message(format!(
-                            "Argument count mismatch: Function '{}' expects {} arguments, but {} were given",
-                            name.inner,
-                            signature.args.len(),
-                            args.inner.len()
-                        ))
-                        .with_label(
-                            Label::new(args.span.clone())
-                                .with_message("Here")
-                                .with_color(colors.next()),
+                        type_inference.reporter.report_type_error(
+                            format!(
+                                "Argument count mismatch: Function '{}' expects {} arguments, but {} were given",
+                                name.inner,
+                                signature.args.len(),
+                                args.inner.len()
+                            ),
+                            args.span.clone(),
+                            None
                         );
-                        type_inference.reporter.report(report.finish());
                     }
                     for (arg, signature_arg) in std::iter::zip(&mut args.inner, &signature.args) {
                         let arg_type = arg.finish_and_check_types(type_inference);
                         if !arg_type.morphs(&signature_arg.1) {
-                            let mut colors = ColorGenerator::new();
-                            let report = Report::build(
-                                ReportKind::Error,
-                                arg.span().0.clone(),
-                                arg.span().1.start,
-                            )
-                            .with_message(format!(
-                                "Incompatible argument types: expected '{}', got '{}'",
-                                arg_type, signature_arg.1.inner
-                            ))
-                            .with_label(
-                                Label::new(arg.span().clone())
-                                    .with_message("Here")
-                                    .with_color(colors.next()),
-                            )
-                            .with_label(
-                                Label::new(signature_arg.1.span.clone())
-                                    .with_message("Expected becase of this")
-                                    .with_color(colors.next()),
+                            type_inference.reporter.report_type_error(
+                                format!(
+                                    "Incompatible argument types for function '{}': expected '{}', got '{}'",
+                                    name.inner,
+                                    arg_type, signature_arg.1.inner
+                                ),
+                                arg.span(),
+                                Some(signature_arg.1.span.clone()),
                             );
-                            type_inference.reporter.report(report.finish());
                         }
                     }
                     (*signature.return_type).clone()
                 } else {
-                    let span = name.span.extend(&args.span);
-                    let mut colors = ColorGenerator::new();
-                    let report = Report::build(ReportKind::Error, span.0.clone(), span.1.start)
-                        .with_message(format!(
-                            "Function '{}' was not found in this scope",
-                            name.inner
-                        ))
-                        .with_label(
-                            Label::new(span)
-                                .with_message("Here")
-                                .with_color(colors.next()),
-                        );
-                    type_inference.reporter.report(report.finish());
+                    type_inference.reporter.report_type_error(
+                        format!("Function '{}' was not found in this scope", name.inner),
+                        name.span.extend(&args.span),
+                        None,
+                    );
                     Type::Error
                 }
             }
             Expression::Return(expr) => {
                 let r#type = expr.finish_and_check_types(type_inference);
-                if !r#type.morphs(&type_inference.return_type) {
-                    let expr_span = expr.span();
-                    let mut colors = ColorGenerator::new();
-                    let report = Report::build(
-                        ReportKind::Error,
-                        self.span().0.clone(),
-                        self.span().1.start,
-                    )
-                    .with_message(format!(
-                        "Return type mismatch: expected {}, got {}",
-                        type_inference.return_type.inner, r#type
-                    ))
-                    .with_label(
-                        Label::new(expr_span)
-                            .with_message("Here")
-                            .with_color(colors.next()),
-                    )
-                    .with_label(
-                        Label::new(type_inference.return_type.span.clone())
-                            .with_message("Expected becase of this")
-                            .with_color(colors.next()),
+                if !r#type.morphs(type_inference.return_type) {
+                    type_inference.reporter.report_type_error(
+                        format!(
+                            "Return type mismatch: expected {}, got {}",
+                            type_inference.return_type.inner, r#type
+                        ),
+                        expr.span(),
+                        Some(type_inference.return_type.span.clone()),
                     );
-                    type_inference.reporter.report(report.finish());
                 }
                 Type::Never
             }
-            Expression::VariableDeclaration { r#type, value, .. } => {
+            Expression::VariableDeclaration {
+                name,
+                r#type,
+                value,
+                ..
+            } => {
                 if let Some(value) = value {
                     let value_type = value.finish_and_check_types(type_inference);
-                    type_inference.finish(r#type);
+                    type_inference.finish(
+                        r#type,
+                        &format!("variable '{}'", name.inner),
+                        name.span.clone(),
+                    );
                     if !value_type.morphs(r#type) {
-                        let r#type = r#type.clone();
-                        let value_span = value.span();
-                        let mut colors = ColorGenerator::new();
-                        let report = Report::build(
-                            ReportKind::Error,
-                            self.span().0.clone(),
-                            self.span().1.start,
-                        )
-                        .with_message(format!(
-                            "Type mismatch: Expected '{}', got '{}'",
-                            r#type.inner, value_type
-                        ))
-                        .with_label(
-                            Label::new(value_span)
-                                .with_message("This expression has an invalid type")
-                                .with_color(colors.next()),
-                        )
-                        .with_label(
-                            Label::new(r#type.span)
-                                .with_message("Expected becase of this")
-                                .with_color(colors.next()),
+                        type_inference.reporter.report_type_error(
+                            format!(
+                                "Type mismatch in variable declaration: Expected '{}', got '{}'",
+                                r#type.inner, value_type
+                            ),
+                            value.span(),
+                            Some(r#type.span.clone()),
                         );
-                        type_inference.reporter.report(report.finish());
                     }
                 } else {
-                    r#type.inner = type_inference.complete(r#type.inner.clone());
+                    type_inference.finish(
+                        r#type,
+                        &format!("variable '{}'", name.inner),
+                        name.span.clone(),
+                    );
                 }
                 Type::Unit
             }

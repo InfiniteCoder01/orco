@@ -46,6 +46,28 @@ impl<T> std::ops::DerefMut for Spanned<T> {
 pub trait ErrorReporter {
     /// Report an error
     fn report(&mut self, report: Report);
+
+    fn report_type_error(
+        &mut self,
+        message: String,
+        r#where: Span,
+        expected_because_of_this: Option<Span>,
+    ) {
+        let mut colors = ColorGenerator::new();
+        let report = Report::build(ReportKind::Error, r#where.0.clone(), r#where.1.start)
+            .with_message(message)
+            .with_label(
+                Label::new(r#where)
+                    .with_message("Here")
+                    .with_color(colors.next()),
+            )
+            .with_labels(expected_because_of_this.map(|span| {
+                Label::new(span)
+                    .with_message("Expected becase of this")
+                    .with_color(colors.next())
+            }));
+        self.report(report.finish());
+    }
 }
 
 /// Default error reporter
