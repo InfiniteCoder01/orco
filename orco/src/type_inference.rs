@@ -120,7 +120,7 @@ impl<'a> TypeInference<'a> {
             self.reporter.report_type_error(
                 format!("Could not infer type for {}", what),
                 span,
-                None,
+                vec![],
             );
         }
     }

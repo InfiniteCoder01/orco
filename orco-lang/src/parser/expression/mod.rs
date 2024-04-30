@@ -18,7 +18,7 @@ pub fn expect(parser: &mut Parser, variable_mapper: &mut VariableMapper) -> ir::
 /// Parse an expression
 pub fn parse(parser: &mut Parser, variable_mapper: &mut VariableMapper) -> Option<ir::Expression> {
     let start = parser.span().1.start;
-    if parser.match_keyword("return") {
+    let expression = if parser.match_keyword("return") {
         let value = expect(parser, variable_mapper);
         Some(ir::Expression::Return(
             parser.wrap_span(Box::new(value), start),
@@ -56,6 +56,18 @@ pub fn parse(parser: &mut Parser, variable_mapper: &mut VariableMapper) -> Optio
         ))
     } else {
         binary_expression(parser, variable_mapper, 0)
+    };
+    if let Some(expression) = expression {
+        if parser.match_operator(Operator::Equal) {
+            Some(ir::Expression::Assignment(
+                Box::new(expression),
+                Box::new(expect(parser, variable_mapper)),
+            ))
+        } else {
+            Some(expression)
+        }
+    } else {
+        expression
     }
 }
 
@@ -129,7 +141,7 @@ pub fn unit_expression(
                 args: parser.wrap_span(args, start),
             })
         } else {
-            Some(variable_mapper.access_variable(&name.inner, name.span))
+            Some(variable_mapper.access_variable(parser.reporter, &name.inner, name.span))
         }
     } else {
         None

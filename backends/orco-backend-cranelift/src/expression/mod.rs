@@ -60,6 +60,21 @@ impl crate::Object<'_> {
                 }
                 None
             }
+            orco::ir::Expression::Assignment(target, value) => {
+                let value = self.build_expression(builder, value)?;
+                match target.as_ref() {
+                    orco::ir::Expression::Variable(variable) => {
+                        let variable = variable.lock().unwrap();
+                        let variable = Variable::new(variable.id as _);
+                        builder.def_var(variable, value);
+                    }
+                    target => panic!(
+                        "Can't assign to '{}'! Did you run type checking/inference?",
+                        target
+                    ),
+                }
+                None
+            }
             orco::ir::Expression::Error(span) => panic!("IR contains errors at {:?}!", span),
         }
     }

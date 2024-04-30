@@ -51,7 +51,7 @@ impl VariableDeclaration {
                         self.r#type.inner, value_type
                     ),
                     value.span(),
-                    Some(self.r#type.span.clone()),
+                    vec![("Expected because of this", self.r#type.span.clone())],
                 );
             }
         } else {
@@ -67,15 +67,16 @@ impl VariableDeclaration {
 
 impl std::fmt::Display for VariableDeclaration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let show_id = std::env::var("ORCO_SHOW_VAR_ID").map_or(false, |show_id| show_id == "1");
         write!(f, "let ")?;
         if self.mutable.inner {
             write!(f, "mut ")?;
         }
-        write!(
-            f,
-            "{} (#{}): {}",
-            self.name.inner, self.id, self.r#type.inner
-        )?;
+        write!(f, "{}", self.name.inner)?;
+        if show_id {
+            write!(f, " (#{})", self.id)?;
+        }
+        write!(f, ": {}", self.r#type.inner)?;
         if let Some(value) = &self.value {
             write!(f, " = {}", value)?;
         }

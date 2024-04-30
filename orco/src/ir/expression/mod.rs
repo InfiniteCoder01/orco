@@ -37,6 +37,8 @@ pub enum Expression {
     Return(Spanned<Box<Expression>>),
     /// Declare a variable
     VariableDeclaration(VariableReference),
+    /// Assignment
+    Assignment(Box<Expression>, Box<Expression>),
     /// Invalid expression
     Error(Span),
 }
@@ -67,12 +69,14 @@ impl Expression {
             }
             Expression::Return(_) => Type::Never,
             Expression::VariableDeclaration(_) => Type::Unit,
+            Expression::Assignment(..) => Type::Unit,
             Expression::Error(_) => Type::Error,
         }
     }
 
     /// Infer types
-    /// target_type should be [`Type::Wildcard`] when unknown
+    /// target_type should be [`Type::Wildcard`] when unknown. infer_types doesn't strictly enforce,
+    /// that value will be of target_type, so you should do it manually
     /// Never returns a [`Type::Wildcard`]. Only [`Type::TypeVariable`]
     pub fn infer_types(&mut self, target_type: &Type, type_inference: &mut TypeInference) -> Type {
         let r#type = match self {
@@ -107,6 +111,12 @@ impl Expression {
                 .lock()
                 .unwrap()
                 .infer_types(type_inference),
+            Expression::Assignment(target, value) => {
+                let value = value.infer_types(&Type::Wildcard, type_inference);
+                let target = target.infer_types(&value, type_inference);
+                type_inference.equate(&target, &value);
+                Type::Unit
+            }
             Expression::Error(_) => Type::Error,
         };
         r#type
@@ -127,7 +137,7 @@ impl Expression {
                     let report =
                         Report::build(ReportKind::Error, lhs.span().0.clone(), lhs.span().1.start)
                             .with_message(format!(
-                                "Incompatible types for binary operation '{}': {} and {}",
+                                "Incompatible types for binary operation '{}': '{}' and '{}'",
                                 op, lhs_type, rhs_type
                             ))
                             .with_label(
@@ -161,7 +171,9 @@ impl Expression {
                                 args.inner.len()
                             ),
                             args.span.clone(),
-                            None
+                            vec![("Function is defined here", signature.return_type.span.clone())], // TODO:
+                                                                                                    // Actual
+                                                                                                    // span
                         );
                     }
                     for (arg, signature_arg) in std::iter::zip(&mut args.inner, &signature.args) {
@@ -174,7 +186,7 @@ impl Expression {
                                     arg_type, signature_arg.1.inner
                                 ),
                                 arg.span(),
-                                Some(signature_arg.1.span.clone()),
+                                vec![("Expected because of this", signature_arg.1.span.clone())],
                             );
                         }
                     }
@@ -183,7 +195,7 @@ impl Expression {
                     type_inference.reporter.report_type_error(
                         format!("Function '{}' was not found in this scope", name.inner),
                         name.span.extend(&args.span),
-                        None,
+                        vec![],
                     );
                     Type::Error
                 }
@@ -193,11 +205,14 @@ impl Expression {
                 if !r#type.morphs(type_inference.return_type) {
                     type_inference.reporter.report_type_error(
                         format!(
-                            "Return type mismatch: expected {}, got {}",
+                            "Return type mismatch: expected '{}', got '{}'",
                             type_inference.return_type.inner, r#type
                         ),
                         expr.span(),
-                        Some(type_inference.return_type.span.clone()),
+                        vec![(
+                            "Expected because of this",
+                            type_inference.return_type.span.clone(),
+                        )],
                     );
                 }
                 Type::Never
@@ -206,6 +221,41 @@ impl Expression {
                 .lock()
                 .unwrap()
                 .finish_and_check_types(type_inference),
+            Expression::Assignment(target, value) => {
+                let value_type = value.finish_and_check_types(type_inference);
+                let target_type = target.finish_and_check_types(type_inference);
+                match target.as_ref() {
+                    Expression::Variable(variable) => {
+                        let variable = variable.lock().unwrap();
+                        if !variable.mutable.inner {
+                            type_inference.reporter.report_type_error(
+                                format!(
+                                    "Cannot assign to an immutable variable '{}'",
+                                    variable.name.inner
+                                ),
+                                target.span(),
+                                vec![(
+                                    "Help: Make this variable mutable",
+                                    variable.mutable.span.clone(),
+                                )],
+                            )
+                        }
+                    }
+                    _ => type_inference.reporter.report_type_error(
+                        format!("Cannot assign to '{}'", target),
+                        target.span(),
+                        vec![],
+                    ),
+                };
+                if !value_type.morphs(&target_type) {
+                    type_inference.reporter.report_type_error(
+                        format!("Cannot assign '{}' to '{}'", value_type, target_type),
+                        value.span(),
+                        vec![("Expected because of this", target.span())],
+                    );
+                }
+                Type::Unit
+            }
             Expression::Error(_) => Type::Error,
         };
         r#type
@@ -223,6 +273,7 @@ impl Expression {
             Expression::VariableDeclaration(variable_declaration) => {
                 variable_declaration.span.clone()
             }
+            Expression::Assignment(target, value) => target.span().extend(&value.span()),
             Expression::Error(span) => span.clone(),
         }
     }
@@ -234,7 +285,13 @@ impl std::fmt::Display for Expression {
             Expression::Constant(constant) => write!(f, "{}", constant.inner),
             Expression::Variable(variable) => {
                 let variable = variable.lock().unwrap();
-                write!(f, "{} (#{})", variable.name.inner, variable.id)
+                let show_id =
+                    std::env::var("ORCO_SHOW_VAR_ID").map_or(false, |show_id| show_id == "1");
+                if show_id {
+                    write!(f, "{} (#{})", variable.name.inner, variable.id)
+                } else {
+                    write!(f, "{}", variable.name.inner)
+                }
             }
             Expression::BinaryOp(lhs, op, rhs) => write!(f, "({} {} {})", lhs, op, rhs),
             Expression::Block(block) => write!(f, "{}", block.inner),
@@ -253,6 +310,7 @@ impl std::fmt::Display for Expression {
             Expression::VariableDeclaration(variable_declaration) => {
                 write!(f, "{}", variable_declaration.lock().unwrap())
             }
+            Expression::Assignment(target, value) => write!(f, "{} = {}", target, value),
             Expression::Error(_) => write!(f, "<ERROR>"),
         }
     }

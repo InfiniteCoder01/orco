@@ -1,20 +1,10 @@
 extern fn puts(message: char*) -> i32;
 
-fn greet() {
-  puts(c"Hello, World!");
-  puts(c"Hello, There!");
-}
-
 fn main() -> i32 {
-  let x = 42;
-  {
-    let x = c"Hi from inner";
-    puts(x);
-    let x = c"Hi from a variable!";
-    puts(x);
-  }
+  puts(c"Hello, world!");
 
-  greet();
+  let x = 21;
+  x = x + 21;
   return x;
 }
 

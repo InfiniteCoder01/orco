@@ -60,15 +60,24 @@ impl VariableMapper {
     }
 
     /// Get a variable expression from the current scope, or report and return an error
-    pub fn access_variable(&mut self, name: &str, span: Span) -> ir::Expression {
+    pub fn access_variable(
+        &mut self,
+        reporter: &mut (impl diagnostics::ErrorReporter + ?Sized),
+        name: &str,
+        span: Span,
+    ) -> ir::Expression {
         match self.get_variable(name) {
             Some(reference) => ir::Expression::Variable(diagnostics::Spanned {
                 inner: reference,
                 span,
             }),
             None => {
-                todo!("report");
-                // ir::Expression::Error(span),
+                reporter.report_type_error(
+                    format!("Variable '{}' was not found in this scope", name),
+                    span.clone(),
+                    vec![],
+                );
+                ir::Expression::Error(span)
             }
         }
     }

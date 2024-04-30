@@ -57,12 +57,13 @@ pub trait ErrorReporter {
     /// Report an error
     fn report(&mut self, report: Report);
 
-    /// Report a type error (an error with a given message, a span of the error, and an optional span of the possible reason)
+    /// Report a type error (an error with a given message, a span of the error, and maybe some
+    /// labels)
     fn report_type_error(
         &mut self,
         message: String,
         r#where: Span,
-        expected_because_of_this: Option<Span>,
+        labels: Vec<(&'static str, Span)>,
     ) {
         let mut colors = ColorGenerator::new();
         let report = Report::build(ReportKind::Error, r#where.0.clone(), r#where.1.start)
@@ -72,9 +73,9 @@ pub trait ErrorReporter {
                     .with_message("Here")
                     .with_color(colors.next()),
             )
-            .with_labels(expected_because_of_this.map(|span| {
+            .with_labels(labels.into_iter().map(|(label, span)| {
                 Label::new(span)
-                    .with_message("Expected becase of this")
+                    .with_message(label)
                     .with_color(colors.next())
             }));
         self.report(report.finish());

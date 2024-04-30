@@ -218,7 +218,8 @@ impl std::fmt::Display for Operator {
 
 /// Parser, holds lexer, current token and error reporter. Used throughout parsing process
 pub struct Parser<'a> {
-    reporter: &'a mut dyn orco::diagnostics::ErrorReporter,
+    /// Error reporter
+    pub reporter: &'a mut dyn orco::diagnostics::ErrorReporter,
     lexer: logos::Lexer<'a, Token>,
     peek: Option<Token>,
 }
