@@ -6,16 +6,13 @@ fn greet() {
 }
 
 fn main() -> i32 {
-   let x = 42;
-// 
-// {
-//   let x: i32 = 10;
-//   print(x);
-// }
-//
-// let x = c"";
-//
-// print(x);
+  let x = 42;
+  {
+    let x = c"Hi from inner";
+    puts(x);
+    let x = c"Hi from a variable!";
+    puts(x);
+  }
 
   greet();
   return x;
