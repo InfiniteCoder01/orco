@@ -4,7 +4,7 @@ use super::*;
 pub mod signature;
 pub use signature::Signature;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 /// A function
 pub struct Function {
     /// Function signature
@@ -29,7 +29,7 @@ impl Function {
         reporter: &mut dyn crate::diagnostics::ErrorReporter,
     ) {
         let mut type_inference =
-            crate::TypeInference::new(root, &self.signature.return_type, reporter);
+            crate::type_inference::TypeInference::new(root, &self.signature.return_type, reporter);
         self.body
             .borrow_mut()
             .infer_types(&self.signature.return_type, &mut type_inference);

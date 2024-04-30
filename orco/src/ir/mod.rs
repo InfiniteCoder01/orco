@@ -13,7 +13,7 @@ pub mod expression;
 pub use expression::Expression;
 
 /// A module, can be one file or the whole project
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default)]
 pub struct Module {
     /// Module content
     pub items: std::collections::HashMap<String, Item>,

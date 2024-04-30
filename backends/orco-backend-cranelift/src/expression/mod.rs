@@ -15,6 +15,9 @@ impl crate::Object<'_> {
             orco::ir::expression::Expression::Constant(value) => {
                 self.build_constant(builder, value)
             }
+            orco::ir::expression::Expression::Variable(name) => {
+                todo!()
+            }
             orco::ir::expression::Expression::BinaryOp(lhs, op, rhs) => {
                 let lhs = self.build_expression(builder, lhs)?;
                 let rhs = self.build_expression(builder, rhs)?;

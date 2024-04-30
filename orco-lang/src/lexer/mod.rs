@@ -65,6 +65,8 @@ impl logos::Source for Source {
 /// Token (number, word, operator, comment, etc.)
 #[derive(Logos, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[logos(skip r"[ \t\n\f]+", source = Source, error = Error)]
+#[logos(skip r"//.*")]
+#[logos(skip r"/[*]([^*]|([*][^/]))*[*]+/")]
 pub enum Token {
     // TODO: XID
     /// Identifier

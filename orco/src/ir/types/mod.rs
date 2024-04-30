@@ -1,4 +1,4 @@
-use crate::TypeVariableID;
+use crate::type_inference::TypeVariableID;
 use std::num::NonZeroU16;
 
 /// A type enum consists of all builtin types and a custom variant

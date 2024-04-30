@@ -42,11 +42,22 @@ impl<T> std::ops::DerefMut for Spanned<T> {
     }
 }
 
+impl<T> Spanned<T> {
+    /// Map the inner value
+    pub fn map<U>(self, f: impl FnOnce(T) -> U) -> Spanned<U> {
+        Spanned {
+            inner: f(self.inner),
+            span: self.span,
+        }
+    }
+}
+
 /// Error reporter
 pub trait ErrorReporter {
     /// Report an error
     fn report(&mut self, report: Report);
 
+    /// Report a type error (an error with a given message, a span of the error, and an optional span of the possible reason)
     fn report_type_error(
         &mut self,
         message: String,

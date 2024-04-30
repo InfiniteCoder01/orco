@@ -1,5 +1,6 @@
 use crate::diagnostics::*;
-use crate::{ir::Type, TypeInference};
+use crate::{ir::Type, type_inference::TypeInference};
+use std::sync::{Arc, Mutex};
 
 /// Constant value
 pub mod constant;
@@ -9,11 +10,18 @@ pub use constant::Constant;
 pub mod block;
 pub use block::Block;
 
+/// Variable declaration
+pub mod variable_declaration;
+pub use variable_declaration::VariableDeclaration;
+pub use variable_declaration::VariableReference;
+
 /// An expression
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug)]
 pub enum Expression {
     /// A constant value
     Constant(Spanned<Constant>),
+    /// Variable
+    Variable(Spanned<VariableReference>),
     /// Binary Operation
     BinaryOp(Box<Expression>, BinaryOp, Box<Expression>),
     /// Block expression, contains multiple expressions (something along { expr1; expr2; })
@@ -28,18 +36,7 @@ pub enum Expression {
     /// Return a value
     Return(Spanned<Box<Expression>>),
     /// Declare a variable
-    VariableDeclaration {
-        /// Variable name
-        name: Spanned<String>,
-        /// Is variable mutable?
-        mutable: Spanned<bool>,
-        /// Variable type
-        r#type: Spanned<Type>,
-        /// Initial value (optional (I wish it was nesessarry))
-        value: Option<Box<Expression>>,
-        /// Span of the whole expression
-        span: Span,
-    },
+    VariableDeclaration(VariableReference),
     /// Invalid expression
     Error(Span),
 }
@@ -54,6 +51,7 @@ impl Expression {
     pub fn get_type(&self, root: &crate::ir::Module) -> Type {
         match self {
             Expression::Constant(constant) => constant.get_type(),
+            Expression::Variable(variable) => variable.lock().unwrap().r#type.inner.clone(),
             Expression::BinaryOp(lhs, _, rhs) => lhs.get_type(root) | rhs.get_type(root),
             Expression::Block(block) => block.get_type(root),
             Expression::FunctionCall { name, .. } => {
@@ -81,6 +79,10 @@ impl Expression {
             Expression::Constant(constant) => {
                 constant.inner.infer_types(target_type, type_inference)
             }
+            Expression::Variable(variable) => {
+                let reference = variable.lock().unwrap();
+                type_inference.equate(target_type, &reference.r#type.inner)
+            }
             Expression::BinaryOp(lhs, _, rhs) => {
                 let lhs_type = lhs.infer_types(target_type, type_inference);
                 let rhs_type = rhs.infer_types(target_type, type_inference);
@@ -101,16 +103,10 @@ impl Expression {
                 expr.infer_types(type_inference.return_type, type_inference);
                 Type::Never
             }
-            Expression::VariableDeclaration { r#type, value, .. } => {
-                if let Some(value) = value {
-                    let value_type = value.infer_types(r#type, type_inference);
-                    r#type.inner = type_inference.complete(r#type.inner.clone());
-                    type_inference.equate(r#type, &value_type);
-                } else {
-                    r#type.inner = type_inference.complete(r#type.inner.clone());
-                }
-                Type::Unit
-            }
+            Expression::VariableDeclaration(variable_declaration) => variable_declaration
+                .lock()
+                .unwrap()
+                .infer_types(type_inference),
             Expression::Error(_) => Type::Error,
         };
         r#type
@@ -122,6 +118,7 @@ impl Expression {
             Expression::Constant(constant) => constant
                 .inner
                 .finish_and_check_types(constant.span.clone(), type_inference),
+            Expression::Variable(variable) => variable.lock().unwrap().r#type.inner.clone(),
             Expression::BinaryOp(lhs, op, rhs) => {
                 let lhs_type = lhs.finish_and_check_types(type_inference);
                 let rhs_type = rhs.finish_and_check_types(type_inference);
@@ -205,38 +202,10 @@ impl Expression {
                 }
                 Type::Never
             }
-            Expression::VariableDeclaration {
-                name,
-                r#type,
-                value,
-                ..
-            } => {
-                if let Some(value) = value {
-                    let value_type = value.finish_and_check_types(type_inference);
-                    type_inference.finish(
-                        r#type,
-                        &format!("variable '{}'", name.inner),
-                        name.span.clone(),
-                    );
-                    if !value_type.morphs(r#type) {
-                        type_inference.reporter.report_type_error(
-                            format!(
-                                "Type mismatch in variable declaration: Expected '{}', got '{}'",
-                                r#type.inner, value_type
-                            ),
-                            value.span(),
-                            Some(r#type.span.clone()),
-                        );
-                    }
-                } else {
-                    type_inference.finish(
-                        r#type,
-                        &format!("variable '{}'", name.inner),
-                        name.span.clone(),
-                    );
-                }
-                Type::Unit
-            }
+            Expression::VariableDeclaration(variable_declaration) => variable_declaration
+                .lock()
+                .unwrap()
+                .finish_and_check_types(type_inference),
             Expression::Error(_) => Type::Error,
         };
         r#type
@@ -246,11 +215,14 @@ impl Expression {
     pub fn span(&self) -> Span {
         match self {
             Expression::Constant(constant) => constant.span.clone(),
+            Expression::Variable(variable) => variable.span.clone(),
             Expression::BinaryOp(lhs, _, rhs) => lhs.span().extend(&rhs.span()),
             Expression::Block(block) => block.span.clone(),
             Expression::FunctionCall { name, args } => name.span.extend(&args.span),
             Expression::Return(expr) => expr.span.clone(),
-            Expression::VariableDeclaration { span, .. } => span.clone(),
+            Expression::VariableDeclaration(variable_declaration) => {
+                variable_declaration.span.clone()
+            }
             Expression::Error(span) => span.clone(),
         }
     }
@@ -260,6 +232,7 @@ impl std::fmt::Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Expression::Constant(constant) => write!(f, "{}", constant.inner),
+            Expression::Variable(variable) => write!(f, "{}", variable.lock().unwrap().name.inner),
             Expression::BinaryOp(lhs, op, rhs) => write!(f, "({} {} {})", lhs, op, rhs),
             Expression::Block(block) => write!(f, "{}", block.inner),
             Expression::FunctionCall { name, args } => {
@@ -274,22 +247,8 @@ impl std::fmt::Display for Expression {
                 Ok(())
             }
             Expression::Return(expr) => write!(f, "return {}", expr.inner),
-            Expression::VariableDeclaration {
-                name,
-                mutable,
-                r#type,
-                value,
-                ..
-            } => {
-                write!(f, "let ")?;
-                if **mutable {
-                    write!(f, "mut ")?;
-                }
-                write!(f, "{}: {}", name.inner, r#type.inner)?;
-                if let Some(value) = value {
-                    write!(f, " = {}", value)?;
-                }
-                Ok(())
+            Expression::VariableDeclaration(variable_declaration) => {
+                write!(f, "{}", variable_declaration.lock().unwrap())
             }
             Expression::Error(_) => write!(f, "<ERROR>"),
         }

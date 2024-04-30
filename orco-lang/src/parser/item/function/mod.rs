@@ -5,7 +5,11 @@ pub mod signature;
 
 /// Parse a function (assumes, that "fn" token is already consumed)
 pub fn parse(parser: &mut Parser) -> ir::item::Function {
-    ir::item::Function::new(signature::parse(parser), expression::block::expect(parser))
+    let mut variable_mapper = orco::variable_mapper::VariableMapper::new();
+    ir::item::Function::new(
+        signature::parse(parser),
+        expression::block::expect(parser, &mut variable_mapper),
+    )
 }
 
 /// Parse a function with a name (assumes, that "fn" token is already consumed)

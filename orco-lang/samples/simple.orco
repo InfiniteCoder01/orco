@@ -6,7 +6,18 @@ fn greet() {
 }
 
 fn main() -> i32 {
+   let mut x = 42;
+// 
+// {
+//   let x: i32 = 10;
+//   print(x);
+// }
+//
+// let x = c"";
+//
+// print(x);
+
   greet();
-  return 0;
+  return x;
 }
 
