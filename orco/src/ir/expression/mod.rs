@@ -66,7 +66,7 @@ impl Expression {
                 }
             }
             Expression::Return(_) => Type::Never,
-            Expression::VariableDeclaration { .. } => Type::Unit,
+            Expression::VariableDeclaration(_) => Type::Unit,
             Expression::Error(_) => Type::Error,
         }
     }
@@ -232,7 +232,10 @@ impl std::fmt::Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Expression::Constant(constant) => write!(f, "{}", constant.inner),
-            Expression::Variable(variable) => write!(f, "{}", variable.lock().unwrap().name.inner),
+            Expression::Variable(variable) => {
+                let variable = variable.lock().unwrap();
+                write!(f, "{} (#{})", variable.name.inner, variable.id)
+            }
             Expression::BinaryOp(lhs, op, rhs) => write!(f, "({} {} {})", lhs, op, rhs),
             Expression::Block(block) => write!(f, "{}", block.inner),
             Expression::FunctionCall { name, args } => {

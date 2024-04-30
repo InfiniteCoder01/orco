@@ -1,8 +1,6 @@
-use std::sync::{Arc, Mutex};
-
-use self::ir::expression::{VariableDeclaration, VariableReference};
-
 use super::*;
+use ir::expression::{VariableDeclaration, VariableReference};
+use std::sync::{Arc, Mutex};
 
 /// Scope
 pub type Scope = std::collections::HashMap<String, VariableReference>;
@@ -11,6 +9,7 @@ pub type Scope = std::collections::HashMap<String, VariableReference>;
 #[derive(Debug)]
 pub struct VariableMapper {
     scopes: Vec<Scope>,
+    id_counter: ir::expression::variable_declaration::VariableID,
 }
 
 impl VariableMapper {
@@ -18,6 +17,7 @@ impl VariableMapper {
     pub fn new() -> Self {
         Self {
             scopes: vec![Scope::new()],
+            id_counter: 0,
         }
     }
 
@@ -44,8 +44,10 @@ impl VariableMapper {
     /// Declare a variable in the current scope
     pub fn declare_variable(
         &mut self,
-        declaration: diagnostics::Spanned<VariableDeclaration>,
+        mut declaration: diagnostics::Spanned<VariableDeclaration>,
     ) -> VariableReference {
+        declaration.id = self.id_counter;
+        self.id_counter += 1;
         let name = declaration.name.inner.clone();
         let reference = Arc::new(declaration.map(Mutex::new));
         self.current_scope_mut().insert(name, reference.clone());

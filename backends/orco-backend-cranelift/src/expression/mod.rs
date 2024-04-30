@@ -1,5 +1,6 @@
+use cranelift_codegen::entity::EntityRef;
 use cranelift_codegen::ir::{InstBuilder, Value};
-use cranelift_frontend::FunctionBuilder;
+use cranelift_frontend::{FunctionBuilder, Variable};
 use cranelift_module::Module;
 
 pub mod block;
@@ -15,8 +16,9 @@ impl crate::Object<'_> {
             orco::ir::expression::Expression::Constant(value) => {
                 self.build_constant(builder, value)
             }
-            orco::ir::expression::Expression::Variable(name) => {
-                todo!()
+            orco::ir::expression::Expression::Variable(variable) => {
+                let variable = variable.lock().unwrap();
+                Some(builder.use_var(Variable::new(variable.id as _)))
             }
             orco::ir::expression::Expression::BinaryOp(lhs, op, rhs) => {
                 let lhs = self.build_expression(builder, lhs)?;
@@ -48,8 +50,15 @@ impl crate::Object<'_> {
                 builder.seal_block(builder.current_block().unwrap());
                 None
             }
-            orco::ir::Expression::VariableDeclaration { .. } => {
-                todo!()
+            orco::ir::Expression::VariableDeclaration(declaration) => {
+                let declaration = declaration.lock().unwrap();
+                let variable = Variable::new(declaration.id as _);
+                builder.declare_var(variable, self.convert_type(&declaration.r#type));
+                if let Some(value) = &declaration.value {
+                    let value = self.build_expression(builder, &value).expect("Can't initialize a variable to a unit type, did you run type checking/inference?");
+                    builder.def_var(variable, value);
+                }
+                None
             }
             orco::ir::Expression::Error(span) => panic!("IR contains errors at {:?}!", span),
         }

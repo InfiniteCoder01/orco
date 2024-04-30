@@ -46,6 +46,7 @@ pub fn parse(parser: &mut Parser, variable_mapper: &mut VariableMapper) -> Optio
             variable_mapper.declare_variable(parser.wrap_span(
                 ir::expression::VariableDeclaration {
                     name,
+                    id: 0,
                     mutable,
                     r#type,
                     value,

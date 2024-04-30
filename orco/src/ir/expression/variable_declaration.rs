@@ -5,6 +5,10 @@ use super::*;
 pub struct VariableDeclaration {
     /// Variable name
     pub name: Spanned<String>,
+    /// Variable ID, just a counting up number assigned automatically, when calling
+    /// [`crate::variable_mapper::VariableMapper::declare_variable`]
+    /// Useful for some backends
+    pub id: VariableID,
     /// Is variable mutable?
     pub mutable: Spanned<bool>,
     /// Variable type
@@ -15,6 +19,8 @@ pub struct VariableDeclaration {
 
 /// Variable reference, used in variable access
 pub type VariableReference = Arc<Spanned<Mutex<VariableDeclaration>>>;
+/// Variable ID, for more information see [`VariableDeclaration::id`]
+pub type VariableID = u64;
 
 impl VariableDeclaration {
     /// Infer types
@@ -65,7 +71,11 @@ impl std::fmt::Display for VariableDeclaration {
         if self.mutable.inner {
             write!(f, "mut ")?;
         }
-        write!(f, "{}: {}", self.name.inner, self.r#type.inner)?;
+        write!(
+            f,
+            "{} (#{}): {}",
+            self.name.inner, self.id, self.r#type.inner
+        )?;
         if let Some(value) = &self.value {
             write!(f, " = {}", value)?;
         }
