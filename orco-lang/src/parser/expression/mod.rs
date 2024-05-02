@@ -1,12 +1,14 @@
-use orco::variable_mapper::VariableMapper;
-
 use super::*;
+use orco::variable_mapper::VariableMapper;
 
 /// Parsers for a block expression
 pub mod block;
 
 /// Expect an expression, error if there is no
-pub fn expect(parser: &mut Parser, variable_mapper: &mut VariableMapper) -> ir::Expression {
+pub fn expect<R: ErrorReporter + ?Sized>(
+    parser: &mut Parser<R>,
+    variable_mapper: &mut VariableMapper,
+) -> ir::Expression {
     if let Some(expression) = parse(parser, variable_mapper) {
         expression
     } else {
@@ -16,7 +18,10 @@ pub fn expect(parser: &mut Parser, variable_mapper: &mut VariableMapper) -> ir::
 }
 
 /// Parse an expression
-pub fn parse(parser: &mut Parser, variable_mapper: &mut VariableMapper) -> Option<ir::Expression> {
+pub fn parse<R: ErrorReporter + ?Sized>(
+    parser: &mut Parser<R>,
+    variable_mapper: &mut VariableMapper,
+) -> Option<ir::Expression> {
     let start = parser.span().1.start;
     let expression = if parser.match_keyword("return") {
         let value = expect(parser, variable_mapper);
@@ -72,13 +77,21 @@ pub fn parse(parser: &mut Parser, variable_mapper: &mut VariableMapper) -> Optio
 }
 
 /// Parse a binary expression with a set level of precedance
-pub fn binary_expression(
-    parser: &mut Parser,
+pub fn binary_expression<R: ErrorReporter + ?Sized>(
+    parser: &mut Parser<R>,
     variable_mapper: &mut VariableMapper,
     level: usize,
 ) -> Option<ir::Expression> {
     use ir::expression::BinaryOp;
     let operators = [
+        vec![
+            (Operator::EqualEqual, BinaryOp::Eq),
+            (Operator::NotEqual, BinaryOp::Ne),
+            (Operator::Lt, BinaryOp::Lt),
+            (Operator::LtEq, BinaryOp::Le),
+            (Operator::Gt, BinaryOp::Gt),
+            (Operator::GtEq, BinaryOp::Ge),
+        ],
         vec![
             (Operator::Plus, BinaryOp::Add),
             (Operator::Minus, BinaryOp::Sub),
@@ -91,7 +104,7 @@ pub fn binary_expression(
     ];
 
     if level >= operators.len() {
-        return unit_expression(parser, variable_mapper);
+        return unary_expression(parser, variable_mapper);
     }
 
     let mut expression = binary_expression(parser, variable_mapper, level + 1)?;
@@ -114,17 +127,54 @@ pub fn binary_expression(
     Some(expression)
 }
 
-/// Parse a unit expression
-pub fn unit_expression(
-    parser: &mut Parser,
+/// Parse a unary expression
+pub fn unary_expression<R: ErrorReporter + ?Sized>(
+    parser: &mut Parser<R>,
     variable_mapper: &mut VariableMapper,
 ) -> Option<ir::Expression> {
+    use ir::expression::UnaryOp;
+    let operators = [(Operator::Minus, UnaryOp::Neg)];
+    for &(operator, operation) in &operators {
+        let span = parser.span();
+        if parser.match_operator(operator) {
+            return Some(ir::Expression::UnaryOp(
+                Spanned {
+                    inner: operation,
+                    span,
+                },
+                Box::new(unary_expression(parser, variable_mapper)?),
+            ));
+        }
+    }
+    unit_expression(parser, variable_mapper)
+}
+
+/// Parse a unit expression
+pub fn unit_expression<R: ErrorReporter + ?Sized>(
+    parser: &mut Parser<R>,
+    variable_mapper: &mut VariableMapper,
+) -> Option<ir::Expression> {
+    let start = parser.span().1.start;
     if let Some(span) = parser.match_error() {
         Some(ir::Expression::Error(span))
     } else if let Some(constant) = parser.match_constant() {
         Some(ir::Expression::Constant(constant))
     } else if let Some(block) = block::parse(parser, variable_mapper) {
         Some(ir::Expression::Block(block))
+    } else if parser.match_keyword("if") {
+        let condition = Box::new(expect(parser, variable_mapper));
+        let then_branch = Box::new(expect(parser, variable_mapper));
+        let else_branch = if parser.match_keyword("else") {
+            Some(Box::new(expect(parser, variable_mapper)))
+        } else {
+            None
+        };
+        Some(ir::Expression::If {
+            condition,
+            then_branch,
+            else_branch,
+            span: parser.span_from(start),
+        })
     } else if let Some(name) = parser.match_ident() {
         let start = parser.span().1.start;
         if parser.match_operator(Operator::LParen) {

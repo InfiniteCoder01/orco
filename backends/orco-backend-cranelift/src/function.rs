@@ -42,13 +42,13 @@ impl crate::Object<'_> {
             let mut builder = FunctionBuilder::new(&mut ctx.func, &mut function_ctx);
             let block = builder.create_block();
             builder.switch_to_block(block);
+            builder.seal_block(block);
             let return_value = self.build_block(&mut builder, &function.body.borrow());
             if function.body.borrow().get_type(root) != orco::ir::Type::Never {
                 builder
                     .ins()
                     .return_(&return_value.into_iter().collect::<Vec<_>>());
             }
-            builder.seal_all_blocks();
             builder.finalize();
         }
         self.object.define_function(id, &mut ctx).unwrap();

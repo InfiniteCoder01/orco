@@ -1,5 +1,5 @@
 use logos::Logos;
-use orco::diagnostics::*;
+use orco::diagnostics::{ErrorReporter, *};
 use orco::ir::expression::Constant;
 
 pub mod unescape;
@@ -90,16 +90,18 @@ pub enum Token {
     #[token("/", |_| Operator::Slash)]
     #[token("%", |_| Operator::Percent)]
     #[token("=", |_| Operator::Equal)]
+    #[token("==", |_| Operator::EqualEqual)]
+    #[token("!=", |_| Operator::NotEqual)]
+    #[token("<", |_| Operator::Lt)]
+    #[token("<=", |_| Operator::LtEq)]
+    #[token(">", |_| Operator::Gt)]
+    #[token(">=", |_| Operator::GtEq)]
     Operator(Operator),
     /// Constant
     #[regex("[0-9][0-9_]*", |lex| parse_unsigned(lex.slice(), "", 10))]
-    #[regex("-[0-9][0-9_]*", |lex| parse_signed(lex.slice(), "", 10))]
     #[regex("0b[0-1][0-1_]*", |lex| parse_unsigned(lex.slice(), "0b", 2))]
-    #[regex("-0b[0-1][0-1_]*", |lex| parse_signed(lex.slice(), "0b", 2))]
     #[regex("0o[0-7][0-7_]*", |lex| parse_unsigned(lex.slice(), "0o", 8))]
-    #[regex("-0o[0-7][0-7_]*", |lex| parse_signed(lex.slice(), "0o", 8))]
     #[regex("0x[0-9a-fA-F][0-9a-fA-F_]*", |lex| parse_unsigned(lex.slice(), "0x", 16))]
-    #[regex("-0x[0-9a-fA-F][0-9a-fA-F_]*", |lex| parse_signed(lex.slice(), "0x", 16))]
     #[regex("c\"([^\"]|\\\\.)*\"", |lex| parse_cstring(lex.slice()))]
     #[regex("c#\"([^\"]|\"[^#])*\"#", |lex| Constant::CString(lex.slice().as_bytes().to_vec()))]
     Constant(Constant),
@@ -109,18 +111,9 @@ pub enum Token {
 
 fn parse_unsigned(slice: &str, prefix: &str, radix: u32) -> Result<Constant, Error> {
     u128::from_str_radix(&slice.strip_prefix(prefix).unwrap().replace('_', ""), radix)
-        .map(|value| Constant::UnsignedInteger {
+        .map(|value| Constant::Integer {
             value,
-            r#type: orco::ir::Type::Wildcard,
-        })
-        .map_err(|_| Error::IntegerOutOfBounds)
-}
-
-fn parse_signed(slice: &str, prefix: &str, radix: u32) -> Result<Constant, Error> {
-    i128::from_str_radix(&slice.replace(prefix, "").replace('_', ""), radix)
-        .map(|value| Constant::SignedInteger {
-            value,
-            r#type: orco::ir::Type::Wildcard,
+            r#type: orco::ir::Type::IntegerWildcard,
         })
         .map_err(|_| Error::IntegerOutOfBounds)
 }
@@ -191,6 +184,18 @@ pub enum Operator {
     Percent,
     /// =
     Equal,
+    /// ==
+    EqualEqual,
+    /// !=
+    NotEqual,
+    /// <
+    Lt,
+    /// <=
+    LtEq,
+    /// >
+    Gt,
+    /// >=
+    GtEq,
 }
 
 impl std::fmt::Display for Operator {
@@ -212,21 +217,27 @@ impl std::fmt::Display for Operator {
             Operator::Slash => write!(f, "/"),
             Operator::Percent => write!(f, "%"),
             Operator::Equal => write!(f, "="),
+            Operator::EqualEqual => write!(f, "=="),
+            Operator::NotEqual => write!(f, "!="),
+            Operator::Lt => write!(f, "<"),
+            Operator::LtEq => write!(f, "<="),
+            Operator::Gt => write!(f, ">"),
+            Operator::GtEq => write!(f, ">="),
         }
     }
 }
 
 /// Parser, holds lexer, current token and error reporter. Used throughout parsing process
-pub struct Parser<'a> {
+pub struct Parser<'a, R: ErrorReporter + ?Sized> {
     /// Error reporter
-    pub reporter: &'a mut dyn orco::diagnostics::ErrorReporter,
+    pub reporter: &'a mut R,
     lexer: logos::Lexer<'a, Token>,
     peek: Option<Token>,
 }
 
-impl<'a> Parser<'a> {
+impl<'a, R: ErrorReporter + ?Sized> Parser<'a, R> {
     /// Create new parser from a source string
-    pub fn new(source: &'a Source, reporter: &'a mut dyn orco::diagnostics::ErrorReporter) -> Self {
+    pub fn new(source: &'a Source, reporter: &'a mut R) -> Self {
         Self {
             reporter,
             lexer: Token::lexer(source),
@@ -341,7 +352,7 @@ impl<'a> Parser<'a> {
     }
 }
 
-impl Iterator for Parser<'_> {
+impl<R: ErrorReporter + ?Sized> Iterator for Parser<'_, R> {
     type Item = Token;
 
     /// Get the current token and advance to the next one
@@ -351,7 +362,7 @@ impl Iterator for Parser<'_> {
     }
 }
 
-impl<'source> Parser<'source> {
+impl<'source, R: ErrorReporter + ?Sized> Parser<'source, R> {
     /// Match a keyword, consume if matched
     pub fn match_keyword(&mut self, keyword: &str) -> bool {
         self.fill();

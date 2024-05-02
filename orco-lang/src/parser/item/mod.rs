@@ -4,7 +4,7 @@ use super::*;
 pub mod function;
 
 /// Parse an item (it there is an item, otherwise returns None and does nothing)
-pub fn parse(parser: &mut Parser) -> Option<Named<ir::Item>> {
+pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Named<ir::Item>> {
     if parser.match_keyword("fn") {
         function::parse_named(parser).map(|item| item.map(ir::Item::Function))
     } else if parser.match_keyword("extern") {

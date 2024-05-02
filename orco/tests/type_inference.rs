@@ -1,32 +1,49 @@
 use std::num::NonZeroU16;
 
-use orco::ir::*;
+mod parser_utils;
+use parser_utils::*;
 
 #[test]
 fn overflow() {
-    let big_value = 170141183460469231731687303715884105728;
-    let mut big_unsigned = expression::Constant::UnsignedInteger {
-        value: big_value - 1,
-        size: None,
-    };
-    big_unsigned.infer_types(&Type::Int(NonZeroU16::new(16).unwrap()));
-    assert_eq!(
-        big_unsigned,
-        expression::Constant::SignedInteger {
-            value: (big_value - 1) as _,
-            size: Some(NonZeroU16::new(16).unwrap())
-        }
-    );
-    let mut big_unsigned = expression::Constant::UnsignedInteger {
-        value: big_value,
-        size: None,
-    };
-    big_unsigned.infer_types(&Type::Int(NonZeroU16::new(16).unwrap()));
-    assert_eq!(
-        big_unsigned,
-        expression::Constant::UnsignedInteger {
-            value: big_value,
-            size: None,
-        }
-    );
+    {
+        make_type_inference!(type_inference, errors);
+        let mut big_unsigned = ir::expression::Constant::Integer {
+            value: 1 << 127 - 1,
+            r#type: ir::Type::IntegerWildcard,
+        };
+        big_unsigned.infer_types(
+            &ir::Type::Int(NonZeroU16::new(16).unwrap()),
+            &mut type_inference,
+        );
+        big_unsigned.finish_and_check_types(dummy_span(), &mut type_inference);
+        check!(
+            big_unsigned
+                == ir::expression::Constant::Integer {
+                    value: 1 << 127 - 1,
+                    r#type: ir::Type::Int(NonZeroU16::new(16).unwrap())
+                }
+        );
+        check!(errors.is_empty());
+    }
+
+    {
+        make_type_inference!(type_inference, errors);
+        let mut big_unsigned = ir::expression::Constant::Integer {
+            value: 1 << 127,
+            r#type: ir::Type::IntegerWildcard,
+        };
+        big_unsigned.infer_types(
+            &ir::Type::Int(NonZeroU16::new(16).unwrap()),
+            &mut type_inference,
+        );
+        big_unsigned.finish_and_check_types(dummy_span(), &mut type_inference);
+        check!(
+            big_unsigned
+                == ir::expression::Constant::Integer {
+                    value: 1 << 127,
+                    r#type: ir::Type::Int(NonZeroU16::new(16).unwrap()),
+                }
+        );
+        check!(errors.len() == 1);
+    }
 }

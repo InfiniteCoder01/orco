@@ -83,7 +83,7 @@ impl<'a> TypeInference<'a> {
                 match type_variables {
                     Ok([(_, (type1_ids, type1)), (type2_index, (type2_ids, type2))]) => {
                         type1_ids.append(type2_ids);
-                        *type1 |= type2.clone();
+                        type1.equate(type2.clone());
                         let r#type = ir::Type::TypeVariable(type1_ids[0]);
                         self.type_table.remove(type2_index);
                         r#type
@@ -98,7 +98,7 @@ impl<'a> TypeInference<'a> {
                     .iter_mut()
                     .find(|(ids, _)| ids.contains(type_variable))
                     .expect("Invalid type variable!");
-                *type_variable |= r#type.clone();
+                type_variable.equate(r#type.clone());
                 ir::Type::TypeVariable(type_ids[0])
             }
             (lhs, rhs) => lhs.clone() | rhs.clone(),

@@ -4,14 +4,17 @@ use super::*;
 /// Function signature (i.e. parameters and return type)
 pub struct Signature {
     /// Function parameters
-    pub args: Vec<(Spanned<String>, Spanned<Type>)>,
+    pub args: Spanned<Vec<(Spanned<String>, Spanned<Type>)>>,
     /// Function return type
     pub return_type: Spanned<Type>,
 }
 
 impl Signature {
     /// Create a new function signature
-    pub fn new(args: Vec<(Spanned<String>, Spanned<Type>)>, return_type: Spanned<Type>) -> Self {
+    pub fn new(
+        args: Spanned<Vec<(Spanned<String>, Spanned<Type>)>>,
+        return_type: Spanned<Type>,
+    ) -> Self {
         Self { args, return_type }
     }
 

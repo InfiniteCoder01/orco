@@ -56,7 +56,12 @@ impl VariableMapper {
 
     /// Get a variable from the current scope
     pub fn get_variable(&self, name: &str) -> Option<VariableReference> {
-        self.current_scope().get(name).cloned()
+        for scope in self.scopes.iter().rev() {
+            if let Some(reference) = scope.get(name) {
+                return Some(reference.clone());
+            }
+        }
+        None
     }
 
     /// Get a variable expression from the current scope, or report and return an error

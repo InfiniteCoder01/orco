@@ -1,5 +1,5 @@
 use crate::lexer::*;
-use orco::diagnostics::Spanned;
+use orco::diagnostics::{ErrorReporter, Spanned};
 use orco::ir;
 
 /// Parsers for expressions
@@ -10,7 +10,7 @@ pub mod item;
 pub mod r#type;
 
 /// Parse the whole file
-pub fn parse(parser: &mut Parser) -> ir::Module {
+pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::Module {
     let mut module = ir::Module::default();
     while !parser.eof() {
         if let Some(item) = item::parse(parser) {
@@ -45,5 +45,18 @@ impl<T> Named<T> {
             name: self.name,
             value: mapper(self.value),
         }
+    }
+}
+
+impl<T> std::ops::Deref for Named<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
+}
+
+impl<T> std::ops::DerefMut for Named<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.value
     }
 }

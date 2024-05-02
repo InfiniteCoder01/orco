@@ -1,80 +1,82 @@
-use std::cell::RefCell;
-use std::num::NonZeroU16;
+mod parser_utils;
+use parser_utils::*;
 
-use orco::ir;
-// use orco_lang::lexer::Lexer;
-// use orco_lang::parser;
+#[test]
+fn types() {
+    use ir::Type;
+    use parser::r#type::parse as parse_type;
+    parse("i8", |mut parser| {
+        assert_eq!(
+            parse_type(&mut parser).inner,
+            Type::Int(NonZeroU16::new(1).unwrap())
+        );
+        assert_eq!(parser.reporter.len(), 0);
+    });
+    parse("i128", |mut parser| {
+        assert_eq!(
+            parse_type(&mut parser).inner,
+            Type::Int(NonZeroU16::new(16).unwrap())
+        );
+        assert_eq!(parser.reporter.len(), 0);
+    });
+    parse("u16", |mut parser| {
+        assert_eq!(
+            parse_type(&mut parser).inner,
+            Type::Unsigned(NonZeroU16::new(2).unwrap())
+        );
+        assert_eq!(parser.reporter.len(), 0);
+    });
+    parse("f32", |mut parser| {
+        assert_eq!(
+            parse_type(&mut parser).inner,
+            Type::Float(NonZeroU16::new(4).unwrap())
+        );
+        assert_eq!(parser.reporter.len(), 0);
+    });
+    parse("bool", |mut parser| {
+        assert_eq!(parse_type(&mut parser).inner, Type::Bool);
+        assert_eq!(parser.reporter.len(), 0);
+    });
+    parse("char*", |mut parser| {
+        assert_eq!(
+            parse_type(&mut parser).inner,
+            Type::Pointer(Box::new(ir::Type::Char))
+        );
+        assert_eq!(parser.reporter.len(), 0);
+    });
+    parse("Custom", |mut parser| {
+        assert_eq!(
+            parse_type(&mut parser).inner,
+            Type::Custom("Custom".to_owned())
+        );
+        assert_eq!(parser.reporter.len(), 0);
+    });
+}
 
-// #[test]
-// fn types() {
-//     assert_eq!(
-//         parser::TypeParser::new().parse(Lexer::new("i8")),
-//         Ok(ir::Type::Int(NonZeroU16::new(1).unwrap()))
-//     );
-//     assert_eq!(
-//         parser::TypeParser::new().parse(Lexer::new("i128")),
-//         Ok(ir::Type::Int(NonZeroU16::new(16).unwrap()))
-//     );
-//     assert_eq!(
-//         parser::TypeParser::new().parse(Lexer::new("u16")),
-//         Ok(ir::Type::Unsigned(NonZeroU16::new(2).unwrap()))
-//     );
-//     assert_eq!(
-//         parser::TypeParser::new().parse(Lexer::new("f32")),
-//         Ok(ir::Type::Float(NonZeroU16::new(4).unwrap()))
-//     );
-//     assert_eq!(
-//         parser::TypeParser::new().parse(Lexer::new("bool")),
-//         Ok(ir::Type::Bool)
-//     );
-//     assert_eq!(
-//         parser::TypeParser::new().parse(Lexer::new("char")),
-//         Ok(ir::Type::Char)
-//     );
-//     assert_eq!(
-//         parser::TypeParser::new().parse(Lexer::new("Custom")),
-//         Ok(ir::Type::Custom("Custom".to_owned()))
-//     );
-// }
-
-// #[test]
-// fn function() {
-//     assert_eq!(
-//         parser::FunctionParser::new().parse(Lexer::new("fn main() -> i32 { return 42; }")),
-//         Ok(orco_lang::parser_utils::Named::new(
-//             "main".to_owned(),
-//             ir::item::function::Function {
-//                 signature: ir::item::function::Signature {
-//                     args: vec![],
-//                     return_type: ir::Type::Int(NonZeroU16::new(4).unwrap()),
-//                 },
-//                 body: RefCell::new(ir::expression::Block::new(vec![
-//                     ir::expression::Expression::Return(Box::new(
-//                         ir::expression::Expression::Constant(
-//                             ir::expression::Constant::UnsignedInteger {
-//                                 value: 42,
-//                                 size: None
-//                             }
-//                         )
-//                     ))
-//                 ]))
-//             }
-//         ))
-//     );
-//     assert_eq!(
-//         parser::FunctionParser::new().parse(Lexer::new("fn foo(bar: f32) {}")),
-//         Ok(orco_lang::parser_utils::Named::new(
-//             "foo".to_owned(),
-//             ir::item::function::Function {
-//                 signature: ir::item::function::Signature {
-//                     args: vec![(
-//                         "bar".to_owned(),
-//                         ir::Type::Float(NonZeroU16::new(4).unwrap())
-//                     )],
-//                     return_type: ir::Type::unit(),
-//                 },
-//                 body: RefCell::default()
-//             }
-//         ))
-//     );
-// }
+#[test]
+fn function() {
+    parse(
+        "main(argc: u32, argv: char**) -> i32 { return 42; }",
+        |mut parser| {
+            let function = parser::item::function::parse_named(&mut parser).unwrap();
+            assert_eq!(function.name, "main");
+            assert_eq!(function.signature.args.len(), 2);
+            assert_eq!(function.signature.args[0].0.inner, "argc");
+            assert_eq!(
+                function.signature.args[0].1.inner,
+                ir::Type::Unsigned(NonZeroU16::new(4).unwrap())
+            );
+            assert_eq!(function.signature.args[1].0.inner, "argv");
+            assert_eq!(
+                function.signature.args[1].1.inner,
+                ir::Type::Pointer(Box::new(ir::Type::Pointer(Box::new(ir::Type::Char))))
+            );
+            assert_eq!(
+                function.signature.return_type.inner,
+                ir::Type::Int(NonZeroU16::new(4).unwrap())
+            );
+            let body = function.body.borrow();
+            assert_eq!(body.expressions.len(), 1);
+        },
+    );
+}

@@ -28,6 +28,8 @@ pub enum Type {
 
     /// A wildcard type (aka non-inferred)
     Wildcard,
+    /// Integer wildcard (number literal, that automatically infers type)
+    IntegerWildcard,
     /// Type variable (used only during type inference)
     TypeVariable(TypeVariableID),
     /// Error type
@@ -42,19 +44,46 @@ impl Type {
 
     /// Does this type morphs to the target type
     pub fn morphs(&self, target_type: &Type) -> bool {
-        self == target_type
-            || self == &Type::Never
-            || self == &Type::Wildcard
-            || self == &Type::Error
-            || target_type == &Type::Never
-            || target_type == &Type::Wildcard
-            || target_type == &Type::Error
+        match (self, target_type) {
+            (Self::Never, _) => true,
+            (Self::Wildcard, _) => true,
+            (Self::Error, _) => true,
+            (_, Self::Never) => true,
+            (_, Self::Wildcard) => true,
+            (_, Self::Error) => true,
+            (Self::IntegerWildcard, Self::Int(_)) => true,
+            (Self::IntegerWildcard, Self::Unsigned(_)) => true,
+            (Self::Int(_), Self::IntegerWildcard) => true,
+            (Self::Unsigned(_), Self::IntegerWildcard) => true,
+            _ => self == target_type,
+        }
     }
 
     /// Is this type complete (nothing to infer)
     /// TypeVariables are considered complete
     pub fn complete(&self) -> bool {
-        !matches!(self, Self::Wildcard | Self::Error)
+        !matches!(self, Self::Wildcard | Self::IntegerWildcard | Self::Error)
+    }
+
+    /// Complete this type to be equal to the other type
+    pub fn equate(&mut self, other: Type) -> bool {
+        if self == &other {
+            return true;
+        }
+        match (self as &Self, &other) {
+            (Self::Never, _) => true,
+            (Self::Wildcard | Self::Error, _) => {
+                *self = other;
+                true
+            }
+            (_, Self::Never | Self::Wildcard | Self::Error) => true,
+            (Self::IntegerWildcard, Self::Int(_) | Self::Unsigned(_)) => {
+                *self = other;
+                true
+            }
+            (Self::Int(_) | Self::Unsigned(_), Self::IntegerWildcard) => true,
+            _ => false,
+        }
     }
 }
 
@@ -71,17 +100,9 @@ impl std::fmt::Display for Type {
             Self::Unit => write!(f, "()"),
             Self::Custom(name) => write!(f, "{}", name),
             Self::Wildcard => write!(f, "_"),
+            Self::IntegerWildcard => write!(f, "integer"),
             Self::TypeVariable(id) => write!(f, "{}", id),
             Self::Error => write!(f, "<ERROR>"),
-        }
-    }
-}
-
-impl std::ops::BitOrAssign for Type {
-    fn bitor_assign(&mut self, rhs: Type) {
-        match self {
-            Self::Never | Self::Error | Self::Wildcard => *self = rhs,
-            _ => (),
         }
     }
 }
@@ -89,8 +110,8 @@ impl std::ops::BitOrAssign for Type {
 impl std::ops::BitOr for Type {
     type Output = Type;
 
-    fn bitor(mut self, rhs: Type) -> Self::Output {
-        self |= rhs;
+    fn bitor(mut self, rhs: Self) -> Self::Output {
+        self.equate(rhs);
         self
     }
 }

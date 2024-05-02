@@ -1,7 +1,8 @@
 use super::*;
 
 /// Parse a function signature (assumes, that "fn" token is already consumed)
-pub fn parse(parser: &mut Parser) -> ir::item::function::Signature {
+pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::item::function::Signature {
+    let start = parser.span().1.start;
     parser.expect_operator(Operator::LParen);
     let mut args = Vec::new();
     while !parser.match_operator(Operator::RParen) {
@@ -16,6 +17,7 @@ pub fn parse(parser: &mut Parser) -> ir::item::function::Signature {
             break;
         }
     }
+    let args = parser.wrap_span(args, start);
     let return_type = if parser.match_operator(Operator::Arrow) {
         r#type::parse(parser)
     } else {
@@ -25,7 +27,9 @@ pub fn parse(parser: &mut Parser) -> ir::item::function::Signature {
 }
 
 /// Parse a function signature with a name (assumes, that "fn" token is already consumed)
-pub fn parse_named(parser: &mut Parser) -> Option<Named<ir::item::function::Signature>> {
+pub fn parse_named<R: ErrorReporter + ?Sized>(
+    parser: &mut Parser<R>,
+) -> Option<Named<ir::item::function::Signature>> {
     parser
         .expect_ident("function name")
         .map(|name| Named::new(name.inner, parse(parser)))

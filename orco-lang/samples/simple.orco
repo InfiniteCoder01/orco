@@ -3,8 +3,7 @@ extern fn puts(message: char*) -> i32;
 fn main() -> i32 {
   puts(c"Hello, world!");
 
-  let x = 21;
+  let mut x = 21;
   x = x + 21;
   return x;
 }
-

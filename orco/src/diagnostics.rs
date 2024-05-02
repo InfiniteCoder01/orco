@@ -2,7 +2,7 @@ pub use crate::{Span, Src};
 pub use ariadne::{ColorGenerator, Label, ReportKind};
 
 /// Diagnostic report (error, warning, etc.)
-pub type Report<'a> = ariadne::Report<'a, Span>;
+pub type Report = ariadne::Report<'static, Span>;
 
 impl ariadne::Span for Span {
     type SourceId = Src;
@@ -79,6 +79,12 @@ pub trait ErrorReporter {
                     .with_color(colors.next())
             }));
         self.report(report.finish());
+    }
+}
+
+impl ErrorReporter for Vec<Report> {
+    fn report(&mut self, report: Report) {
+        self.push(report);
     }
 }
 

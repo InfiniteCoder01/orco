@@ -2,7 +2,7 @@ use super::*;
 use std::num::NonZeroU16;
 
 /// Parse a type, error if there is no
-pub fn parse(parser: &mut Parser) -> Spanned<ir::Type> {
+pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Spanned<ir::Type> {
     let start = parser.span().1.start;
     let mut r#type = if let Some(r#type) = parser.expect_ident("type") {
         if let Some(bytes) = numeric_type_size(&r#type, "i") {

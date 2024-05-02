@@ -1,0 +1,49 @@
+extern fn getchar() -> i32;
+extern fn printf(message: char*, value: i32) -> i32;
+
+fn getint() -> i32 {
+  let mut sign = 1;
+  let mut c = getchar();
+  if c == 0x2D {
+    sign = -1;
+    c = getchar();
+  }
+  let mut x = c - 0x30;
+  c = getchar();
+  if c >= 0x30 {
+    if c < 0x40 {
+      x = x * 10 + c - 0x30;
+      c = getchar();
+      if c >= 0x30 {
+        if c < 0x40 {
+          x = x * 10 + c - 0x30;
+          getchar();
+        }
+      }
+    }
+  }
+  return x * sign;
+}
+
+fn main() -> i32 {
+  let a = getint();
+  let action = getchar();
+  getchar();
+  let b = getint();
+  if action == 0x2B {
+    printf(c"%d\n", a + b);
+  }
+  if action == 0x2D {
+    printf(c"%d\n", a - b);
+  }
+  if action == 0x2A {
+    printf(c"%d\n", a * b);
+  }
+  if action == 0x2F {
+    printf(c"%d\n", a / b);
+  }
+  if action == 0x5E {
+    printf(c"%d\n", 0);
+  }
+  return 0;
+}

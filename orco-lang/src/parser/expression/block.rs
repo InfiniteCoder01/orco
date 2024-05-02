@@ -1,8 +1,8 @@
 use super::*;
 
 /// Parse a block
-pub fn parse(
-    parser: &mut Parser,
+pub fn parse<R: ErrorReporter + ?Sized>(
+    parser: &mut Parser<R>,
     variable_mapper: &mut VariableMapper,
 ) -> Option<Spanned<ir::expression::Block>> {
     let start = parser.span().1.start;
@@ -30,8 +30,8 @@ pub fn parse(
 }
 
 /// Expect a block
-pub fn expect(
-    parser: &mut Parser,
+pub fn expect<R: ErrorReporter + ?Sized>(
+    parser: &mut Parser<R>,
     variable_mapper: &mut VariableMapper,
 ) -> Spanned<ir::expression::Block> {
     if let Some(block) = parse(parser, variable_mapper) {
