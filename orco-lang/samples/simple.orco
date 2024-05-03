@@ -1,9 +1,10 @@
 extern fn puts(message: char*) -> i32;
 
+fn sub(x: i32, y: i32) -> i32 {
+  return x - y;
+}
+
 fn main() -> i32 {
   puts(c"Hello, world!");
-
-  let mut x = 21;
-  x = x + 21;
-  return x;
+  return sub(10, 5);
 }

@@ -1,10 +1,11 @@
+use self::item::expression::VariableReference;
 use super::*;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug)]
 /// Function signature (i.e. parameters and return type)
 pub struct Signature {
     /// Function parameters
-    pub args: Spanned<Vec<(Spanned<String>, Spanned<Type>)>>,
+    pub args: Spanned<Vec<VariableReference>>,
     /// Function return type
     pub return_type: Spanned<Type>,
 }
@@ -12,7 +13,7 @@ pub struct Signature {
 impl Signature {
     /// Create a new function signature
     pub fn new(
-        args: Spanned<Vec<(Spanned<String>, Spanned<Type>)>>,
+        args: Spanned<Vec<VariableReference>>,
         return_type: Spanned<Type>,
     ) -> Self {
         Self { args, return_type }
@@ -25,11 +26,12 @@ impl Signature {
             write!(f, "{}", name)?;
         }
         write!(f, "(")?;
-        for (index, (name, r#type)) in self.args.iter().enumerate() {
+        for (index, arg) in self.args.iter().enumerate() {
+            let arg = arg.lock().unwrap();
             if index > 0 {
                 write!(f, ", ")?;
             }
-            write!(f, "{}: {}", name.inner, **r#type)?;
+            write!(f, "{}: {}", arg.name.inner, arg.r#type.inner)?;
         }
         write!(f, ")")?;
         write!(f, " -> {}", *self.return_type)?;

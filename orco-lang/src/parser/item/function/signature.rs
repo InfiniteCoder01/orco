@@ -1,17 +1,36 @@
 use super::*;
 
 /// Parse a function signature (assumes, that "fn" token is already consumed)
-pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::item::function::Signature {
+pub fn parse<R: ErrorReporter + ?Sized>(
+    parser: &mut Parser<R>,
+    mut variable_mapper: Option<&mut orco::variable_mapper::VariableMapper>,
+) -> ir::item::function::Signature {
     let start = parser.span().1.start;
     parser.expect_operator(Operator::LParen);
     let mut args = Vec::new();
     while !parser.match_operator(Operator::RParen) {
+        let start = parser.span().1.start;
         let name = parser
             .expect_ident("argument name")
             .unwrap_or(parser.wrap_point("_".to_owned()));
         parser.expect_operator(Operator::Colon);
         let r#type = r#type::parse(parser);
-        args.push((name, r#type));
+
+        let declaration = ir::expression::variable_declaration::VariableDeclaration {
+            name,
+            id: args.len() as _,
+            mutable: parser.wrap_point(false),
+            r#type,
+            value: None,
+        };
+        let declaration = parser.wrap_span(declaration, start);
+        let declaration = if let Some(variable_mapper) = &mut variable_mapper {
+            variable_mapper.declare_variable(declaration)
+        } else {
+            std::sync::Arc::new(declaration.map(std::sync::Mutex::new))
+        };
+        args.push(declaration);
+
         if !parser.match_operator(Operator::Comma) {
             parser.expect_operator(Operator::RParen);
             break;
@@ -32,5 +51,5 @@ pub fn parse_named<R: ErrorReporter + ?Sized>(
 ) -> Option<Named<ir::item::function::Signature>> {
     parser
         .expect_ident("function name")
-        .map(|name| Named::new(name.inner, parse(parser)))
+        .map(|name| Named::new(name.inner, parse(parser, None)))
 }

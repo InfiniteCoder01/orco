@@ -14,6 +14,7 @@ pub use block::Block;
 pub mod variable_declaration;
 pub use variable_declaration::VariableDeclaration;
 pub use variable_declaration::VariableReference;
+pub use variable_declaration::VariableReferenceExt;
 
 /// An expression
 #[derive(Clone, Debug)]
@@ -95,7 +96,7 @@ impl Expression {
                 else_branch,
                 ..
             } => else_branch.as_ref().map_or_else(
-                || then_branch.get_type(root),
+                || Type::Unit,
                 |else_branch| then_branch.get_type(root) | else_branch.get_type(root),
             ),
             // Expression::While { .. } => Type::unit(),
@@ -127,8 +128,7 @@ impl Expression {
                 constant.inner.infer_types(target_type, type_inference)
             }
             Expression::Variable(variable) => {
-                let reference = variable.lock().unwrap();
-                type_inference.equate(target_type, &reference.r#type.inner)
+                type_inference.equate(target_type, &variable.r#type())
             }
             Expression::BinaryOp(lhs, op, rhs) => match op {
                 BinaryOp::Eq
@@ -177,7 +177,7 @@ impl Expression {
                     for (arg, signature_arg) in
                         std::iter::zip(&mut args.inner, &signature.args.inner)
                     {
-                        arg.infer_types(&signature_arg.1, type_inference);
+                        arg.infer_types(&signature_arg.r#type(), type_inference);
                     }
                     (*signature.return_type).clone()
                 } else {
@@ -345,15 +345,16 @@ impl Expression {
                         std::iter::zip(&mut args.inner, &signature.args.inner)
                     {
                         let arg_type = arg.finish_and_check_types(type_inference);
-                        if !arg_type.morphs(&signature_arg.1) {
+                        let signature_arg = signature_arg.lock().unwrap();
+                        if !arg_type.morphs(&signature_arg.r#type) {
                             type_inference.reporter.report_type_error(
                                 format!(
                                     "Incompatible argument types for function '{}': expected '{}', got '{}'",
                                     name.inner,
-                                    arg_type, signature_arg.1.inner
+                                    arg_type, signature_arg.r#type.inner
                                 ),
                                 arg.span(),
-                                vec![("Expected because of this", signature_arg.1.span.clone())],
+                                vec![("Expected because of this", signature_arg.r#type.span.clone())],
                             );
                         }
                     }

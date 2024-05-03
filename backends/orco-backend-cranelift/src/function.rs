@@ -1,4 +1,6 @@
-use cranelift_codegen::{ir::*, Context};
+use cranelift_codegen::entity::EntityRef;
+use cranelift_codegen::ir::*;
+use cranelift_codegen::Context;
 use cranelift_frontend::*;
 use cranelift_module::Module;
 use log::{info, trace};
@@ -41,10 +43,19 @@ impl crate::Object<'_> {
             let mut function_ctx = FunctionBuilderContext::new();
             let mut builder = FunctionBuilder::new(&mut ctx.func, &mut function_ctx);
             let block = builder.create_block();
+            builder.append_block_params_for_function_params(block);
             builder.switch_to_block(block);
             builder.seal_block(block);
-            let return_value = self.build_block(&mut builder, &function.body.borrow());
-            if function.body.borrow().get_type(root) != orco::ir::Type::Never {
+            for (arg, value) in
+                std::iter::zip(&function.signature.args.inner, builder.block_params(block).to_vec())
+            {
+                let arg = arg.lock().unwrap();
+                let variable = Variable::new(arg.id as _);
+                builder.declare_var(variable, self.convert_type(&arg.r#type));
+                builder.def_var(variable, value);
+            }
+            let return_value = self.build_block(&mut builder, &function.body.lock().unwrap());
+            if function.body.lock().unwrap().get_type(root) != orco::ir::Type::Never {
                 builder
                     .ins()
                     .return_(&return_value.into_iter().collect::<Vec<_>>());
@@ -63,7 +74,7 @@ impl crate::Object<'_> {
             params: signature
                 .args
                 .iter()
-                .map(|(_, arg)| AbiParam::new(self.convert_type(arg)))
+                .map(|arg| AbiParam::new(self.convert_type(&arg.lock().unwrap().r#type)))
                 .collect(),
             returns: if *signature.return_type == orco::ir::Type::Unit {
                 vec![]

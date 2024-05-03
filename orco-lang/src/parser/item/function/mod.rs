@@ -7,7 +7,7 @@ pub mod signature;
 pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::item::Function {
     let mut variable_mapper = orco::variable_mapper::VariableMapper::new();
     ir::item::Function::new(
-        signature::parse(parser),
+        signature::parse(parser, Some(&mut variable_mapper)),
         expression::block::expect(parser, &mut variable_mapper),
     )
 }

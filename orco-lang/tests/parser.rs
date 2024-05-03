@@ -61,21 +61,21 @@ fn function() {
             let function = parser::item::function::parse_named(&mut parser).unwrap();
             assert_eq!(function.name, "main");
             assert_eq!(function.signature.args.len(), 2);
-            assert_eq!(function.signature.args[0].0.inner, "argc");
+            assert_eq!(function.signature.args[0].lock().unwrap().name.inner, "argc");
             assert_eq!(
-                function.signature.args[0].1.inner,
+                function.signature.args[0].lock().unwrap().r#type.inner,
                 ir::Type::Unsigned(NonZeroU16::new(4).unwrap())
             );
-            assert_eq!(function.signature.args[1].0.inner, "argv");
+            assert_eq!(function.signature.args[1].lock().unwrap().name.inner, "argv");
             assert_eq!(
-                function.signature.args[1].1.inner,
+                function.signature.args[1].lock().unwrap().r#type.inner,
                 ir::Type::Pointer(Box::new(ir::Type::Pointer(Box::new(ir::Type::Char))))
             );
             assert_eq!(
                 function.signature.return_type.inner,
                 ir::Type::Int(NonZeroU16::new(4).unwrap())
             );
-            let body = function.body.borrow();
+            let body = function.body.lock().unwrap();
             assert_eq!(body.expressions.len(), 1);
         },
     );

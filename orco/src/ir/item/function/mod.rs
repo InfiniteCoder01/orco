@@ -4,13 +4,13 @@ use super::*;
 pub mod signature;
 pub use signature::Signature;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 /// A function
 pub struct Function {
     /// Function signature
     pub signature: Signature,
     /// Function body
-    pub body: std::cell::RefCell<Spanned<expression::Block>>,
+    pub body: std::sync::Mutex<Spanned<expression::Block>>,
 }
 
 impl Function {
@@ -30,18 +30,17 @@ impl Function {
     ) {
         let mut type_inference =
             crate::type_inference::TypeInference::new(root, &self.signature.return_type, reporter);
-        self.body
-            .borrow_mut()
-            .infer_types(&self.signature.return_type, &mut type_inference);
-        self.body
-            .borrow_mut()
-            .finish_and_check_types(&mut type_inference);
+        let mut body = self.body.lock().unwrap();
+        body.infer_types(&self.signature.return_type, &mut type_inference);
+        println!("Inferred {}", body.inner);
+        body.finish_and_check_types(&mut type_inference);
+        println!("Finished {}", body.inner);
     }
 
     /// Format
     pub fn format(&self, f: &mut std::fmt::Formatter<'_>, name: Option<&str>) -> std::fmt::Result {
         self.signature.format(f, name)?;
-        write!(f, " {}", self.body.borrow().inner)?;
+        write!(f, " {}", self.body.lock().unwrap().inner)?;
         Ok(())
     }
 }

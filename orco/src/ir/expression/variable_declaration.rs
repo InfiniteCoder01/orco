@@ -83,3 +83,15 @@ impl std::fmt::Display for VariableDeclaration {
         Ok(())
     }
 }
+
+/// VaraibleReference extensions
+pub trait VariableReferenceExt {
+    /// Get the type of this variable, not holding the lock
+    fn r#type(&self) -> Type;
+}
+
+impl VariableReferenceExt for VariableReference {
+    fn r#type(&self) -> Type {
+        self.lock().unwrap().r#type.inner.clone()
+    }
+}
