@@ -36,7 +36,6 @@ fn main() -> i32 {
   let a = getint();
   let action = getchar();
   getchar();
-  printf(c"%d\n", action);
   let b = getint();
   if action == 0x2B {
     printf(c"%d\n", a + b);
@@ -51,8 +50,6 @@ fn main() -> i32 {
     printf(c"%d\n", a / b);
   }
   if action == 0x5E {
-    printf(c"%d\n", a);
-    printf(c"%d\n", b);
     printf(c"%d\n", pow(a, b));
   }
   return 0;

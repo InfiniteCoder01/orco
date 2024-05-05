@@ -4,29 +4,29 @@ use parser_utils::*;
 #[test]
 fn ident() {
     parse("ident", |mut parser| {
-        assert_eq!(parser.next(), Some(Token::Ident("ident".to_owned())));
+        assert_eq!(parser.next(), Some(Token::Ident(Span::new("ident"))));
         assert_eq!(parser.reporter.len(), 0);
     });
     parse("digits2", |mut parser| {
-        assert_eq!(parser.next(), Some(Token::Ident("digits2".to_owned())));
+        assert_eq!(parser.next(), Some(Token::Ident(Span::new("digits2"))));
         assert_eq!(parser.reporter.len(), 0);
     });
     parse("underscore_2_4_abc", |mut parser| {
         assert_eq!(
             parser.next(),
-            Some(Token::Ident("underscore_2_4_abc".to_owned()))
+            Some(Token::Ident(Span::new("underscore_2_4_abc")))
         );
         assert_eq!(parser.reporter.len(), 0);
     });
     parse("_privateCapital", |mut parser| {
         assert_eq!(
             parser.next(),
-            Some(Token::Ident("_privateCapital".to_owned()))
+            Some(Token::Ident(Span::new("_privateCapital")))
         );
         assert_eq!(parser.reporter.len(), 0);
     });
     parse("r#return", |mut parser| {
-        assert_eq!(parser.next(), Some(Token::Ident("return".to_owned())));
+        assert_eq!(parser.next(), Some(Token::Ident(Span::new("return"))));
         assert_eq!(parser.reporter.len(), 0);
     });
 }

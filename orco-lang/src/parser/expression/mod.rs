@@ -191,7 +191,7 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(
                 args: parser.wrap_span(args, start),
             })
         } else {
-            Some(variable_mapper.access_variable(parser.reporter, &name.inner, name.span))
+            Some(variable_mapper.access_variable(parser.reporter, &name, name.clone()))
         }
     } else {
         None

@@ -1,4 +1,4 @@
-use self::item::expression::VariableReference;
+use self::symbol::expression::VariableReference;
 use super::*;
 
 #[derive(Clone, Debug)]
@@ -12,10 +12,7 @@ pub struct Signature {
 
 impl Signature {
     /// Create a new function signature
-    pub fn new(
-        args: Spanned<Vec<VariableReference>>,
-        return_type: Spanned<Type>,
-    ) -> Self {
+    pub fn new(args: Spanned<Vec<VariableReference>>, return_type: Spanned<Type>) -> Self {
         Self { args, return_type }
     }
 
@@ -31,7 +28,7 @@ impl Signature {
             if index > 0 {
                 write!(f, ", ")?;
             }
-            write!(f, "{}: {}", arg.name.inner, arg.r#type.inner)?;
+            write!(f, "{}: {}", arg.name, arg.r#type.inner)?;
         }
         write!(f, ")")?;
         write!(f, " -> {}", *self.return_type)?;

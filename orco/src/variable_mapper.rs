@@ -3,7 +3,7 @@ use ir::expression::{VariableDeclaration, VariableReference};
 use std::sync::{Arc, Mutex};
 
 /// Scope
-pub type Scope = std::collections::HashMap<String, VariableReference>;
+pub type Scope = std::collections::HashMap<Span, VariableReference>;
 
 /// Variable maker
 #[derive(Debug)]
@@ -48,14 +48,14 @@ impl VariableMapper {
     ) -> VariableReference {
         declaration.id = self.id_counter;
         self.id_counter += 1;
-        let name = declaration.name.inner.clone();
+        let name = declaration.name.clone();
         let reference = Arc::new(declaration.map(Mutex::new));
         self.current_scope_mut().insert(name, reference.clone());
         reference
     }
 
     /// Get a variable from the current scope
-    pub fn get_variable(&self, name: &str) -> Option<VariableReference> {
+    pub fn get_variable(&self, name: &Span) -> Option<VariableReference> {
         for scope in self.scopes.iter().rev() {
             if let Some(reference) = scope.get(name) {
                 return Some(reference.clone());
@@ -68,7 +68,7 @@ impl VariableMapper {
     pub fn access_variable(
         &mut self,
         reporter: &mut (impl diagnostics::ErrorReporter + ?Sized),
-        name: &str,
+        name: &Span,
         span: Span,
     ) -> ir::Expression {
         match self.get_variable(name) {

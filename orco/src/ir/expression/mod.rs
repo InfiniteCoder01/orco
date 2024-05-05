@@ -52,7 +52,7 @@ pub enum Expression {
     /// Function call
     FunctionCall {
         /// Function name
-        name: Spanned<String>,
+        name: Span,
         /// Arguments
         args: Spanned<Vec<Expression>>,
     },
@@ -102,9 +102,9 @@ impl Expression {
             // Expression::While { .. } => Type::unit(),
             Expression::FunctionCall { name, .. } => {
                 if let Some(signature) = root
-                    .items
-                    .get(&name.inner)
-                    .and_then(|item| item.function_signature())
+                    .symbols
+                    .get(name)
+                    .and_then(|symbol| symbol.function_signature())
                 {
                     (*signature.return_type).clone()
                 } else {
@@ -333,7 +333,7 @@ impl Expression {
                         type_inference.reporter.report_type_error(
                             format!(
                                 "Argument count mismatch: Function '{}' expects {} arguments, but {} were given",
-                                name.inner,
+                                name,
                                 signature.args.len(),
                                 args.inner.len()
                             ),
@@ -350,7 +350,7 @@ impl Expression {
                             type_inference.reporter.report_type_error(
                                 format!(
                                     "Incompatible argument types for function '{}': expected '{}', got '{}'",
-                                    name.inner,
+                                    name,
                                     arg_type, signature_arg.r#type.inner
                                 ),
                                 arg.span(),
@@ -361,8 +361,8 @@ impl Expression {
                     (*signature.return_type).clone()
                 } else {
                     type_inference.reporter.report_type_error(
-                        format!("Function '{}' was not found in this scope", name.inner),
-                        name.span.extend(&args.span),
+                        format!("Function '{}' was not found in this scope", name),
+                        name.extend(&args.span),
                         vec![],
                     );
                     Type::Error
@@ -399,7 +399,7 @@ impl Expression {
                             type_inference.reporter.report_type_error(
                                 format!(
                                     "Cannot assign to an immutable variable '{}'",
-                                    variable.name.inner
+                                    variable.name
                                 ),
                                 target.span(),
                                 vec![(
@@ -438,7 +438,7 @@ impl Expression {
             Expression::UnaryOp(op, expr) => op.span.extend(&expr.span()),
             Expression::Block(block) => block.span.clone(),
             Expression::If { span, .. } => span.clone(),
-            Expression::FunctionCall { name, args } => name.span.extend(&args.span),
+            Expression::FunctionCall { name, args } => name.extend(&args.span),
             Expression::Return(expr) => expr.span.clone(),
             Expression::VariableDeclaration(variable_declaration) => {
                 variable_declaration.span.clone()
@@ -458,9 +458,9 @@ impl std::fmt::Display for Expression {
                 let show_id =
                     std::env::var("ORCO_SHOW_VAR_ID").map_or(false, |show_id| show_id == "1");
                 if show_id {
-                    write!(f, "{} (#{})", variable.name.inner, variable.id)
+                    write!(f, "{} (#{})", variable.name, variable.id)
                 } else {
-                    write!(f, "{}", variable.name.inner)
+                    write!(f, "{}", variable.name)
                 }
             }
             Expression::BinaryOp(lhs, op, rhs) => write!(f, "({} {} {})", lhs, op, rhs),
@@ -479,7 +479,7 @@ impl std::fmt::Display for Expression {
                 Ok(())
             }
             Expression::FunctionCall { name, args } => {
-                write!(f, "{}(", name.inner)?;
+                write!(f, "{}(", name)?;
                 for (index, arg) in args.iter().enumerate() {
                     if index > 0 {
                         write!(f, ", ")?;

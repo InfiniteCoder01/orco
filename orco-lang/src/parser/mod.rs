@@ -1,11 +1,11 @@
 use crate::lexer::*;
-use orco::diagnostics::{ErrorReporter, Spanned};
+use orco::diagnostics::*;
 use orco::ir;
 
 /// Parsers for expressions
 pub mod expression;
-/// Parsers for items (e.g. Function or Extern)
-pub mod item;
+/// Parsers for symbols (e.g. Function or Extern)
+pub mod symbol;
 /// Parsers for types
 pub mod r#type;
 
@@ -13,30 +13,30 @@ pub mod r#type;
 pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::Module {
     let mut module = ir::Module::default();
     while !parser.eof() {
-        if let Some(item) = item::parse(parser) {
-            module.items.insert(item.name, item.value);
+        if let Some(symbol) = symbol::parse(parser) {
+            module.symbols.insert(symbol.name, symbol.value);
         } else {
-            parser.expected_error("an item");
+            parser.expected_error("a symbol");
             parser.next();
         }
     }
     module
 }
 
-/// A named item (for example, if you parse a Function, you'll get Named<Function>, because the
+/// A named object (for example, if you parse a Function, you'll get Named<Function>, because the
 /// function itself doen't store a name)
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Named<T> {
     /// Name
-    pub name: String,
+    pub name: Span,
     /// Value
     pub value: T,
 }
 
 impl<T> Named<T> {
-    /// Create a new named item
-    pub fn new(name: String, item: T) -> Self {
-        Self { name, value: item }
+    /// Create a new named object
+    pub fn new(name: Span, value: T) -> Self {
+        Self { name, value }
     }
 
     /// Map the value, preserving the name

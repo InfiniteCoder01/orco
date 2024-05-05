@@ -41,11 +41,11 @@ impl<'a> TypeInference<'a> {
     }
 
     /// Get function signature
-    pub fn signature<'b>(&'b self, name: &str) -> Option<&'a ir::item::function::Signature> {
+    pub fn signature<'b>(&'b self, name: &Span) -> Option<&'a ir::symbol::function::Signature> {
         self.root
-            .items
+            .symbols
             .get(name)
-            .and_then(|item| item.function_signature())
+            .and_then(|symbol| symbol.function_signature())
     }
 
     /// Allocate a new type variable

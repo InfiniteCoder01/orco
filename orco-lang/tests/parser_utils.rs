@@ -1,5 +1,6 @@
 #![allow(unused_imports)]
 pub use orco::ir;
+pub use orco::Span;
 pub use orco_lang::lexer::*;
 pub use orco_lang::parser;
 pub use std::num::NonZeroU16;

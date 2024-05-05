@@ -1,6 +1,7 @@
 #![doc = include_str!("../README.md")]
 use cranelift_module::Module;
 use log::debug;
+use orco::Span;
 
 pub mod expression;
 pub mod function;
@@ -9,7 +10,7 @@ pub mod types;
 pub struct Object<'a> {
     pub root: &'a orco::ir::Module,
     pub object: cranelift_object::ObjectModule,
-    pub functions: std::collections::HashMap<String, cranelift_module::FuncId>,
+    pub functions: std::collections::HashMap<Span, cranelift_module::FuncId>,
     pub constant_data: Option<(cranelift_module::DataId, Vec<u8>)>,
 }
 
@@ -42,23 +43,23 @@ pub fn build(root: &orco::ir::Module) {
     debug!("Compiling module:\n{}", root);
     let mut object = Object::new(root, "x86_64-unknown-linux-gnu");
 
-    for (name, item) in &root.items {
-        match item {
-            orco::ir::Item::Function(function) => {
+    for (name, symbol) in &root.symbols {
+        match symbol {
+            orco::ir::Symbol::Function(function) => {
                 object.declare_function(
-                    name,
+                    name.clone(),
                     cranelift_module::Linkage::Export,
                     &function.signature,
                 );
             }
-            orco::ir::Item::ExternalFunction(signature) => {
-                object.declare_function(name, cranelift_module::Linkage::Import, signature);
+            orco::ir::Symbol::ExternalFunction(signature) => {
+                object.declare_function(name.clone(), cranelift_module::Linkage::Import, signature);
             }
         }
     }
 
-    for (name, item) in &root.items {
-        if let orco::ir::Item::Function(function) = item {
+    for (name, symbol) in &root.symbols {
+        if let orco::ir::Symbol::Function(function) = symbol {
             object.build_function(root, name, function);
         }
     }

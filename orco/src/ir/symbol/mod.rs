@@ -5,20 +5,20 @@ pub mod function;
 pub use function::Function;
 
 #[derive(Debug)]
-/// An item
-pub enum Item {
+/// A symbol
+pub enum Symbol {
     /// A function
     Function(function::Function),
     /// External function
     ExternalFunction(function::Signature),
 }
 
-impl Item {
+impl Symbol {
     /// Format
     pub fn format(&self, f: &mut std::fmt::Formatter<'_>, name: Option<&str>) -> std::fmt::Result {
         match self {
-            Item::Function(function) => function.format(f, name),
-            Item::ExternalFunction(function) => {
+            Symbol::Function(function) => function.format(f, name),
+            Symbol::ExternalFunction(function) => {
                 write!(f, "extern ")?;
                 function.format(f, name)?;
                 write!(f, ";")?;
@@ -27,17 +27,17 @@ impl Item {
         }
     }
 
-    /// Get a function signature of this item if this item is a function in any way (normal
+    /// Get a function signature of this symbol if it's is a function in any way (normal
     /// function, extern function, etc.)
     pub fn function_signature(&self) -> Option<&function::Signature> {
         match self {
-            Item::Function(function) => Some(&function.signature),
-            Item::ExternalFunction(signature) => Some(signature),
+            Symbol::Function(function) => Some(&function.signature),
+            Symbol::ExternalFunction(signature) => Some(signature),
         }
     }
 }
 
-impl std::fmt::Display for Item {
+impl std::fmt::Display for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.format(f, None)
     }

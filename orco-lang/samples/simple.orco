@@ -1,10 +1,6 @@
 extern fn puts(message: char*) -> i32;
 
-fn sub(x: i32, y: i32) -> i32 {
-  return x - y;
-}
-
 fn main() -> i32 {
-  puts(c"Hello, world!");
-  return sub(10, 5);
+  puts(c"Hello, World!");
+  return 0;
 }

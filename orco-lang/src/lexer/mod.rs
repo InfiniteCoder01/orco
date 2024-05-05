@@ -1,5 +1,5 @@
 use logos::Logos;
-use orco::diagnostics::{ErrorReporter, *};
+use orco::diagnostics::*;
 use orco::ir::expression::Constant;
 
 pub mod unescape;
@@ -64,15 +64,16 @@ impl logos::Source for Source {
 
 /// Token (number, word, operator, comment, etc.)
 #[derive(Logos, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[logos(skip r"[ \t\n\f]+", source = Source, error = Error)]
+#[logos(source = Source, error = Error)]
+#[logos(skip r"[ \t\n\f]+")]
 #[logos(skip r"//.*")]
 #[logos(skip r"/[*]([^*]|([*][^/]))*[*]+/")]
 pub enum Token {
     // TODO: XID
     /// Identifier
-    #[regex("[_a-zA-Z][_0-9a-zA-Z]*", |lex| lex.slice().to_owned())]
-    #[regex("r#[_a-zA-Z][_0-9a-zA-Z]*", |lex| lex.slice()[2..].to_owned())]
-    Ident(String),
+    #[regex("[_a-zA-Z][_0-9a-zA-Z]*", |lex| Span(lex.source().0.clone(), lex.span()))]
+    #[regex("r#[_a-zA-Z][_0-9a-zA-Z]*", |lex| Span(lex.source().0.clone(), lex.span().start + 2..lex.span().end))]
+    Ident(Span),
     /// Operator
     #[token("(", |_| Operator::LParen)]
     #[token(")", |_| Operator::RParen)]
@@ -367,7 +368,7 @@ impl<'source, R: ErrorReporter + ?Sized> Parser<'source, R> {
     pub fn match_keyword(&mut self, keyword: &str) -> bool {
         self.fill();
         if let Some(Token::Ident(ident)) = self.peek() {
-            if ident == keyword {
+            if ident.as_ref() == keyword {
                 self.peek.take();
                 true
             } else {
@@ -390,12 +391,11 @@ impl<'source, R: ErrorReporter + ?Sized> Parser<'source, R> {
     }
 
     /// Match an identifier, consume if matched
-    pub fn match_ident(&mut self) -> Option<Spanned<String>> {
+    pub fn match_ident(&mut self) -> Option<Span> {
         self.fill();
-        let span = self.span();
         let peek = self.peek.take();
         if let Some(Token::Ident(ident)) = peek {
-            Some(Spanned { inner: ident, span })
+            Some(ident)
         } else {
             self.peek = peek;
             None
@@ -452,12 +452,11 @@ impl<'source, R: ErrorReporter + ?Sized> Parser<'source, R> {
 
     /// Expect an identifier to follow, if it is, consume and return it, else report an error
     /// "Expected {what}"
-    pub fn expect_ident(&mut self, what: &str) -> Option<Spanned<String>> {
+    pub fn expect_ident(&mut self, what: &str) -> Option<Span> {
         self.fill();
-        let span = self.span();
         let peek = self.peek.take();
         if let Some(Token::Ident(ident)) = peek {
-            Some(Spanned { inner: ident, span })
+            Some(ident)
         } else {
             self.peek = peek;
             self.expected_error(what);

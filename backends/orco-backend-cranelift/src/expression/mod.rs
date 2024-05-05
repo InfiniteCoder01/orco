@@ -126,8 +126,8 @@ impl crate::Object<'_> {
                 let function = self.object.declare_func_in_func(
                     *self
                         .functions
-                        .get(&name.inner)
-                        .unwrap_or_else(|| panic!("Function {} is not defined", name.inner)),
+                        .get(name)
+                        .unwrap_or_else(|| panic!("Function {} is not defined", name)),
                     builder.func,
                 );
                 let args = args.iter().map(|arg| self.build_expression(builder, arg).expect("Can't pass a unit type as an argument to a function, did you run type checking/inference?")).collect::<Vec<_>>();

@@ -28,7 +28,4 @@ fn main() {
     };
     krate.root.infer_and_check_types(&krate.root, &mut reporter);
     orco_backend_cranelift::build(&krate.root);
-    // let krate = Path::new("crates/orco-rust/samples/simple.rs");
-    // let _krate = codebase.add(Box::new(orco_rust::Crate::parse(krate, &codebase)));
-    // codebase.visit_items(|path, item| println!("{:?}: {:#?}", path, item));
 }

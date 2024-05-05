@@ -12,10 +12,10 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Spanned<ir::T
         } else if let Some(bytes) = numeric_type_size(&r#type, "f") {
             ir::Type::Float(bytes)
         } else {
-            match r#type.as_str() {
+            match r#type.as_ref() {
                 "bool" => ir::Type::Bool,
                 "char" => ir::Type::Char,
-                _ => ir::Type::Custom(r#type.inner),
+                _ => ir::Type::Custom(r#type),
             }
         }
     } else {

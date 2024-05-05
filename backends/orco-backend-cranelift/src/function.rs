@@ -1,3 +1,4 @@
+use super::*;
 use cranelift_codegen::entity::EntityRef;
 use cranelift_codegen::ir::*;
 use cranelift_codegen::Context;
@@ -8,22 +9,22 @@ use log::{info, trace};
 impl crate::Object<'_> {
     pub fn declare_function(
         &mut self,
-        name: &str,
+        name: Span,
         linkage: cranelift_module::Linkage,
-        signature: &orco::ir::item::function::Signature,
+        signature: &orco::ir::symbol::function::Signature,
     ) -> cranelift_module::FuncId {
         trace!("Declaring function {}", name);
         let sig = self.convert_function_signature(signature);
-        let id = self.object.declare_function(name, linkage, &sig).unwrap();
-        self.functions.insert(name.to_string(), id);
+        let id = self.object.declare_function(&name, linkage, &sig).unwrap();
+        self.functions.insert(name, id);
         id
     }
 
     pub fn build_function(
         &mut self,
         root: &orco::ir::Module,
-        name: &str,
-        function: &orco::ir::item::function::Function,
+        name: &Span,
+        function: &orco::ir::symbol::function::Function,
     ) {
         info!("Compiling function {}", name);
         trace!("OrCo IR:\n{}", function);
@@ -33,7 +34,7 @@ impl crate::Object<'_> {
         let mut ctx = Context::new();
         ctx.func = Function::with_name_signature(
             if cfg!(debug_assertions) {
-                UserFuncName::testcase(name)
+                UserFuncName::testcase(name.to_string())
             } else {
                 UserFuncName::user(0, id.as_u32())
             },
@@ -46,9 +47,10 @@ impl crate::Object<'_> {
             builder.append_block_params_for_function_params(block);
             builder.switch_to_block(block);
             builder.seal_block(block);
-            for (arg, value) in
-                std::iter::zip(&function.signature.args.inner, builder.block_params(block).to_vec())
-            {
+            for (arg, value) in std::iter::zip(
+                &function.signature.args.inner,
+                builder.block_params(block).to_vec(),
+            ) {
                 let arg = arg.lock().unwrap();
                 let variable = Variable::new(arg.id as _);
                 builder.declare_var(variable, self.convert_type(&arg.r#type));
@@ -67,7 +69,7 @@ impl crate::Object<'_> {
 
     pub fn convert_function_signature(
         &self,
-        signature: &orco::ir::item::function::Signature,
+        signature: &orco::ir::symbol::function::Signature,
     ) -> cranelift_codegen::ir::Signature {
         use cranelift_codegen::ir::AbiParam;
         cranelift_codegen::ir::Signature {

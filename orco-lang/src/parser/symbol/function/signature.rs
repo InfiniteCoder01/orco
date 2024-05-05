@@ -4,7 +4,7 @@ use super::*;
 pub fn parse<R: ErrorReporter + ?Sized>(
     parser: &mut Parser<R>,
     mut variable_mapper: Option<&mut orco::variable_mapper::VariableMapper>,
-) -> ir::item::function::Signature {
+) -> ir::symbol::function::Signature {
     let start = parser.span().1.start;
     parser.expect_operator(Operator::LParen);
     let mut args = Vec::new();
@@ -12,7 +12,7 @@ pub fn parse<R: ErrorReporter + ?Sized>(
         let start = parser.span().1.start;
         let name = parser
             .expect_ident("argument name")
-            .unwrap_or(parser.wrap_point("_".to_owned()));
+            .unwrap_or(parser.span());
         parser.expect_operator(Operator::Colon);
         let r#type = r#type::parse(parser);
 
@@ -42,14 +42,14 @@ pub fn parse<R: ErrorReporter + ?Sized>(
     } else {
         parser.wrap_point(ir::Type::unit())
     };
-    ir::item::function::Signature::new(args, return_type)
+    ir::symbol::function::Signature::new(args, return_type)
 }
 
 /// Parse a function signature with a name (assumes, that "fn" token is already consumed)
 pub fn parse_named<R: ErrorReporter + ?Sized>(
     parser: &mut Parser<R>,
-) -> Option<Named<ir::item::function::Signature>> {
+) -> Option<Named<ir::symbol::function::Signature>> {
     parser
         .expect_ident("function name")
-        .map(|name| Named::new(name.inner, parse(parser, None)))
+        .map(|name| Named::new(name, parse(parser, None)))
 }

@@ -1,12 +1,12 @@
-use crate::diagnostics::Spanned;
+use crate::source::*;
 
 /// Of course we are statically-typed
 pub mod types;
 pub use types::Type;
 
-/// All kinds of items
-pub mod item;
-pub use item::Item;
+/// All kinds of symbols
+pub mod symbol;
+pub use symbol::Symbol;
 
 /// All kinds of expressions (statements are expressions as well)
 pub mod expression;
@@ -16,7 +16,7 @@ pub use expression::Expression;
 #[derive(Debug, Default)]
 pub struct Module {
     /// Module content
-    pub items: std::collections::HashMap<String, Item>,
+    pub symbols: std::collections::HashMap<Span, Symbol>,
 }
 
 impl Module {
@@ -26,8 +26,8 @@ impl Module {
         root: &Module,
         reporter: &mut dyn crate::diagnostics::ErrorReporter,
     ) {
-        for item in self.items.values() {
-            if let Item::Function(function) = item {
+        for symbol in self.symbols.values() {
+            if let Symbol::Function(function) = symbol {
                 function.infer_and_check_types(root, reporter);
             }
         }
@@ -36,8 +36,8 @@ impl Module {
 
 impl std::fmt::Display for Module {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (name, item) in &self.items {
-            item.format(f, Some(name))?;
+        for (name, symbol) in &self.symbols {
+            symbol.format(f, Some(name))?;
             writeln!(f, "\n")?;
         }
         Ok(())

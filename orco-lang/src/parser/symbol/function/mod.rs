@@ -4,9 +4,9 @@ use super::*;
 pub mod signature;
 
 /// Parse a function (assumes, that "fn" token is already consumed)
-pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::item::Function {
+pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::symbol::Function {
     let mut variable_mapper = orco::variable_mapper::VariableMapper::new();
-    ir::item::Function::new(
+    ir::symbol::Function::new(
         signature::parse(parser, Some(&mut variable_mapper)),
         expression::block::expect(parser, &mut variable_mapper),
     )
@@ -15,8 +15,8 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::item::Fun
 /// Parse a function with a name (assumes, that "fn" token is already consumed)
 pub fn parse_named<R: ErrorReporter + ?Sized>(
     parser: &mut Parser<R>,
-) -> Option<Named<ir::item::Function>> {
+) -> Option<Named<ir::symbol::Function>> {
     parser
         .expect_ident("function name")
-        .map(|name| Named::new(name.inner, parse(parser)))
+        .map(|name| Named::new(name, parse(parser)))
 }

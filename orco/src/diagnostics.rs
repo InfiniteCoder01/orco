@@ -1,4 +1,4 @@
-pub use crate::{Span, Src};
+pub use crate::source::*;
 pub use ariadne::{ColorGenerator, Label, ReportKind};
 
 /// Diagnostic report (error, warning, etc.)
@@ -17,38 +17,6 @@ impl ariadne::Span for Span {
 
     fn end(&self) -> usize {
         self.1.end
-    }
-}
-
-/// Spanned value (uses [Span])
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Spanned<T> {
-    /// Inner value
-    pub inner: T,
-    /// Span
-    pub span: Span,
-}
-
-impl<T> std::ops::Deref for Spanned<T> {
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<T> std::ops::DerefMut for Spanned<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
-    }
-}
-
-impl<T> Spanned<T> {
-    /// Map the inner value
-    pub fn map<U>(self, f: impl FnOnce(T) -> U) -> Spanned<U> {
-        Spanned {
-            inner: f(self.inner),
-            span: self.span,
-        }
     }
 }
 

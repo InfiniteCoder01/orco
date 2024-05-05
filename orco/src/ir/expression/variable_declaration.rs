@@ -4,7 +4,7 @@ use super::*;
 #[derive(Clone, Debug)]
 pub struct VariableDeclaration {
     /// Variable name
-    pub name: Spanned<String>,
+    pub name: Span,
     /// Variable ID, just a counting up number assigned automatically, when calling
     /// [`crate::variable_mapper::VariableMapper::declare_variable`]
     /// Useful for some backends
@@ -41,8 +41,8 @@ impl VariableDeclaration {
             let value_type = value.finish_and_check_types(type_inference);
             type_inference.finish(
                 &mut self.r#type,
-                &format!("variable '{}'", self.name.inner),
-                self.name.span.clone(),
+                &format!("variable '{}'", self.name),
+                self.name.clone(),
             );
             if !value_type.morphs(&self.r#type) {
                 type_inference.reporter.report_type_error(
@@ -57,8 +57,8 @@ impl VariableDeclaration {
         } else {
             type_inference.finish(
                 &mut self.r#type,
-                &format!("variable '{}'", self.name.inner),
-                self.name.span.clone(),
+                &format!("variable '{}'", self.name),
+                self.name.clone(),
             );
         }
         Type::Unit
@@ -72,7 +72,7 @@ impl std::fmt::Display for VariableDeclaration {
         if self.mutable.inner {
             write!(f, "mut ")?;
         }
-        write!(f, "{}", self.name.inner)?;
+        write!(f, "{}", self.name)?;
         if show_id {
             write!(f, " (#{})", self.id)?;
         }

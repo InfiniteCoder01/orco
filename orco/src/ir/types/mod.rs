@@ -1,4 +1,5 @@
 use crate::type_inference::TypeVariableID;
+use crate::Span;
 use std::num::NonZeroU16;
 
 /// A type enum consists of all builtin types and a custom variant
@@ -18,7 +19,7 @@ pub enum Type {
     /// Pointer type
     Pointer(Box<Type>),
     /// Custom type, f.e. a struct or a type alias
-    Custom(String),
+    Custom(Span),
 
     /// Never type, can't hold any value
     Never,
