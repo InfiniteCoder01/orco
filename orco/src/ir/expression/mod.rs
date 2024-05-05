@@ -6,9 +6,21 @@ use std::sync::{Arc, Mutex};
 pub mod constant;
 pub use constant::Constant;
 
+/// Operator-oriented expressions (binary, unary, assignment, etc.)
+pub mod operator;
+pub use operator::AssignmentExpression;
+pub use operator::BinaryExpression;
+pub use operator::BinaryOp;
+pub use operator::UnaryExpression;
+pub use operator::UnaryOp;
+
 /// Code block
 pub mod block;
 pub use block::Block;
+
+/// Branching constructs
+pub mod branching;
+pub use branching::IfExpression;
 
 /// Variable declaration
 pub mod variable_declaration;
@@ -23,23 +35,14 @@ pub enum Expression {
     Constant(Spanned<Constant>),
     /// Variable
     Variable(Spanned<VariableReference>),
-    /// Binary Operation
-    BinaryOp(Box<Expression>, BinaryOp, Box<Expression>),
-    /// Unary Operation
-    UnaryOp(Spanned<UnaryOp>, Box<Expression>),
+    /// Binary expression
+    BinaryExpression(Spanned<BinaryExpression>),
+    /// Unary expression
+    UnaryExpression(Spanned<UnaryExpression>),
     /// Block expression, contains multiple expressions (something along { expr1; expr2; })
     Block(Spanned<Block>),
     /// If expression (and ternary operator)
-    If {
-        /// Condition
-        condition: Box<Expression>,
-        /// Then branch
-        then_branch: Box<Expression>,
-        /// Else branch
-        else_branch: Option<Box<Expression>>,
-        /// Span
-        span: Span,
-    },
+    If(Spanned<IfExpression>),
     // /// While loop
     // While {
     //     /// Condition
@@ -61,7 +64,7 @@ pub enum Expression {
     /// Declare a variable
     VariableDeclaration(VariableReference),
     /// Assignment
-    Assignment(Box<Expression>, Box<Expression>),
+    Assignment(Spanned<AssignmentExpression>),
     /// Invalid expression
     Error(Span),
 }
@@ -80,25 +83,10 @@ impl Expression {
         match self {
             Expression::Constant(constant) => constant.get_type(),
             Expression::Variable(variable) => variable.lock().unwrap().r#type.inner.clone(),
-            Expression::BinaryOp(lhs, op, rhs) => match op {
-                BinaryOp::Eq
-                | BinaryOp::Ne
-                | BinaryOp::Lt
-                | BinaryOp::Le
-                | BinaryOp::Gt
-                | BinaryOp::Ge => Type::Bool,
-                _ => lhs.get_type(root) | rhs.get_type(root),
-            },
-            Expression::UnaryOp(_, expr) => expr.get_type(root),
+            Expression::BinaryExpression(expr) => expr.get_type(root),
+            Expression::UnaryExpression(expr) => expr.get_type(root),
             Expression::Block(block) => block.get_type(root),
-            Expression::If {
-                then_branch,
-                else_branch,
-                ..
-            } => else_branch.as_ref().map_or_else(
-                || Type::Unit,
-                |else_branch| then_branch.get_type(root) | else_branch.get_type(root),
-            ),
+            Expression::If(expr) => expr.get_type(root),
             // Expression::While { .. } => Type::unit(),
             Expression::FunctionCall { name, .. } => {
                 if let Some(signature) = root
@@ -111,10 +99,10 @@ impl Expression {
                     Type::Error
                 }
             }
-            Expression::Return(_) => Type::Never,
-            Expression::VariableDeclaration(_) => Type::Unit,
+            Expression::Return(..) => Type::Never,
+            Expression::VariableDeclaration(..) => Type::Unit,
             Expression::Assignment(..) => Type::Unit,
-            Expression::Error(_) => Type::Error,
+            Expression::Error(..) => Type::Error,
         }
     }
 
@@ -130,41 +118,10 @@ impl Expression {
             Expression::Variable(variable) => {
                 type_inference.equate(target_type, &variable.r#type())
             }
-            Expression::BinaryOp(lhs, op, rhs) => match op {
-                BinaryOp::Eq
-                | BinaryOp::Ne
-                | BinaryOp::Lt
-                | BinaryOp::Le
-                | BinaryOp::Gt
-                | BinaryOp::Ge => {
-                    let lhs_type = lhs.infer_types(&Type::Wildcard, type_inference);
-                    let rhs_type = rhs.infer_types(&lhs_type, type_inference);
-                    type_inference.equate(&lhs_type, &rhs_type);
-                    Type::Bool
-                }
-                _ => {
-                    let lhs_type = lhs.infer_types(target_type, type_inference);
-                    let rhs_type = rhs.infer_types(target_type, type_inference);
-                    type_inference.equate(&lhs_type, &rhs_type)
-                }
-            },
-            Expression::UnaryOp(_, expr) => expr.infer_types(target_type, type_inference),
+            Expression::BinaryExpression(expr) => expr.infer_types(target_type, type_inference),
+            Expression::UnaryExpression(expr) => expr.infer_types(target_type, type_inference),
             Expression::Block(block) => block.infer_types(target_type, type_inference),
-            Expression::If {
-                condition,
-                then_branch,
-                else_branch,
-                ..
-            } => {
-                condition.infer_types(&Type::Bool, type_inference);
-                let then_type = then_branch.infer_types(target_type, type_inference);
-                if let Some(else_branch) = else_branch {
-                    let else_type = else_branch.infer_types(target_type, type_inference);
-                    type_inference.equate(&then_type, &else_type)
-                } else {
-                    Type::unit()
-                }
-            }
+            Expression::If(expr) => expr.infer_types(target_type, type_inference),
             // Expression::While {
             //     condition, body, ..
             // } => {
@@ -192,12 +149,7 @@ impl Expression {
                 .lock()
                 .unwrap()
                 .infer_types(type_inference),
-            Expression::Assignment(target, value) => {
-                let value = value.infer_types(&Type::Wildcard, type_inference);
-                let target = target.infer_types(&value, type_inference);
-                type_inference.equate(&target, &value);
-                Type::Unit
-            }
+            Expression::Assignment(expr) => expr.infer_types(type_inference),
             Expression::Error(_) => Type::Error,
         };
         r#type
@@ -210,96 +162,10 @@ impl Expression {
                 .inner
                 .finish_and_check_types(constant.span.clone(), type_inference),
             Expression::Variable(variable) => variable.lock().unwrap().r#type.inner.clone(),
-            Expression::BinaryOp(lhs, op, rhs) => {
-                let lhs_type = lhs.finish_and_check_types(type_inference);
-                let rhs_type = rhs.finish_and_check_types(type_inference);
-                if !rhs_type.morphs(&lhs_type) {
-                    let mut colors = ColorGenerator::new();
-                    let report =
-                        Report::build(ReportKind::Error, lhs.span().0.clone(), lhs.span().1.start)
-                            .with_message(format!(
-                                "Incompatible types for binary operation '{}': '{}' and '{}'",
-                                op, lhs_type, rhs_type
-                            ))
-                            .with_label(
-                                Label::new(lhs.span().clone())
-                                    .with_message("Left hand side")
-                                    .with_color(colors.next()),
-                            )
-                            .with_label(
-                                Label::new(rhs.span().clone())
-                                    .with_message("Right hand side")
-                                    .with_color(colors.next()),
-                            );
-                    type_inference.reporter.report(report.finish());
-                    todo!(
-                        "Type mismatch for binary operator error: {:?} and {:?}",
-                        lhs_type,
-                        rhs_type
-                    );
-                }
-                match op {
-                    BinaryOp::Eq
-                    | BinaryOp::Ne
-                    | BinaryOp::Lt
-                    | BinaryOp::Le
-                    | BinaryOp::Gt
-                    | BinaryOp::Ge => Type::Bool,
-                    _ => lhs_type | rhs_type,
-                }
-            }
-            Expression::UnaryOp(op, expr) => {
-                let r#type = expr.finish_and_check_types(type_inference);
-                match op.inner {
-                    UnaryOp::Neg => match r#type {
-                        Type::Int(_) => (),
-                        _ => {
-                            type_inference.reporter.report_type_error(
-                                format!("Cannot apply unary negation to type '{}'", r#type),
-                                expr.span(),
-                                vec![],
-                            );
-                        }
-                    },
-                }
-                r#type
-            }
+            Expression::BinaryExpression(expr) => expr.finish_and_check_types(type_inference),
+            Expression::UnaryExpression(expr) => expr.finish_and_check_types(type_inference),
             Expression::Block(block) => block.finish_and_check_types(type_inference),
-            Expression::If {
-                condition,
-                then_branch,
-                else_branch,
-                ..
-            } => {
-                let condition_type = condition.finish_and_check_types(type_inference);
-                if !condition_type.morphs(&Type::Bool) {
-                    type_inference.reporter.report_type_error(
-                        format!(
-                            "If condition should be of type 'bool', but it is of type '{}'",
-                            condition_type
-                        ),
-                        condition.span(),
-                        vec![],
-                    );
-                }
-                let then_type = then_branch.finish_and_check_types(type_inference);
-                if let Some(else_branch) = else_branch {
-                    let else_type = else_branch.finish_and_check_types(type_inference);
-                    if !else_type.morphs(&then_type) {
-                        type_inference.reporter.report_type_error(
-                            format!(
-                                "Else branch type mismatch: Expected '{}', got '{}'",
-                                then_type, else_type
-                            ),
-                            else_branch.span().clone(),
-                            vec![("Expected because of this", then_branch.span().clone())],
-                        );
-                    }
-                    then_type
-                } else {
-                    Type::unit()
-                }
-            }
+            Expression::If(expr) => expr.finish_and_check_types(type_inference),
             // Expression::While {
             //     condition, body, ..
             // } => {
@@ -389,41 +255,7 @@ impl Expression {
                 .lock()
                 .unwrap()
                 .finish_and_check_types(type_inference),
-            Expression::Assignment(target, value) => {
-                let value_type = value.finish_and_check_types(type_inference);
-                let target_type = target.finish_and_check_types(type_inference);
-                match target.as_ref() {
-                    Expression::Variable(variable) => {
-                        let variable = variable.lock().unwrap();
-                        if !variable.mutable.inner {
-                            type_inference.reporter.report_type_error(
-                                format!(
-                                    "Cannot assign to an immutable variable '{}'",
-                                    variable.name
-                                ),
-                                target.span(),
-                                vec![(
-                                    "Help: Make this variable mutable",
-                                    variable.mutable.span.clone(),
-                                )],
-                            )
-                        }
-                    }
-                    _ => type_inference.reporter.report_type_error(
-                        format!("Cannot assign to '{}'", target),
-                        target.span(),
-                        vec![],
-                    ),
-                };
-                if !value_type.morphs(&target_type) {
-                    type_inference.reporter.report_type_error(
-                        format!("Cannot assign '{}' to '{}'", value_type, target_type),
-                        value.span(),
-                        vec![("Expected because of this", target.span())],
-                    );
-                }
-                Type::Unit
-            }
+            Expression::Assignment(expr) => expr.finish_and_check_types(type_inference),
             Expression::Error(_) => Type::Error,
         };
         r#type
@@ -434,16 +266,16 @@ impl Expression {
         match self {
             Expression::Constant(constant) => constant.span.clone(),
             Expression::Variable(variable) => variable.span.clone(),
-            Expression::BinaryOp(lhs, _, rhs) => lhs.span().extend(&rhs.span()),
-            Expression::UnaryOp(op, expr) => op.span.extend(&expr.span()),
+            Expression::BinaryExpression(expr) => expr.span.clone(),
+            Expression::UnaryExpression(expr) => expr.span.clone(),
             Expression::Block(block) => block.span.clone(),
-            Expression::If { span, .. } => span.clone(),
+            Expression::If(expr) => expr.span.clone(),
             Expression::FunctionCall { name, args } => name.extend(&args.span),
             Expression::Return(expr) => expr.span.clone(),
             Expression::VariableDeclaration(variable_declaration) => {
                 variable_declaration.span.clone()
             }
-            Expression::Assignment(target, value) => target.span().extend(&value.span()),
+            Expression::Assignment(expr) => expr.span.clone(),
             Expression::Error(span) => span.clone(),
         }
     }
@@ -452,7 +284,7 @@ impl Expression {
 impl std::fmt::Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Expression::Constant(constant) => write!(f, "{}", constant.inner),
+            Expression::Constant(constant) => constant.fmt(f),
             Expression::Variable(variable) => {
                 let variable = variable.lock().unwrap();
                 let show_id =
@@ -463,21 +295,10 @@ impl std::fmt::Display for Expression {
                     write!(f, "{}", variable.name)
                 }
             }
-            Expression::BinaryOp(lhs, op, rhs) => write!(f, "({} {} {})", lhs, op, rhs),
-            Expression::UnaryOp(op, expr) => write!(f, "{}{}", op.inner, expr),
-            Expression::Block(block) => write!(f, "{}", block.inner),
-            Expression::If {
-                condition,
-                then_branch,
-                else_branch,
-                ..
-            } => {
-                write!(f, "if {} {}", condition, then_branch)?;
-                if let Some(else_branch) = else_branch {
-                    write!(f, " else {}", else_branch)?;
-                }
-                Ok(())
-            }
+            Expression::BinaryExpression(expr) => expr.fmt(f),
+            Expression::UnaryExpression(expr) => expr.fmt(f),
+            Expression::Block(block) => block.fmt(f),
+            Expression::If(expr) => expr.fmt(f),
             Expression::FunctionCall { name, args } => {
                 write!(f, "{}(", name)?;
                 for (index, arg) in args.iter().enumerate() {
@@ -491,70 +312,10 @@ impl std::fmt::Display for Expression {
             }
             Expression::Return(expr) => write!(f, "return {}", expr.inner),
             Expression::VariableDeclaration(variable_declaration) => {
-                write!(f, "{}", variable_declaration.lock().unwrap())
+                variable_declaration.lock().unwrap().fmt(f)
             }
-            Expression::Assignment(target, value) => write!(f, "{} = {}", target, value),
+            Expression::Assignment(expr) => expr.fmt(f),
             Expression::Error(_) => write!(f, "<ERROR>"),
-        }
-    }
-}
-
-/// Binary operators
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum BinaryOp {
-    /// Addition
-    Add,
-    /// Subtraction
-    Sub,
-    /// Multiplication
-    Mul,
-    /// Division
-    Div,
-    /// Modulo (Division Reminder)
-    Mod,
-    /// Equality
-    Eq,
-    /// Inequality
-    Ne,
-    /// Less than
-    Lt,
-    /// Less than or equal
-    Le,
-    /// Greater than
-    Gt,
-    /// Greater than or equal
-    Ge,
-}
-
-impl std::fmt::Display for BinaryOp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BinaryOp::Add => write!(f, "+"),
-            BinaryOp::Sub => write!(f, "-"),
-            BinaryOp::Mul => write!(f, "*"),
-            BinaryOp::Div => write!(f, "/"),
-            BinaryOp::Mod => write!(f, "%"),
-            BinaryOp::Eq => write!(f, "=="),
-            BinaryOp::Ne => write!(f, "!="),
-            BinaryOp::Lt => write!(f, "<"),
-            BinaryOp::Le => write!(f, "<="),
-            BinaryOp::Gt => write!(f, ">"),
-            BinaryOp::Ge => write!(f, ">="),
-        }
-    }
-}
-
-/// Unary operators
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum UnaryOp {
-    /// Negation
-    Neg,
-}
-
-impl std::fmt::Display for UnaryOp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            UnaryOp::Neg => write!(f, "-"),
         }
     }
 }

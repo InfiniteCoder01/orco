@@ -3,99 +3,31 @@ use cranelift_codegen::ir::{InstBuilder, Value};
 use cranelift_frontend::{FunctionBuilder, Variable};
 use cranelift_module::Module;
 
-pub mod block;
 pub mod constant;
+
+pub mod block;
+
+pub mod operator;
+
+pub mod branching;
 
 impl crate::Object<'_> {
     pub fn build_expression(
         &mut self,
         builder: &mut FunctionBuilder,
-        expression: &orco::ir::Expression,
+        expr: &orco::ir::Expression,
     ) -> Option<Value> {
         use orco::ir::Expression;
-        match expression {
-            orco::ir::expression::Expression::Constant(value) => {
-                self.build_constant(builder, value)
-            }
-            orco::ir::expression::Expression::Variable(variable) => {
+        match expr {
+            Expression::Constant(value) => self.build_constant(builder, value),
+            Expression::Variable(variable) => {
                 let variable = variable.lock().unwrap();
                 Some(builder.use_var(Variable::new(variable.id as _)))
             }
-            orco::ir::expression::Expression::BinaryOp(lhs, op, rhs) => {
-                let lhs = self.build_expression(builder, lhs)?;
-                let rhs = self.build_expression(builder, rhs)?;
-                use cranelift_codegen::ir::condcodes::IntCC;
-                use orco::ir::expression::BinaryOp;
-                match op {
-                    BinaryOp::Add => Some(builder.ins().iadd(lhs, rhs)),
-                    BinaryOp::Sub => Some(builder.ins().isub(lhs, rhs)),
-                    BinaryOp::Mul => Some(builder.ins().imul(lhs, rhs)),
-                    BinaryOp::Div => Some(builder.ins().sdiv(lhs, rhs)),
-                    BinaryOp::Mod => Some(builder.ins().srem(lhs, rhs)),
-                    BinaryOp::Eq => Some(builder.ins().icmp(IntCC::Equal, lhs, rhs)),
-                    BinaryOp::Ne => Some(builder.ins().icmp(IntCC::NotEqual, lhs, rhs)),
-                    BinaryOp::Lt => Some(builder.ins().icmp(IntCC::SignedLessThan, lhs, rhs)),
-                    BinaryOp::Le => {
-                        Some(builder.ins().icmp(IntCC::SignedLessThanOrEqual, lhs, rhs))
-                    }
-                    BinaryOp::Gt => Some(builder.ins().icmp(IntCC::SignedGreaterThan, lhs, rhs)),
-                    BinaryOp::Ge => Some(builder.ins().icmp(
-                        IntCC::SignedGreaterThanOrEqual,
-                        lhs,
-                        rhs,
-                    )),
-                }
-            }
-            Expression::UnaryOp(op, value) => {
-                let value = self.build_expression(builder, value)?;
-                use orco::ir::expression::UnaryOp;
-                match op.inner {
-                    UnaryOp::Neg => Some(builder.ins().ineg(value)),
-                }
-            }
+            Expression::BinaryExpression(expr) => self.build_binary_expression(builder, expr),
+            Expression::UnaryExpression(expr) => self.build_unary_expression(builder, expr),
             Expression::Block(block) => self.build_block(builder, block),
-            Expression::If {
-                condition,
-                then_branch,
-                else_branch,
-                ..
-            } => {
-                // TODO: If values
-                let condition = self.build_expression(builder, condition).expect("Can't pass a unit type as an argument to an if statement, did you run type checking/inference?");
-                let then_block = builder.create_block();
-                let else_block = if else_branch.is_some() {
-                    Some(builder.create_block())
-                } else {
-                    None
-                };
-                let merge_block = builder.create_block();
-
-                builder.ins().brif(
-                    condition,
-                    then_block,
-                    &[],
-                    else_block.unwrap_or(merge_block),
-                    &[],
-                );
-
-                builder.switch_to_block(then_block);
-                builder.seal_block(then_block);
-                self.build_expression(builder, then_branch);
-                if then_branch.get_type(self.root) != orco::ir::Type::Never {
-                    builder.ins().jump(merge_block, &[]);
-                }
-
-                if let (Some(else_branch), Some(else_block)) = (else_branch, else_block) {
-                    builder.switch_to_block(else_block);
-                    self.build_expression(builder, else_branch);
-                    builder.ins().jump(merge_block, &[]);
-                    builder.seal_block(else_block);
-                }
-
-                builder.switch_to_block(merge_block);
-                builder.seal_block(merge_block);
-                None
-            }
+            Expression::If(expr) => self.build_if_expression(builder, expr),
             // Expression::While {
             //     condition,
             //     body,
@@ -149,21 +81,7 @@ impl crate::Object<'_> {
                 }
                 None
             }
-            Expression::Assignment(target, value) => {
-                let value = self.build_expression(builder, value)?;
-                match target.as_ref() {
-                    Expression::Variable(variable) => {
-                        let variable = variable.lock().unwrap();
-                        let variable = Variable::new(variable.id as _);
-                        builder.def_var(variable, value);
-                    }
-                    target => panic!(
-                        "Can't assign to '{}'! Did you run type checking/inference?",
-                        target
-                    ),
-                }
-                None
-            }
+            Expression::Assignment(expr) => self.build_assignment_expression(builder, expr),
             Expression::Error(span) => panic!("IR contains errors at {:?}!", span),
         }
     }
