@@ -3,7 +3,7 @@ use super::*;
 /// Parse a block
 pub fn parse<R: ErrorReporter + ?Sized>(
     parser: &mut Parser<R>,
-    variable_mapper: &mut VariableMapper,
+    variable_mapper: &mut SymbolMapper,
 ) -> Option<Spanned<ir::expression::Block>> {
     let start = parser.span().1.start;
     if parser.match_operator(Operator::LBrace) {
@@ -32,7 +32,7 @@ pub fn parse<R: ErrorReporter + ?Sized>(
 /// Expect a block
 pub fn expect<R: ErrorReporter + ?Sized>(
     parser: &mut Parser<R>,
-    variable_mapper: &mut VariableMapper,
+    variable_mapper: &mut SymbolMapper,
 ) -> Spanned<ir::expression::Block> {
     if let Some(block) = parse(parser, variable_mapper) {
         block

@@ -20,9 +20,17 @@ impl crate::Object<'_> {
         use orco::ir::Expression;
         match expr {
             Expression::Constant(value) => self.build_constant(builder, value),
-            Expression::Variable(variable) => {
-                let variable = variable.lock().unwrap();
-                Some(builder.use_var(Variable::new(variable.id as _)))
+            Expression::Symbol(symbol) => {
+                use orco::SymbolReference;
+                match &symbol.inner {
+                    SymbolReference::Variable(variable) => {
+                        let variable = variable.lock().unwrap();
+                        Some(builder.use_var(Variable::new(variable.id as _)))
+                    }
+                    SymbolReference::ExternFunction(_function) => {
+                        todo!()
+                    }
+                }
             }
             Expression::BinaryExpression(expr) => self.build_binary_expression(builder, expr),
             Expression::UnaryExpression(expr) => self.build_unary_expression(builder, expr),

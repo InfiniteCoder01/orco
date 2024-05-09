@@ -9,8 +9,11 @@ pub mod ir;
 pub mod source;
 /// Type inference structs and functions
 pub mod type_inference;
+/// Symbol reference (used to reference symbols/variables in expressions)
+pub mod symbol_reference;
 /// Variable maker
-pub mod variable_mapper;
+pub mod symbol_mapper;
 
 pub use source::*;
 pub use type_inference::TypeInference;
+pub use symbol_reference::SymbolReference;

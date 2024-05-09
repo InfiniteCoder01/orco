@@ -1,5 +1,5 @@
 use crate::type_inference::TypeVariableID;
-use crate::Span;
+use crate::{Span, Spanned};
 use std::num::NonZeroU16;
 
 /// A type enum consists of all builtin types and a custom variant
@@ -18,6 +18,8 @@ pub enum Type {
 
     /// Pointer type
     Pointer(Box<Type>),
+    /// Function pointer
+    FunctionPointer(Vec<Spanned<Type>>, Box<Spanned<Type>>),
     /// Custom type, f.e. a struct or a type alias
     Custom(Span),
 
@@ -96,10 +98,24 @@ impl std::fmt::Display for Type {
             Self::Float(size) => write!(f, "f{}", size.get() * 8),
             Self::Bool => write!(f, "bool"),
             Self::Char => write!(f, "char"),
-            Self::Never => write!(f, "!"),
+
             Self::Pointer(r#type) => write!(f, "{}*", r#type),
-            Self::Unit => write!(f, "()"),
+            Self::FunctionPointer(args, r#return) => {
+                write!(f, "fn(")?;
+                for (index, arg) in args.iter().enumerate() {
+                    if index > 0 {
+                        write!(f, ", ")?;
+                    }
+                    arg.fmt(f)?;
+                }
+                write!(f, ") -> {}", r#return.inner)?;
+                Ok(())
+            }
             Self::Custom(name) => write!(f, "{}", name),
+
+            Self::Never => write!(f, "!"),
+            Self::Unit => write!(f, "()"),
+
             Self::Wildcard => write!(f, "_"),
             Self::IntegerWildcard => write!(f, "integer"),
             Self::TypeVariable(id) => write!(f, "{}", id),

@@ -1,18 +1,18 @@
 use super::*;
-use ir::expression::{VariableDeclaration, VariableReference};
+use ir::expression::VariableDeclaration;
 use std::sync::{Arc, Mutex};
 
 /// Scope
-pub type Scope = std::collections::HashMap<Span, VariableReference>;
+pub type Scope = std::collections::HashMap<Span, SymbolReference>;
 
 /// Variable maker
 #[derive(Debug)]
-pub struct VariableMapper {
+pub struct SymbolMapper {
     scopes: Vec<Scope>,
     id_counter: ir::expression::variable_declaration::VariableID,
 }
 
-impl VariableMapper {
+impl SymbolMapper {
     /// Create a new variable maker
     pub fn new() -> Self {
         Self {
@@ -45,17 +45,18 @@ impl VariableMapper {
     pub fn declare_variable(
         &mut self,
         mut declaration: diagnostics::Spanned<VariableDeclaration>,
-    ) -> VariableReference {
+    ) -> symbol_reference::VariableReference {
         declaration.id = self.id_counter;
         self.id_counter += 1;
         let name = declaration.name.clone();
         let reference = Arc::new(declaration.map(Mutex::new));
-        self.current_scope_mut().insert(name, reference.clone());
+        self.current_scope_mut()
+            .insert(name, SymbolReference::Variable(reference.clone()));
         reference
     }
 
     /// Get a variable from the current scope
-    pub fn get_variable(&self, name: &Span) -> Option<VariableReference> {
+    pub fn get_variable(&self, name: &Span) -> Option<SymbolReference> {
         for scope in self.scopes.iter().rev() {
             if let Some(reference) = scope.get(name) {
                 return Some(reference.clone());
@@ -72,10 +73,7 @@ impl VariableMapper {
         span: Span,
     ) -> ir::Expression {
         match self.get_variable(name) {
-            Some(reference) => ir::Expression::Variable(diagnostics::Spanned {
-                inner: reference,
-                span,
-            }),
+            Some(reference) => ir::Expression::Symbol(Spanned::new(reference, span)),
             None => {
                 reporter.report_type_error(
                     format!("Variable '{}' was not found in this scope", name),
@@ -88,7 +86,7 @@ impl VariableMapper {
     }
 }
 
-impl Default for VariableMapper {
+impl Default for SymbolMapper {
     fn default() -> Self {
         Self::new()
     }

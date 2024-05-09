@@ -3,7 +3,7 @@ use super::*;
 /// Parse a binary expression with a set level of precedance
 pub fn binary<R: ErrorReporter + ?Sized>(
     parser: &mut Parser<R>,
-    variable_mapper: &mut VariableMapper,
+    variable_mapper: &mut SymbolMapper,
     level: usize,
 ) -> Option<Expression> {
     use ir::expression::BinaryOp;
@@ -56,7 +56,7 @@ pub fn binary<R: ErrorReporter + ?Sized>(
 /// Parse a unary expression
 pub fn unary<R: ErrorReporter + ?Sized>(
     parser: &mut Parser<R>,
-    variable_mapper: &mut VariableMapper,
+    variable_mapper: &mut SymbolMapper,
 ) -> Option<Expression> {
     use ir::expression::UnaryOp;
     let operators = [(Operator::Minus, UnaryOp::Neg)];

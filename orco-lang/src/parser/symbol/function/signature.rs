@@ -3,7 +3,7 @@ use super::*;
 /// Parse a function signature (assumes, that "fn" token is already consumed)
 pub fn parse<R: ErrorReporter + ?Sized>(
     parser: &mut Parser<R>,
-    mut variable_mapper: Option<&mut orco::variable_mapper::VariableMapper>,
+    mut variable_mapper: Option<&mut orco::symbol_mapper::SymbolMapper>,
 ) -> ir::symbol::function::Signature {
     let start = parser.span().1.start;
     parser.expect_operator(Operator::LParen);

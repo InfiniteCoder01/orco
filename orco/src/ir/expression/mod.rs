@@ -1,6 +1,8 @@
 use crate::diagnostics::*;
-use crate::{ir::Type, type_inference::TypeInference};
-use std::sync::{Arc, Mutex};
+use crate::ir::Type;
+use crate::symbol_reference::SymbolReference;
+use crate::symbol_reference::VariableReferenceExt;
+use crate::type_inference::TypeInference;
 
 /// Constant value
 pub mod constant;
@@ -25,8 +27,6 @@ pub use branching::IfExpression;
 /// Variable declaration
 pub mod variable_declaration;
 pub use variable_declaration::VariableDeclaration;
-pub use variable_declaration::VariableReference;
-pub use variable_declaration::VariableReferenceExt;
 
 /// An expression
 #[derive(Clone, Debug)]
@@ -34,7 +34,7 @@ pub enum Expression {
     /// A constant value
     Constant(Spanned<Constant>),
     /// Variable
-    Variable(Spanned<VariableReference>),
+    Symbol(Spanned<SymbolReference>),
     /// Binary expression
     BinaryExpression(Spanned<BinaryExpression>),
     /// Unary expression
@@ -62,7 +62,7 @@ pub enum Expression {
     /// Return a value
     Return(Spanned<Box<Expression>>),
     /// Declare a variable
-    VariableDeclaration(VariableReference),
+    VariableDeclaration(crate::symbol_reference::VariableReference),
     /// Assignment
     Assignment(Spanned<AssignmentExpression>),
     /// Invalid expression
@@ -82,7 +82,7 @@ impl Expression {
     pub fn get_type(&self, root: &crate::ir::Module) -> Type {
         match self {
             Expression::Constant(constant) => constant.get_type(),
-            Expression::Variable(variable) => variable.lock().unwrap().r#type.inner.clone(),
+            Expression::Symbol(symbol) => symbol.get_type(),
             Expression::BinaryExpression(expr) => expr.get_type(root),
             Expression::UnaryExpression(expr) => expr.get_type(root),
             Expression::Block(block) => block.get_type(root),
@@ -107,7 +107,7 @@ impl Expression {
     }
 
     /// Infer types
-    /// target_type should be [`Type::Wildcard`] when unknown. infer_types doesn't strictly enforce,
+    /// target_type is a soft bound and should be [`Type::Wildcard`] when unknown. infer_types doesn't strictly enforce,
     /// that value will be of target_type, so you should do it manually
     /// Never returns a [`Type::Wildcard`]. Only [`Type::TypeVariable`]
     pub fn infer_types(&mut self, target_type: &Type, type_inference: &mut TypeInference) -> Type {
@@ -115,9 +115,7 @@ impl Expression {
             Expression::Constant(constant) => {
                 constant.inner.infer_types(target_type, type_inference)
             }
-            Expression::Variable(variable) => {
-                type_inference.equate(target_type, &variable.r#type())
-            }
+            Expression::Symbol(symbol) => symbol.infer_types(target_type, type_inference),
             Expression::BinaryExpression(expr) => expr.infer_types(target_type, type_inference),
             Expression::UnaryExpression(expr) => expr.infer_types(target_type, type_inference),
             Expression::Block(block) => block.infer_types(target_type, type_inference),
@@ -145,10 +143,9 @@ impl Expression {
                 expr.infer_types(type_inference.return_type, type_inference);
                 Type::Never
             }
-            Expression::VariableDeclaration(variable_declaration) => variable_declaration
-                .lock()
-                .unwrap()
-                .infer_types(type_inference),
+            Expression::VariableDeclaration(declaration) => {
+                declaration.lock().unwrap().infer_types(type_inference)
+            }
             Expression::Assignment(expr) => expr.infer_types(type_inference),
             Expression::Error(_) => Type::Error,
         };
@@ -161,7 +158,7 @@ impl Expression {
             Expression::Constant(constant) => constant
                 .inner
                 .finish_and_check_types(constant.span.clone(), type_inference),
-            Expression::Variable(variable) => variable.lock().unwrap().r#type.inner.clone(),
+            Expression::Symbol(symbol) => symbol.finish_and_check_types(type_inference),
             Expression::BinaryExpression(expr) => expr.finish_and_check_types(type_inference),
             Expression::UnaryExpression(expr) => expr.finish_and_check_types(type_inference),
             Expression::Block(block) => block.finish_and_check_types(type_inference),
@@ -251,7 +248,7 @@ impl Expression {
                 }
                 Type::Never
             }
-            Expression::VariableDeclaration(variable_declaration) => variable_declaration
+            Expression::VariableDeclaration(declaration) => declaration
                 .lock()
                 .unwrap()
                 .finish_and_check_types(type_inference),
@@ -265,16 +262,14 @@ impl Expression {
     pub fn span(&self) -> Span {
         match self {
             Expression::Constant(constant) => constant.span.clone(),
-            Expression::Variable(variable) => variable.span.clone(),
+            Expression::Symbol(symbol) => symbol.span.clone(),
             Expression::BinaryExpression(expr) => expr.span.clone(),
             Expression::UnaryExpression(expr) => expr.span.clone(),
             Expression::Block(block) => block.span.clone(),
             Expression::If(expr) => expr.span.clone(),
             Expression::FunctionCall { name, args } => name.extend(&args.span),
             Expression::Return(expr) => expr.span.clone(),
-            Expression::VariableDeclaration(variable_declaration) => {
-                variable_declaration.span.clone()
-            }
+            Expression::VariableDeclaration(declaration) => declaration.span.clone(),
             Expression::Assignment(expr) => expr.span.clone(),
             Expression::Error(span) => span.clone(),
         }
@@ -285,16 +280,7 @@ impl std::fmt::Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Expression::Constant(constant) => constant.fmt(f),
-            Expression::Variable(variable) => {
-                let variable = variable.lock().unwrap();
-                let show_id =
-                    std::env::var("ORCO_SHOW_VAR_ID").map_or(false, |show_id| show_id == "1");
-                if show_id {
-                    write!(f, "{} (#{})", variable.name, variable.id)
-                } else {
-                    write!(f, "{}", variable.name)
-                }
-            }
+            Expression::Symbol(symbol) => symbol.fmt(f),
             Expression::BinaryExpression(expr) => expr.fmt(f),
             Expression::UnaryExpression(expr) => expr.fmt(f),
             Expression::Block(block) => block.fmt(f),
@@ -311,9 +297,7 @@ impl std::fmt::Display for Expression {
                 Ok(())
             }
             Expression::Return(expr) => write!(f, "return {}", expr.inner),
-            Expression::VariableDeclaration(variable_declaration) => {
-                variable_declaration.lock().unwrap().fmt(f)
-            }
+            Expression::VariableDeclaration(declaration) => declaration.lock().unwrap().fmt(f),
             Expression::Assignment(expr) => expr.fmt(f),
             Expression::Error(_) => write!(f, "<ERROR>"),
         }

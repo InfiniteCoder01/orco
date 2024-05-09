@@ -17,8 +17,6 @@ pub struct VariableDeclaration {
     pub value: Option<Box<Expression>>,
 }
 
-/// Variable reference, used in variable access
-pub type VariableReference = Arc<Spanned<Mutex<VariableDeclaration>>>;
 /// Variable ID, for more information see [`VariableDeclaration::id`]
 pub type VariableID = u64;
 
@@ -84,14 +82,3 @@ impl std::fmt::Display for VariableDeclaration {
     }
 }
 
-/// VaraibleReference extensions
-pub trait VariableReferenceExt {
-    /// Get the type of this variable, not holding the lock
-    fn r#type(&self) -> Type;
-}
-
-impl VariableReferenceExt for VariableReference {
-    fn r#type(&self) -> Type {
-        self.lock().unwrap().r#type.inner.clone()
-    }
-}

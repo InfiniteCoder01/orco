@@ -1,5 +1,5 @@
-use self::symbol::expression::VariableReference;
 use super::*;
+use crate::symbol_reference::VariableReference;
 
 #[derive(Clone, Debug)]
 /// Function signature (i.e. parameters and return type)
@@ -14,6 +14,18 @@ impl Signature {
     /// Create a new function signature
     pub fn new(args: Spanned<Vec<VariableReference>>, return_type: Spanned<Type>) -> Self {
         Self { args, return_type }
+    }
+
+    /// Get the type for this function signature
+    /// Returns a function pointer
+    pub fn get_type(&self) -> Type {
+        Type::FunctionPointer(
+            self.args
+                .iter()
+                .map(|arg| arg.lock().unwrap().r#type.clone())
+                .collect(),
+            Box::new(self.return_type.clone()),
+        )
     }
 
     /// Format

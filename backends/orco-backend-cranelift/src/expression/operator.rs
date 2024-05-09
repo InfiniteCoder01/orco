@@ -48,7 +48,10 @@ impl crate::Object<'_> {
     ) -> Option<Value> {
         let value = self.build_expression(builder, &expr.value)?;
         match expr.target.as_ref() {
-            orco::ir::Expression::Variable(variable) => {
+            orco::ir::Expression::Symbol(orco::Spanned {
+                inner: orco::SymbolReference::Variable(variable),
+                ..
+            }) => {
                 let variable = variable.lock().unwrap();
                 let variable = Variable::new(variable.id as _);
                 builder.def_var(variable, value);

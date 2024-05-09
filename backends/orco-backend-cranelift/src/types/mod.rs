@@ -12,15 +12,16 @@ impl crate::Object<'_> {
             orco::ir::Type::Bool => cranelift_codegen::ir::types::I8,
             orco::ir::Type::Char => cranelift_codegen::ir::types::I8,
 
-            orco::ir::Type::Pointer(_) => self.object.target_config().pointer_type(),
-            orco::ir::Type::Custom(_) => todo!(),
+            orco::ir::Type::Pointer(..) => self.object.target_config().pointer_type(),
+            orco::ir::Type::FunctionPointer(..) => self.object.target_config().pointer_type(),
+            orco::ir::Type::Custom(..) => todo!(),
 
             orco::ir::Type::Never => panic!("Can't convert a never type"),
             orco::ir::Type::Unit => panic!("Can't convert a unit type"),
 
             orco::ir::Type::Wildcard => panic!("Type inference wasn't done properly"),
             orco::ir::Type::IntegerWildcard => panic!("Type inference wasn't done properly"),
-            orco::ir::Type::TypeVariable(_) => panic!("Type inference wasn't done properly"),
+            orco::ir::Type::TypeVariable(..) => panic!("Type inference wasn't done properly"),
             orco::ir::Type::Error => panic!("IR contains errors!"),
         }
     }

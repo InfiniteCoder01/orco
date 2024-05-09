@@ -1,6 +1,6 @@
 use super::*;
 use orco::ir::Expression;
-use orco::variable_mapper::VariableMapper;
+use orco::symbol_mapper::SymbolMapper;
 
 /// Parsers for operator-oriented expressions (binary, unary, assignment, etc.)
 pub mod operator;
@@ -14,7 +14,7 @@ pub mod branching;
 /// Expect an expression, error if there is no
 pub fn expect<R: ErrorReporter + ?Sized>(
     parser: &mut Parser<R>,
-    variable_mapper: &mut VariableMapper,
+    variable_mapper: &mut SymbolMapper,
 ) -> Expression {
     if let Some(expression) = parse(parser, variable_mapper) {
         expression
@@ -27,7 +27,7 @@ pub fn expect<R: ErrorReporter + ?Sized>(
 /// Parse an expression
 pub fn parse<R: ErrorReporter + ?Sized>(
     parser: &mut Parser<R>,
-    variable_mapper: &mut VariableMapper,
+    variable_mapper: &mut SymbolMapper,
 ) -> Option<Expression> {
     let start = parser.span().1.start;
     let expression = if parser.match_keyword("return") {
@@ -86,7 +86,7 @@ pub fn parse<R: ErrorReporter + ?Sized>(
 /// Parse a unit expression
 pub fn unit_expression<R: ErrorReporter + ?Sized>(
     parser: &mut Parser<R>,
-    variable_mapper: &mut VariableMapper,
+    variable_mapper: &mut SymbolMapper,
 ) -> Option<Expression> {
     let start = parser.span().1.start;
     if let Some(span) = parser.match_error() {

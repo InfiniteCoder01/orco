@@ -5,7 +5,7 @@ pub mod signature;
 
 /// Parse a function (assumes, that "fn" token is already consumed)
 pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::symbol::Function {
-    let mut variable_mapper = orco::variable_mapper::VariableMapper::new();
+    let mut variable_mapper = orco::symbol_mapper::SymbolMapper::new();
     ir::symbol::Function::new(
         signature::parse(parser, Some(&mut variable_mapper)),
         expression::block::expect(parser, &mut variable_mapper),

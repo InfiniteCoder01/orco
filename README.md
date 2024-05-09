@@ -12,3 +12,14 @@ Intermediate Representation is nesesary, because
 we can't just invoke a backend(f.e. cranelift) and
 tell it to declare a trait. And we can't just parse
 a language into an IR, because of LSP support.
+
+## Roadmap for next few streams
+You can watch me do this live on [Twitch](https://www.twitch.tv/infinitecoder01) and [Youtube](https://www.youtube.com/@InfiniteCoder02/)
+
+Roadmap for now:
+- [] Symbols
+- [] Frontend-side diagnostics (and diagnostics refactor)
+- [] While loop
+- [] C Frontend
+- [] Rust frontend
+- [] Self-hosting

@@ -3,7 +3,7 @@ use super::*;
 /// Expect an if expression, assuming that 'if' keyword was already consumed
 pub fn expect_if<R: ErrorReporter + ?Sized>(
     parser: &mut Parser<R>,
-    variable_mapper: &mut VariableMapper,
+    variable_mapper: &mut SymbolMapper,
     start: usize,
 ) -> Option<Expression> {
     let condition = Box::new(expect(parser, variable_mapper));
