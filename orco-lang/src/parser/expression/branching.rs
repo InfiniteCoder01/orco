@@ -5,7 +5,7 @@ pub fn expect_if<R: ErrorReporter + ?Sized>(
     parser: &mut Parser<R>,
     variable_mapper: &mut SymbolMapper,
     start: usize,
-) -> Option<Expression> {
+) -> Expression {
     let condition = Box::new(expect(parser, variable_mapper));
     let then_branch = Box::new(expect(parser, variable_mapper));
     let else_branch = if parser.match_keyword("else") {
@@ -13,8 +13,8 @@ pub fn expect_if<R: ErrorReporter + ?Sized>(
     } else {
         None
     };
-    Some(Expression::If(parser.wrap_span(
+    Expression::If(parser.wrap_span(
         ir::expression::IfExpression::new(condition, then_branch, else_branch),
         start,
-    )))
+    ))
 }

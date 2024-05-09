@@ -20,10 +20,13 @@ impl Signature {
     /// Returns a function pointer
     pub fn get_type(&self) -> Type {
         Type::FunctionPointer(
-            self.args
-                .iter()
-                .map(|arg| arg.lock().unwrap().r#type.clone())
-                .collect(),
+            Spanned::new(
+                self.args
+                    .iter()
+                    .map(|arg| arg.lock().unwrap().r#type.clone())
+                    .collect(),
+                self.args.span.clone(),
+            ),
             Box::new(self.return_type.clone()),
         )
     }

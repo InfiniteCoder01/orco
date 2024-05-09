@@ -19,7 +19,7 @@ pub enum Type {
     /// Pointer type
     Pointer(Box<Type>),
     /// Function pointer
-    FunctionPointer(Vec<Spanned<Type>>, Box<Spanned<Type>>),
+    FunctionPointer(Spanned<Vec<Spanned<Type>>>, Box<Spanned<Type>>),
     /// Custom type, f.e. a struct or a type alias
     Custom(Span),
 

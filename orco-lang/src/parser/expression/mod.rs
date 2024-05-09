@@ -96,7 +96,7 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(
     } else if let Some(block) = block::parse(parser, variable_mapper) {
         Some(Expression::Block(block))
     } else if parser.match_keyword("if") {
-        branching::expect_if(parser, variable_mapper, start)
+        Some(branching::expect_if(parser, variable_mapper, start))
     } else if let Some(name) = parser.match_ident() {
         let start = parser.span().1.start;
         if parser.match_operator(Operator::LParen) {
