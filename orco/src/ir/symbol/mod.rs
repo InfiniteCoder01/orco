@@ -1,4 +1,5 @@
 use super::*;
+use crate::symbol_reference::*;
 
 /// A function
 pub mod function;
@@ -8,9 +9,9 @@ pub use function::Function;
 /// A symbol
 pub enum Symbol {
     /// A function
-    Function(function::Function),
+    Function(Function),
     /// External function
-    ExternalFunction(function::Signature),
+    ExternalFunction(ExternFunctionReference),
 }
 
 impl Symbol {

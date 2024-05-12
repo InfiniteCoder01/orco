@@ -26,21 +26,23 @@ impl IfExpression {
     }
 
     /// Get the type this exprssion (ternary) evaluates to
-    pub fn get_type(&self, root: &crate::ir::Module) -> Type {
+    pub fn get_type(&self) -> Type {
         self.else_branch.as_ref().map_or_else(
             || Type::Unit,
-            |else_branch| self.then_branch.get_type(root) | else_branch.get_type(root),
+            |else_branch| self.then_branch.get_type() | else_branch.get_type(),
         )
     }
 
     /// Infer the type for this expression
-    pub fn infer_types(&mut self, target_type: &Type, type_inference: &mut TypeInference) -> Type {
-        self.condition.infer_types(&Type::Bool, type_inference);
-        let then_type = self.then_branch.infer_types(target_type, type_inference);
+    pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
+        let condition_type = self.condition.infer_types(type_inference);
+        type_inference.equate(&condition_type, &Type::Bool);
+        let then_type = self.then_branch.infer_types(type_inference);
         if let Some(else_branch) = &mut self.else_branch {
-            let else_type = else_branch.infer_types(target_type, type_inference);
+            let else_type = else_branch.infer_types(type_inference);
             type_inference.equate(&then_type, &else_type)
         } else {
+            type_inference.equate(&then_type, &Type::Unit);
             Type::unit()
         }
     }

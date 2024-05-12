@@ -75,11 +75,11 @@ impl Type {
         }
         match (self as &Self, &other) {
             (Self::Never, _) => true,
-            (Self::Wildcard | Self::Error, _) => {
+            (Self::Wildcard | Self::Error, _) | (_, Self::Never) => {
                 *self = other;
                 true
             }
-            (_, Self::Never | Self::Wildcard | Self::Error) => true,
+            (_, Self::Wildcard | Self::Error) => true,
             (Self::IntegerWildcard, Self::Int(_) | Self::Unsigned(_)) => {
                 *self = other;
                 true

@@ -7,6 +7,7 @@ use cranelift_module::Module;
 use log::{info, trace};
 
 impl crate::Object<'_> {
+    /// Declare a function in the object
     pub fn declare_function(
         &mut self,
         name: Span,
@@ -20,6 +21,7 @@ impl crate::Object<'_> {
         id
     }
 
+    /// Build a function in the object, must declare it first with [`Self::declare_function`]
     pub fn build_function(
         &mut self,
         root: &orco::ir::Module,
@@ -51,13 +53,12 @@ impl crate::Object<'_> {
                 &function.signature.args.inner,
                 builder.block_params(block).to_vec(),
             ) {
-                let arg = arg.lock().unwrap();
-                let variable = Variable::new(arg.id as _);
-                builder.declare_var(variable, self.convert_type(&arg.r#type));
+                let variable = Variable::new(*arg.id.lock().unwrap() as _);
+                builder.declare_var(variable, self.convert_type(&arg.r#type.lock().unwrap()));
                 builder.def_var(variable, value);
             }
             let return_value = self.build_block(&mut builder, &function.body.lock().unwrap());
-            if function.body.lock().unwrap().get_type(root) != orco::ir::Type::Never {
+            if function.body.lock().unwrap().get_type() != orco::ir::Type::Never {
                 builder
                     .ins()
                     .return_(&return_value.into_iter().collect::<Vec<_>>());
@@ -67,6 +68,7 @@ impl crate::Object<'_> {
         self.object.define_function(id, &mut ctx).unwrap();
     }
 
+    /// Convert OrCo function signature to Cranelift function signature
     pub fn convert_function_signature(
         &self,
         signature: &orco::ir::symbol::function::Signature,
@@ -76,7 +78,7 @@ impl crate::Object<'_> {
             params: signature
                 .args
                 .iter()
-                .map(|arg| AbiParam::new(self.convert_type(&arg.lock().unwrap().r#type)))
+                .map(|arg| AbiParam::new(self.convert_type(&arg.r#type.lock().unwrap())))
                 .collect(),
             returns: if *signature.return_type == orco::ir::Type::Unit {
                 vec![]

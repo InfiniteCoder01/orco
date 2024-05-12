@@ -1,18 +1,18 @@
 use super::*;
-use crate::symbol_reference::VariableReference;
+use crate::ir::expression::Variable;
 
 #[derive(Clone, Debug)]
 /// Function signature (i.e. parameters and return type)
 pub struct Signature {
     /// Function parameters
-    pub args: Spanned<Vec<VariableReference>>,
+    pub args: Spanned<Vec<Variable>>,
     /// Function return type
     pub return_type: Spanned<Type>,
 }
 
 impl Signature {
     /// Create a new function signature
-    pub fn new(args: Spanned<Vec<VariableReference>>, return_type: Spanned<Type>) -> Self {
+    pub fn new(args: Spanned<Vec<Variable>>, return_type: Spanned<Type>) -> Self {
         Self { args, return_type }
     }
 
@@ -23,7 +23,9 @@ impl Signature {
             Spanned::new(
                 self.args
                     .iter()
-                    .map(|arg| arg.lock().unwrap().r#type.clone())
+                    .map(|arg| {
+                        Spanned::new(arg.r#type.lock().unwrap().clone(), arg.r#type.span.clone())
+                    })
                     .collect(),
                 self.args.span.clone(),
             ),
@@ -39,11 +41,10 @@ impl Signature {
         }
         write!(f, "(")?;
         for (index, arg) in self.args.iter().enumerate() {
-            let arg = arg.lock().unwrap();
             if index > 0 {
                 write!(f, ", ")?;
             }
-            write!(f, "{}: {}", arg.name, arg.r#type.inner)?;
+            write!(f, "{}: {}", arg.name, arg.r#type.lock().unwrap())?;
         }
         write!(f, ")")?;
         write!(f, " -> {}", *self.return_type)?;

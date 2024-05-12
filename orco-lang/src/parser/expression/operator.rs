@@ -3,7 +3,6 @@ use super::*;
 /// Parse a binary expression with a set level of precedance
 pub fn binary<R: ErrorReporter + ?Sized>(
     parser: &mut Parser<R>,
-    variable_mapper: &mut SymbolMapper,
     level: usize,
 ) -> Option<Expression> {
     use ir::expression::BinaryOp;
@@ -28,16 +27,16 @@ pub fn binary<R: ErrorReporter + ?Sized>(
     ];
 
     if level >= operators.len() {
-        return unary(parser, variable_mapper);
+        return unary(parser);
     }
 
-    let mut expression = binary(parser, variable_mapper, level + 1)?;
+    let mut expression = binary(parser, level + 1)?;
     loop {
         let mut any = false;
         for &(op_token, op) in &operators[level] {
             if parser.match_operator(op_token) {
                 let lhs = Box::new(expression);
-                let rhs = Box::new(binary(parser, variable_mapper, level + 1)?);
+                let rhs = Box::new(binary(parser, level + 1)?);
                 let span = lhs.span().extend(&rhs.span());
                 expression = Expression::BinaryExpression(Spanned::new(
                     ir::expression::BinaryExpression::new(lhs, op, rhs),
@@ -54,20 +53,17 @@ pub fn binary<R: ErrorReporter + ?Sized>(
 }
 
 /// Parse a unary expression
-pub fn unary<R: ErrorReporter + ?Sized>(
-    parser: &mut Parser<R>,
-    variable_mapper: &mut SymbolMapper,
-) -> Option<Expression> {
+pub fn unary<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expression> {
     use ir::expression::UnaryOp;
     let operators = [(Operator::Minus, UnaryOp::Neg)];
     for &(op_token, op) in &operators {
         let start = parser.span().1.start;
         if parser.match_operator(op_token) {
-            let expr = Box::new(unary(parser, variable_mapper)?);
+            let expr = Box::new(unary(parser)?);
             return Some(Expression::UnaryExpression(
                 parser.wrap_span(ir::expression::UnaryExpression::new(op, expr), start),
             ));
         }
     }
-    super::unit_expression(parser, variable_mapper)
+    super::unit_expression(parser)
 }

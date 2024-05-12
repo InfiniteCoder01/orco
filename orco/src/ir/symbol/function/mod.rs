@@ -23,18 +23,12 @@ impl Function {
     }
 
     /// Infer types
-    pub fn infer_and_check_types(
-        &self,
-        root: &Module,
-        reporter: &mut dyn crate::diagnostics::ErrorReporter,
-    ) {
+    pub fn infer_and_check_types(&self, reporter: &mut dyn crate::diagnostics::ErrorReporter) {
         let mut type_inference =
-            crate::type_inference::TypeInference::new(root, &self.signature.return_type, reporter);
+            crate::type_inference::TypeInference::new(&self.signature.return_type, reporter);
         let mut body = self.body.lock().unwrap();
-        body.infer_types(&self.signature.return_type, &mut type_inference);
-        println!("Inferred {}", body.inner);
+        body.infer_types(&mut type_inference);
         body.finish_and_check_types(&mut type_inference);
-        println!("Finished {}", body.inner);
     }
 
     /// Format

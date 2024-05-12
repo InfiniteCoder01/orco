@@ -7,13 +7,13 @@ pub mod diagnostics;
 pub mod ir;
 /// Source and span
 pub mod source;
-/// Type inference structs and functions
-pub mod type_inference;
-/// Symbol reference (used to reference symbols/variables in expressions)
-pub mod symbol_reference;
 /// Variable maker
 pub mod symbol_mapper;
+/// Symbol reference (used to reference symbols/variables in expressions)
+pub mod symbol_reference;
+/// Type inference structs and functions
+pub mod type_inference;
 
 pub use source::*;
-pub use type_inference::TypeInference;
 pub use symbol_reference::SymbolReference;
+pub use type_inference::TypeInference;

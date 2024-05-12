@@ -23,12 +23,11 @@ impl Module {
     /// Infer types for the whole module
     pub fn infer_and_check_types(
         &self,
-        root: &Module,
         reporter: &mut dyn crate::diagnostics::ErrorReporter,
     ) {
         for symbol in self.symbols.values() {
             if let Symbol::Function(function) = symbol {
-                function.infer_and_check_types(root, reporter);
+                function.infer_and_check_types(reporter);
             }
         }
     }

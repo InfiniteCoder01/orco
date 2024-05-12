@@ -1,20 +1,31 @@
 #![doc = include_str!("../README.md")]
+#![warn(missing_docs)]
+
 use cranelift_module::Module;
 use log::debug;
 use orco::Span;
 
+/// Build expressions
 pub mod expression;
+/// Declare and build functions
 pub mod function;
+/// Declare and convert types
 pub mod types;
 
+/// Object, translation unit, a wrapper around `cranelift_object::ObjectModule`
 pub struct Object<'a> {
+    /// The root module of the OrCo IR
     pub root: &'a orco::ir::Module,
+    /// Cranelift object
     pub object: cranelift_object::ObjectModule,
+    /// Functions table
     pub functions: std::collections::HashMap<Span, cranelift_module::FuncId>,
+    /// Constant pool
     pub constant_data: Option<(cranelift_module::DataId, Vec<u8>)>,
 }
 
 impl<'a> Object<'a> {
+    /// Create a new object from an OrCo IR and an ISA name
     pub fn new(root: &'a orco::ir::Module, isa: &str) -> Self {
         let flag_builder = cranelift_codegen::settings::builder();
         let isa_builder = cranelift_codegen::isa::lookup_by_name(isa).unwrap();
@@ -39,6 +50,7 @@ impl<'a> Object<'a> {
     }
 }
 
+/// Build the OrCo IR module
 pub fn build(root: &orco::ir::Module) {
     debug!("Compiling module:\n{}", root);
     let mut object = Object::new(root, "x86_64-unknown-linux-gnu");

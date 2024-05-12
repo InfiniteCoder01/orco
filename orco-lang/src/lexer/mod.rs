@@ -232,6 +232,8 @@ impl std::fmt::Display for Operator {
 pub struct Parser<'a, R: ErrorReporter + ?Sized> {
     /// Error reporter
     pub reporter: &'a mut R,
+    /// Symbol mapper
+    pub symbol_mapper: orco::symbol_mapper::SymbolMapper,
     lexer: logos::Lexer<'a, Token>,
     peek: Option<Token>,
 }
@@ -241,6 +243,7 @@ impl<'a, R: ErrorReporter + ?Sized> Parser<'a, R> {
     pub fn new(source: &'a Source, reporter: &'a mut R) -> Self {
         Self {
             reporter,
+            symbol_mapper: orco::symbol_mapper::SymbolMapper::new(),
             lexer: Token::lexer(source),
             peek: None,
         }

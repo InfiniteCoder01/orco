@@ -1,9 +1,11 @@
 use cranelift_codegen::ir::{InstBuilder, Value};
 use cranelift_frontend::FunctionBuilder;
 
+/// Constant pool
 pub mod pool;
 
 impl crate::Object<'_> {
+    /// Build a constant expression
     pub fn build_constant(
         &mut self,
         builder: &mut FunctionBuilder,

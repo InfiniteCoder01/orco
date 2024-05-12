@@ -1,7 +1,6 @@
 use crate::diagnostics::*;
 use crate::ir::Type;
 use crate::symbol_reference::SymbolReference;
-use crate::symbol_reference::VariableReferenceExt;
 use crate::type_inference::TypeInference;
 
 /// Constant value
@@ -24,8 +23,13 @@ pub use block::Block;
 pub mod branching;
 pub use branching::IfExpression;
 
+/// Call expression (function call)
+pub mod call;
+pub use call::CallExpression;
+
 /// Variable declaration
 pub mod variable_declaration;
+pub use variable_declaration::Variable;
 pub use variable_declaration::VariableDeclaration;
 
 /// An expression
@@ -53,16 +57,11 @@ pub enum Expression {
     //     span: Span,
     // },
     /// Function call
-    FunctionCall {
-        /// Function name
-        name: Span,
-        /// Arguments
-        args: Spanned<Vec<Expression>>,
-    },
+    Call(Spanned<CallExpression>),
     /// Return a value
     Return(Spanned<Box<Expression>>),
     /// Declare a variable
-    VariableDeclaration(crate::symbol_reference::VariableReference),
+    VariableDeclaration(Variable),
     /// Assignment
     Assignment(Spanned<AssignmentExpression>),
     /// Invalid expression
@@ -74,31 +73,21 @@ impl Expression {
     pub fn is_block(&self) -> bool {
         matches!(
             self,
-            Expression::Block(_) | Expression::If { .. } // | Expression::While { .. }
+            Expression::Block(..) | Expression::If(..) // | Expression::While { .. }
         )
     }
 
     /// Get the type this expression evaluates to
-    pub fn get_type(&self, root: &crate::ir::Module) -> Type {
+    pub fn get_type(&self) -> Type {
         match self {
             Expression::Constant(constant) => constant.get_type(),
             Expression::Symbol(symbol) => symbol.get_type(),
-            Expression::BinaryExpression(expr) => expr.get_type(root),
-            Expression::UnaryExpression(expr) => expr.get_type(root),
-            Expression::Block(block) => block.get_type(root),
-            Expression::If(expr) => expr.get_type(root),
+            Expression::BinaryExpression(expr) => expr.get_type(),
+            Expression::UnaryExpression(expr) => expr.get_type(),
+            Expression::Block(block) => block.get_type(),
+            Expression::If(expr) => expr.get_type(),
             // Expression::While { .. } => Type::unit(),
-            Expression::FunctionCall { name, .. } => {
-                if let Some(signature) = root
-                    .symbols
-                    .get(name)
-                    .and_then(|symbol| symbol.function_signature())
-                {
-                    (*signature.return_type).clone()
-                } else {
-                    Type::Error
-                }
-            }
+            Expression::Call(expr) => expr.get_type(),
             Expression::Return(..) => Type::Never,
             Expression::VariableDeclaration(..) => Type::Unit,
             Expression::Assignment(..) => Type::Unit,
@@ -107,45 +96,29 @@ impl Expression {
     }
 
     /// Infer types
-    /// target_type is a soft bound and should be [`Type::Wildcard`] when unknown. infer_types doesn't strictly enforce,
-    /// that value will be of target_type, so you should do it manually
-    /// Never returns a [`Type::Wildcard`]. Only [`Type::TypeVariable`]
-    pub fn infer_types(&mut self, target_type: &Type, type_inference: &mut TypeInference) -> Type {
+    /// Returns completed type of this expression (Completed means that type doesn't contain [`Type::Wildcard`], but rather [`Type::TypeVariable`])
+    pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
         let r#type = match self {
-            Expression::Constant(constant) => {
-                constant.inner.infer_types(target_type, type_inference)
-            }
-            Expression::Symbol(symbol) => symbol.infer_types(target_type, type_inference),
-            Expression::BinaryExpression(expr) => expr.infer_types(target_type, type_inference),
-            Expression::UnaryExpression(expr) => expr.infer_types(target_type, type_inference),
-            Expression::Block(block) => block.infer_types(target_type, type_inference),
-            Expression::If(expr) => expr.infer_types(target_type, type_inference),
+            Expression::Constant(constant) => constant.inner.infer_types(type_inference),
+            Expression::Symbol(symbol) => symbol.infer_types(type_inference),
+            Expression::BinaryExpression(expr) => expr.infer_types(type_inference),
+            Expression::UnaryExpression(expr) => expr.infer_types(type_inference),
+            Expression::Block(block) => block.infer_types(type_inference),
+            Expression::If(expr) => expr.infer_types(type_inference),
             // Expression::While {
             //     condition, body, ..
             // } => {
             //     condition.infer_types(&Type::Bool, type_inference);
-            //     body.infer_types(target_type, type_inference);
+            //     body.infer_types(type_inference);
             //     Type::unit()
             // }
-            Expression::FunctionCall { name, args } => {
-                if let Some(signature) = type_inference.signature(name) {
-                    for (arg, signature_arg) in
-                        std::iter::zip(&mut args.inner, &signature.args.inner)
-                    {
-                        arg.infer_types(&signature_arg.r#type(), type_inference);
-                    }
-                    (*signature.return_type).clone()
-                } else {
-                    Type::Error
-                }
-            }
+            Expression::Call(expr) => expr.infer_types(type_inference),
             Expression::Return(expr) => {
-                expr.infer_types(type_inference.return_type, type_inference);
+                let r#type = expr.infer_types(type_inference);
+                type_inference.equate(&r#type, &type_inference.return_type);
                 Type::Never
             }
-            Expression::VariableDeclaration(declaration) => {
-                declaration.lock().unwrap().infer_types(type_inference)
-            }
+            Expression::VariableDeclaration(declaration) => declaration.infer_types(type_inference),
             Expression::Assignment(expr) => expr.infer_types(type_inference),
             Expression::Error(_) => Type::Error,
         };
@@ -158,7 +131,9 @@ impl Expression {
             Expression::Constant(constant) => constant
                 .inner
                 .finish_and_check_types(constant.span.clone(), type_inference),
-            Expression::Symbol(symbol) => symbol.finish_and_check_types(type_inference),
+            Expression::Symbol(symbol) => {
+                symbol.finish_and_check_types(symbol.span.clone(), type_inference)
+            }
             Expression::BinaryExpression(expr) => expr.finish_and_check_types(type_inference),
             Expression::UnaryExpression(expr) => expr.finish_and_check_types(type_inference),
             Expression::Block(block) => block.finish_and_check_types(type_inference),
@@ -190,47 +165,7 @@ impl Expression {
             //     }
             //     Type::unit()
             // }
-            Expression::FunctionCall { name, args } => {
-                if let Some(signature) = type_inference.signature(name) {
-                    if args.inner.len() != signature.args.len() {
-                        type_inference.reporter.report_type_error(
-                            format!(
-                                "Argument count mismatch: Function '{}' expects {} arguments, but {} were given",
-                                name,
-                                signature.args.len(),
-                                args.inner.len()
-                            ),
-                            args.span.clone(),
-                            vec![("Expected because of this", signature.args.span.clone())], 
-                        );
-                    }
-                    for (arg, signature_arg) in
-                        std::iter::zip(&mut args.inner, &signature.args.inner)
-                    {
-                        let arg_type = arg.finish_and_check_types(type_inference);
-                        let signature_arg = signature_arg.lock().unwrap();
-                        if !arg_type.morphs(&signature_arg.r#type) {
-                            type_inference.reporter.report_type_error(
-                                format!(
-                                    "Incompatible argument types for function '{}': expected '{}', got '{}'",
-                                    name,
-                                    arg_type, signature_arg.r#type.inner
-                                ),
-                                arg.span(),
-                                vec![("Expected because of this", signature_arg.r#type.span.clone())],
-                            );
-                        }
-                    }
-                    (*signature.return_type).clone()
-                } else {
-                    type_inference.reporter.report_type_error(
-                        format!("Function '{}' was not found in this scope", name),
-                        name.extend(&args.span),
-                        vec![],
-                    );
-                    Type::Error
-                }
-            }
+            Expression::Call(expr) => expr.finish_and_check_types(type_inference),
             Expression::Return(expr) => {
                 let r#type = expr.finish_and_check_types(type_inference);
                 if !r#type.morphs(type_inference.return_type) {
@@ -248,10 +183,9 @@ impl Expression {
                 }
                 Type::Never
             }
-            Expression::VariableDeclaration(declaration) => declaration
-                .lock()
-                .unwrap()
-                .finish_and_check_types(type_inference),
+            Expression::VariableDeclaration(declaration) => {
+                declaration.finish_and_check_types(type_inference)
+            }
             Expression::Assignment(expr) => expr.finish_and_check_types(type_inference),
             Expression::Error(_) => Type::Error,
         };
@@ -267,7 +201,7 @@ impl Expression {
             Expression::UnaryExpression(expr) => expr.span.clone(),
             Expression::Block(block) => block.span.clone(),
             Expression::If(expr) => expr.span.clone(),
-            Expression::FunctionCall { name, args } => name.extend(&args.span),
+            Expression::Call(expr) => expr.span.clone(),
             Expression::Return(expr) => expr.span.clone(),
             Expression::VariableDeclaration(declaration) => declaration.span.clone(),
             Expression::Assignment(expr) => expr.span.clone(),
@@ -279,26 +213,16 @@ impl Expression {
 impl std::fmt::Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Expression::Constant(constant) => constant.fmt(f),
-            Expression::Symbol(symbol) => symbol.fmt(f),
-            Expression::BinaryExpression(expr) => expr.fmt(f),
-            Expression::UnaryExpression(expr) => expr.fmt(f),
-            Expression::Block(block) => block.fmt(f),
-            Expression::If(expr) => expr.fmt(f),
-            Expression::FunctionCall { name, args } => {
-                write!(f, "{}(", name)?;
-                for (index, arg) in args.iter().enumerate() {
-                    if index > 0 {
-                        write!(f, ", ")?;
-                    }
-                    write!(f, "{}", arg)?;
-                }
-                write!(f, ")")?;
-                Ok(())
-            }
+            Expression::Constant(constant) => write!(f, "{}", constant.inner),
+            Expression::Symbol(symbol) => write!(f, "{}", symbol),
+            Expression::BinaryExpression(expr) => write!(f, "{}", expr.inner),
+            Expression::UnaryExpression(expr) => write!(f, "{}", expr.inner),
+            Expression::Block(block) => write!(f, "{}", block.inner),
+            Expression::If(expr) => write!(f, "{}", expr.inner),
+            Expression::Call(expr) => write!(f, "{}", expr.inner),
             Expression::Return(expr) => write!(f, "return {}", expr.inner),
-            Expression::VariableDeclaration(declaration) => declaration.lock().unwrap().fmt(f),
-            Expression::Assignment(expr) => expr.fmt(f),
+            Expression::VariableDeclaration(declaration) => write!(f, "{}", declaration.inner),
+            Expression::Assignment(expr) => write!(f, "{}", expr.inner),
             Expression::Error(_) => write!(f, "<ERROR>"),
         }
     }

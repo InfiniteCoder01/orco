@@ -24,16 +24,10 @@ impl Constant {
     }
 
     /// Infer types
-    pub fn infer_types(&mut self, target_type: &Type, type_inference: &mut TypeInference) -> Type {
+    pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
         match self {
             Self::Integer { r#type, .. } => {
-                if !r#type.complete() {
-                    *r#type = if target_type.complete() {
-                        target_type.clone()
-                    } else {
-                        Type::TypeVariable(type_inference.alloc_type_variable(r#type.clone()))
-                    };
-                }
+                *r#type = type_inference.complete(r#type.clone());
             }
             Self::CString(_) => (),
         }

@@ -1,17 +1,24 @@
 use cranelift_codegen::entity::EntityRef;
 use cranelift_codegen::ir::{InstBuilder, Value};
 use cranelift_frontend::{FunctionBuilder, Variable};
-use cranelift_module::Module;
 
+/// Build constants
 pub mod constant;
 
+/// Build code blocks
 pub mod block;
 
+/// Build operator-based expressions (unary, binary, assignment, etc.)
 pub mod operator;
 
+/// Build branching constructs
 pub mod branching;
 
+/// Build function calls
+pub mod call;
+
 impl crate::Object<'_> {
+    /// Build an expression
     pub fn build_expression(
         &mut self,
         builder: &mut FunctionBuilder,
@@ -21,15 +28,13 @@ impl crate::Object<'_> {
         match expr {
             Expression::Constant(value) => self.build_constant(builder, value),
             Expression::Symbol(symbol) => {
-                use orco::SymbolReference;
-                match &symbol.inner {
-                    SymbolReference::Variable(variable) => {
-                        let variable = variable.lock().unwrap();
-                        Some(builder.use_var(Variable::new(variable.id as _)))
-                    }
-                    SymbolReference::ExternFunction(_function) => {
-                        todo!()
-                    }
+                if let Some(variable) = symbol.as_variable() {
+                    Some(builder.use_var(Variable::new(*variable.id.lock().unwrap() as _)))
+                } else {
+                    panic!(
+                        "Invalid symbol: {}. Did you run type checking/inference?",
+                        symbol
+                    )
                 }
             }
             Expression::BinaryExpression(expr) => self.build_binary_expression(builder, expr),
@@ -62,29 +67,20 @@ impl crate::Object<'_> {
             //     builder.seal_block(merge_block);
             //     None
             // }
-            orco::ir::expression::Expression::FunctionCall { name, args } => {
-                let function = self.object.declare_func_in_func(
-                    *self
-                        .functions
-                        .get(name)
-                        .unwrap_or_else(|| panic!("Function {} is not defined", name)),
-                    builder.func,
-                );
-                let args = args.iter().map(|arg| self.build_expression(builder, arg).expect("Can't pass a unit type as an argument to a function, did you run type checking/inference?")).collect::<Vec<_>>();
-                let instruction = builder.ins().call(function, &args);
-                builder.inst_results(instruction).first().copied()
-            }
+            Expression::Call(expr) => self.build_call_expression(builder, expr),
             Expression::Return(value) => {
                 let ret = self.build_expression(builder, value);
                 builder.ins().return_(&ret.into_iter().collect::<Vec<_>>());
                 None
             }
             Expression::VariableDeclaration(declaration) => {
-                let declaration = declaration.lock().unwrap();
-                let variable = Variable::new(declaration.id as _);
-                builder.declare_var(variable, self.convert_type(&declaration.r#type));
+                let variable = Variable::new(*declaration.id.lock().unwrap() as _);
+                builder.declare_var(
+                    variable,
+                    self.convert_type(&declaration.r#type.lock().unwrap()),
+                );
                 if let Some(value) = &declaration.value {
-                    let value = self.build_expression(builder, value).expect("Can't initialize a variable to a unit type, did you run type checking/inference?");
+                    let value = self.build_expression(builder, &value.lock().unwrap()).expect("Can't initialize a variable to a unit type, did you run type checking/inference?");
                     builder.def_var(variable, value);
                 }
                 None

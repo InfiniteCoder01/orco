@@ -12,8 +12,6 @@ impl std::fmt::Display for TypeVariableID {
 
 /// Type inference information for a function
 pub struct TypeInference<'a> {
-    /// Root module
-    pub root: &'a ir::Module,
     /// Return type of a function
     pub return_type: &'a diagnostics::Spanned<ir::Type>,
     /// Error reporter
@@ -27,25 +25,15 @@ pub struct TypeInference<'a> {
 impl<'a> TypeInference<'a> {
     /// Create a new [TypeInference]
     pub fn new(
-        root: &'a ir::Module,
         return_type: &'a diagnostics::Spanned<ir::Type>,
         reporter: &'a mut dyn diagnostics::ErrorReporter,
     ) -> Self {
         Self {
-            root,
             return_type,
             reporter,
             type_table: Vec::new(),
             next_type_variable_id: 0,
         }
-    }
-
-    /// Get function signature
-    pub fn signature<'b>(&'b self, name: &Span) -> Option<&'a ir::symbol::function::Signature> {
-        self.root
-            .symbols
-            .get(name)
-            .and_then(|symbol| symbol.function_signature())
     }
 
     /// Allocate a new type variable
@@ -105,17 +93,23 @@ impl<'a> TypeInference<'a> {
         }
     }
 
-    /// Finish a type, replace all type variables with concrete types
-    pub fn finish(&mut self, r#type: &mut ir::Type, what: &str, span: diagnostics::Span) {
+    /// Inline the type variable if the type is a type variable (One-layer type inline)
+    pub fn inline(&self, r#type: ir::Type) -> ir::Type {
         if let ir::Type::TypeVariable(type_variable) = r#type {
             let (_, type_variable) = self
                 .type_table
                 .iter()
-                .find(|(ids, _)| ids.contains(type_variable))
+                .find(|(ids, _)| ids.contains(&type_variable))
                 .expect("Invalid type variable!");
-            *r#type = type_variable.clone();
+            type_variable.clone()
+        } else {
+            r#type
         }
+    }
 
+    /// Finish a type, replace all type variables with concrete types
+    pub fn finish(&mut self, r#type: &mut ir::Type, what: &str, span: diagnostics::Span) {
+        *r#type = self.inline(r#type.clone());
         if !r#type.complete() {
             self.reporter.report_type_error(
                 format!("Could not infer type for {}", what),

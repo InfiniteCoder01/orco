@@ -5,11 +5,13 @@ pub mod signature;
 
 /// Parse a function (assumes, that "fn" token is already consumed)
 pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::symbol::Function {
-    let mut variable_mapper = orco::symbol_mapper::SymbolMapper::new();
-    ir::symbol::Function::new(
-        signature::parse(parser, Some(&mut variable_mapper)),
-        expression::block::expect(parser, &mut variable_mapper),
-    )
+    parser.symbol_mapper.push_scope();
+    let function = ir::symbol::Function::new(
+        signature::parse(parser, true),
+        expression::block::expect(parser),
+    );
+    parser.symbol_mapper.pop_scope();
+    function
 }
 
 /// Parse a function with a name (assumes, that "fn" token is already consumed)

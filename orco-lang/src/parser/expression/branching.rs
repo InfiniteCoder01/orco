@@ -1,15 +1,11 @@
 use super::*;
 
 /// Expect an if expression, assuming that 'if' keyword was already consumed
-pub fn expect_if<R: ErrorReporter + ?Sized>(
-    parser: &mut Parser<R>,
-    variable_mapper: &mut SymbolMapper,
-    start: usize,
-) -> Expression {
-    let condition = Box::new(expect(parser, variable_mapper));
-    let then_branch = Box::new(expect(parser, variable_mapper));
+pub fn expect_if<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>, start: usize) -> Expression {
+    let condition = Box::new(expect(parser));
+    let then_branch = Box::new(expect(parser));
     let else_branch = if parser.match_keyword("else") {
-        Some(Box::new(expect(parser, variable_mapper)))
+        Some(Box::new(expect(parser)))
     } else {
         None
     };

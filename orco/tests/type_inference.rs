@@ -11,10 +11,8 @@ fn overflow() {
             value: 1 << 127 - 1,
             r#type: ir::Type::IntegerWildcard,
         };
-        big_unsigned.infer_types(
-            &ir::Type::Int(NonZeroU16::new(16).unwrap()),
-            &mut type_inference,
-        );
+        let r#type = big_unsigned.infer_types(&mut type_inference);
+        type_inference.equate(&r#type, &ir::Type::Int(NonZeroU16::new(16).unwrap()));
         big_unsigned.finish_and_check_types(dummy_span(), &mut type_inference);
         check!(
             big_unsigned
@@ -32,10 +30,8 @@ fn overflow() {
             value: 1 << 127,
             r#type: ir::Type::IntegerWildcard,
         };
-        big_unsigned.infer_types(
-            &ir::Type::Int(NonZeroU16::new(16).unwrap()),
-            &mut type_inference,
-        );
+        let r#type = big_unsigned.infer_types(&mut type_inference);
+        type_inference.equate(&r#type, &ir::Type::Int(NonZeroU16::new(16).unwrap()));
         big_unsigned.finish_and_check_types(dummy_span(), &mut type_inference);
         check!(
             big_unsigned

@@ -61,20 +61,14 @@ fn function() {
             let function = parser::symbol::function::parse_named(&mut parser).unwrap();
             assert_eq!(function.name, Span::new("main"));
             assert_eq!(function.signature.args.len(), 2);
+            assert_eq!(function.signature.args[0].name, Span::new("argc"));
             assert_eq!(
-                function.signature.args[0].lock().unwrap().name,
-                Span::new("argc")
-            );
-            assert_eq!(
-                function.signature.args[0].lock().unwrap().r#type.inner,
+                *function.signature.args[0].r#type.lock().unwrap(),
                 ir::Type::Unsigned(NonZeroU16::new(4).unwrap())
             );
+            assert_eq!(function.signature.args[1].name, Span::new("argv"));
             assert_eq!(
-                function.signature.args[1].lock().unwrap().name,
-                Span::new("argv")
-            );
-            assert_eq!(
-                function.signature.args[1].lock().unwrap().r#type.inner,
+                *function.signature.args[1].r#type.lock().unwrap(),
                 ir::Type::Pointer(Box::new(ir::Type::Pointer(Box::new(ir::Type::Char))))
             );
             assert_eq!(

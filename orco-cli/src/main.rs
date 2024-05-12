@@ -26,6 +26,6 @@ fn main() {
     } else {
         orco_lang::Crate::parse(cli.path, &mut reporter)
     };
-    krate.root.infer_and_check_types(&krate.root, &mut reporter);
+    krate.root.infer_and_check_types(&mut reporter);
     orco_backend_cranelift::build(&krate.root);
 }

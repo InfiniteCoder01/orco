@@ -2,6 +2,7 @@ use cranelift_codegen::ir::InstBuilder;
 use cranelift_module::Module;
 
 impl crate::Object<'_> {
+    /// Add a constant to object's constant pool
     pub fn add_constant_to_pool(
         &mut self,
         builder: &mut cranelift_frontend::FunctionBuilder,

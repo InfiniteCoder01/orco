@@ -14,9 +14,9 @@ impl Block {
     }
 
     /// Get the type this block evaluates to
-    pub fn get_type(&self, root: &crate::ir::Module) -> Type {
+    pub fn get_type(&self) -> Type {
         for expression in &self.expressions {
-            if expression.get_type(root) == Type::Never {
+            if expression.get_type() == Type::Never {
                 return Type::Never;
             }
         }
@@ -24,10 +24,10 @@ impl Block {
     }
 
     /// Infer types
-    pub fn infer_types(&mut self, _target_type: &Type, type_inference: &mut TypeInference) -> Type {
+    pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
         let mut r#type = Type::Unit;
         for expression in &mut self.expressions {
-            let expr_type = expression.infer_types(&Type::Wildcard, type_inference);
+            let expr_type = expression.infer_types(type_inference);
             if expr_type == Type::Never {
                 r#type = Type::Never;
             }

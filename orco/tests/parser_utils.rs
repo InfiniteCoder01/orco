@@ -27,9 +27,8 @@ pub fn dummy_spanned<T>(inner: T) -> Spanned<T> {
 macro_rules! make_type_inference {
     ($type_inference: ident, $errors: ident) => {
         use orco::type_inference::TypeInference;
-        let root = ir::Module::default();
         let return_type = dummy_spanned(ir::Type::Unit);
         let mut $errors = Vec::new();
-        let mut $type_inference = TypeInference::new(&root, &return_type, &mut $errors);
+        let mut $type_inference = TypeInference::new(&return_type, &mut $errors);
     };
 }

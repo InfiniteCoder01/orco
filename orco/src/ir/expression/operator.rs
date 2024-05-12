@@ -18,7 +18,7 @@ impl BinaryExpression {
     }
 
     /// Get the type this binary expression evaluates to
-    pub fn get_type(&self, root: &crate::ir::Module) -> Type {
+    pub fn get_type(&self) -> Type {
         match self.op {
             BinaryOp::Eq
             | BinaryOp::Ne
@@ -26,12 +26,12 @@ impl BinaryExpression {
             | BinaryOp::Le
             | BinaryOp::Gt
             | BinaryOp::Ge => Type::Bool,
-            _ => self.lhs.get_type(root) | self.rhs.get_type(root),
+            _ => self.lhs.get_type() | self.rhs.get_type(),
         }
     }
 
     /// Infer types
-    pub fn infer_types(&mut self, target_type: &Type, type_inference: &mut TypeInference) -> Type {
+    pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
         match self.op {
             BinaryOp::Eq
             | BinaryOp::Ne
@@ -39,14 +39,14 @@ impl BinaryExpression {
             | BinaryOp::Le
             | BinaryOp::Gt
             | BinaryOp::Ge => {
-                let lhs_type = self.lhs.infer_types(&Type::Wildcard, type_inference);
-                let rhs_type = self.rhs.infer_types(&lhs_type, type_inference);
+                let lhs_type = self.lhs.infer_types(type_inference);
+                let rhs_type = self.rhs.infer_types(type_inference);
                 type_inference.equate(&lhs_type, &rhs_type);
                 Type::Bool
             }
             _ => {
-                let lhs_type = self.lhs.infer_types(target_type, type_inference);
-                let rhs_type = self.rhs.infer_types(target_type, type_inference);
+                let lhs_type = self.lhs.infer_types(type_inference);
+                let rhs_type = self.rhs.infer_types(type_inference);
                 type_inference.equate(&lhs_type, &rhs_type)
             }
         }
@@ -163,13 +163,13 @@ impl UnaryExpression {
     }
 
     /// Get the type this unary expression evaluates to
-    pub fn get_type(&self, root: &crate::ir::Module) -> Type {
-        self.expr.get_type(root)
+    pub fn get_type(&self) -> Type {
+        self.expr.get_type()
     }
 
     /// Infer types
-    pub fn infer_types(&mut self, target_type: &Type, type_inference: &mut TypeInference) -> Type {
-        self.expr.infer_types(target_type, type_inference)
+    pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
+        self.expr.infer_types(type_inference)
     }
 
     /// Finish and check types
@@ -229,8 +229,8 @@ impl AssignmentExpression {
 
     /// Infer types for this assignment expression
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
-        let value = self.value.infer_types(&Type::Wildcard, type_inference);
-        let target = self.target.infer_types(&value, type_inference);
+        let value = self.value.infer_types(type_inference);
+        let target = self.target.infer_types(type_inference);
         type_inference.equate(&target, &value);
         Type::Unit
     }
@@ -239,28 +239,28 @@ impl AssignmentExpression {
     pub fn finish_and_check_types(&mut self, type_inference: &mut TypeInference) -> Type {
         let value_type = self.value.finish_and_check_types(type_inference);
         let target_type = self.target.finish_and_check_types(type_inference);
-        match self.target.as_ref() {
-            Expression::Symbol(Spanned {
-                inner: SymbolReference::Variable(variable),
-                ..
-            }) => {
-                let variable = variable.lock().unwrap();
-                if !variable.mutable.inner {
-                    type_inference.reporter.report_type_error(
-                        format!("Cannot assign to an immutable variable '{}'", variable.name),
-                        self.target.span(),
-                        vec![(
-                            "Help: Make this variable mutable",
-                            variable.mutable.span.clone(),
-                        )],
-                    )
-                }
+        if let Some(variable) = match self.target.as_ref() {
+            Expression::Symbol(symbol) => (&symbol.inner as &dyn std::any::Any)
+                .downcast_ref::<std::sync::Mutex<VariableDeclaration>>(),
+            _ => None,
+        } {
+            let variable = variable.lock().unwrap();
+            if !variable.mutable.inner {
+                type_inference.reporter.report_type_error(
+                    format!("Cannot assign to an immutable variable '{}'", variable.name),
+                    self.target.span(),
+                    vec![(
+                        "Help: Make this variable mutable",
+                        variable.mutable.span.clone(),
+                    )],
+                )
             }
-            _ => type_inference.reporter.report_type_error(
+        } else {
+            type_inference.reporter.report_type_error(
                 format!("Cannot assign to '{}'", self.target),
                 self.target.span(),
                 vec![],
-            ),
+            );
         };
         if !value_type.morphs(&target_type) {
             type_inference.reporter.report_type_error(

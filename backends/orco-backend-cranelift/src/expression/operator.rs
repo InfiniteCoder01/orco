@@ -1,6 +1,7 @@
 use super::*;
 
 impl crate::Object<'_> {
+    /// Build a binary expression
     pub fn build_binary_expression(
         &mut self,
         builder: &mut FunctionBuilder,
@@ -8,6 +9,7 @@ impl crate::Object<'_> {
     ) -> Option<Value> {
         let lhs = self.build_expression(builder, &expr.lhs)?;
         let rhs = self.build_expression(builder, &expr.rhs)?;
+        let unsigned = matches!(expr.lhs.get_type(), orco::ir::Type::Unsigned(_));
         use cranelift_codegen::ir::condcodes::IntCC;
         use orco::ir::expression::BinaryOp;
         match expr.op {
@@ -18,6 +20,18 @@ impl crate::Object<'_> {
             BinaryOp::Mod => Some(builder.ins().srem(lhs, rhs)),
             BinaryOp::Eq => Some(builder.ins().icmp(IntCC::Equal, lhs, rhs)),
             BinaryOp::Ne => Some(builder.ins().icmp(IntCC::NotEqual, lhs, rhs)),
+            BinaryOp::Lt if unsigned => Some(builder.ins().icmp(IntCC::UnsignedLessThan, lhs, rhs)),
+            BinaryOp::Le if unsigned => {
+                Some(builder.ins().icmp(IntCC::UnsignedLessThanOrEqual, lhs, rhs))
+            }
+            BinaryOp::Gt if unsigned => {
+                Some(builder.ins().icmp(IntCC::UnsignedGreaterThan, lhs, rhs))
+            }
+            BinaryOp::Ge if unsigned => Some(builder.ins().icmp(
+                IntCC::UnsignedGreaterThanOrEqual,
+                lhs,
+                rhs,
+            )),
             BinaryOp::Lt => Some(builder.ins().icmp(IntCC::SignedLessThan, lhs, rhs)),
             BinaryOp::Le => Some(builder.ins().icmp(IntCC::SignedLessThanOrEqual, lhs, rhs)),
             BinaryOp::Gt => Some(builder.ins().icmp(IntCC::SignedGreaterThan, lhs, rhs)),
@@ -29,6 +43,7 @@ impl crate::Object<'_> {
         }
     }
 
+    /// Build a unary expression
     pub fn build_unary_expression(
         &mut self,
         builder: &mut FunctionBuilder,
@@ -41,25 +56,28 @@ impl crate::Object<'_> {
         }
     }
 
+    /// Build an assignment expression
     pub fn build_assignment_expression(
         &mut self,
         builder: &mut FunctionBuilder,
         expr: &orco::ir::expression::AssignmentExpression,
     ) -> Option<Value> {
         let value = self.build_expression(builder, &expr.value)?;
-        match expr.target.as_ref() {
-            orco::ir::Expression::Symbol(orco::Spanned {
-                inner: orco::SymbolReference::Variable(variable),
-                ..
-            }) => {
-                let variable = variable.lock().unwrap();
-                let variable = Variable::new(variable.id as _);
+        if let orco::ir::Expression::Symbol(symbol) = expr.target.as_ref() {
+            if let Some(variable) = symbol.as_variable() {
+                let variable = Variable::new(*variable.id.lock().unwrap() as _);
                 builder.def_var(variable, value);
+            } else {
+                panic!(
+                    "Can't assign to '{}'! Did you run type checking/inference?",
+                    symbol
+                )
             }
-            target => panic!(
+        } else {
+            panic!(
                 "Can't assign to '{}'! Did you run type checking/inference?",
-                target
-            ),
+                expr.target
+            )
         }
         None
     }

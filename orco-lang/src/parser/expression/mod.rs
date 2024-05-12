@@ -12,11 +12,8 @@ pub mod block;
 pub mod branching;
 
 /// Expect an expression, error if there is no
-pub fn expect<R: ErrorReporter + ?Sized>(
-    parser: &mut Parser<R>,
-    variable_mapper: &mut SymbolMapper,
-) -> Expression {
-    if let Some(expression) = parse(parser, variable_mapper) {
+pub fn expect<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Expression {
+    if let Some(expression) = parse(parser) {
         expression
     } else {
         parser.expected_error("expression");
@@ -25,13 +22,10 @@ pub fn expect<R: ErrorReporter + ?Sized>(
 }
 
 /// Parse an expression
-pub fn parse<R: ErrorReporter + ?Sized>(
-    parser: &mut Parser<R>,
-    variable_mapper: &mut SymbolMapper,
-) -> Option<Expression> {
+pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expression> {
     let start = parser.span().1.start;
     let expression = if parser.match_keyword("return") {
-        let value = expect(parser, variable_mapper);
+        let value = expect(parser);
         Some(Expression::Return(parser.wrap_span(Box::new(value), start)))
     } else if parser.match_keyword("let") {
         let mutable = {
@@ -48,29 +42,24 @@ pub fn parse<R: ErrorReporter + ?Sized>(
             parser.wrap_point(ir::Type::Wildcard)
         };
         let value = if parser.match_operator(Operator::Equal) {
-            Some(Box::new(expect(parser, variable_mapper)))
+            Some(expect(parser))
         } else {
             None
         };
+        let declaration = parser.wrap_span(
+            ir::expression::VariableDeclaration::new(name, mutable, r#type, value),
+            start,
+        );
         Some(Expression::VariableDeclaration(
-            variable_mapper.declare_variable(parser.wrap_span(
-                ir::expression::VariableDeclaration {
-                    name,
-                    id: 0,
-                    mutable,
-                    r#type,
-                    value,
-                },
-                start,
-            )),
+            parser.symbol_mapper.declare_variable(declaration),
         ))
     } else {
-        operator::binary(parser, variable_mapper, 0)
+        operator::binary(parser, 0)
     };
     if let Some(expression) = expression {
         if parser.match_operator(Operator::Equal) {
             let target = Box::new(expression);
-            let value = Box::new(expect(parser, variable_mapper));
+            let value = Box::new(expect(parser));
             Some(Expression::Assignment(parser.wrap_span(
                 ir::expression::AssignmentExpression::new(target, value),
                 start,
@@ -84,38 +73,37 @@ pub fn parse<R: ErrorReporter + ?Sized>(
 }
 
 /// Parse a unit expression
-pub fn unit_expression<R: ErrorReporter + ?Sized>(
-    parser: &mut Parser<R>,
-    variable_mapper: &mut SymbolMapper,
-) -> Option<Expression> {
+pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expression> {
     let start = parser.span().1.start;
-    if let Some(span) = parser.match_error() {
-        Some(Expression::Error(span))
+    let expr = if let Some(span) = parser.match_error() {
+        Expression::Error(span)
     } else if let Some(constant) = parser.match_constant() {
-        Some(Expression::Constant(constant))
-    } else if let Some(block) = block::parse(parser, variable_mapper) {
-        Some(Expression::Block(block))
+        Expression::Constant(constant)
+    } else if let Some(block) = block::parse(parser) {
+        Expression::Block(block)
     } else if parser.match_keyword("if") {
-        Some(branching::expect_if(parser, variable_mapper, start))
+        branching::expect_if(parser, start)
     } else if let Some(name) = parser.match_ident() {
-        let start = parser.span().1.start;
-        if parser.match_operator(Operator::LParen) {
-            let mut args = Vec::new();
-            while let Some(expression) = parse(parser, variable_mapper) {
-                args.push(expression);
-                if !parser.match_operator(Operator::Comma) {
-                    break;
-                }
-            }
-            parser.expect_operator(Operator::RParen);
-            Some(Expression::FunctionCall {
-                name,
-                args: parser.wrap_span(args, start),
-            })
-        } else {
-            Some(variable_mapper.access_variable(parser.reporter, &name, name.clone()))
-        }
+        parser
+            .symbol_mapper
+            .access_symbol(parser.reporter, &name, name.clone())
     } else {
-        None
-    }
+        return None;
+    };
+
+    let args_start = parser.span().1.start;
+    Some(if parser.match_operator(Operator::LParen) {
+        let mut args = Vec::new();
+        while let Some(expression) = parse(parser) {
+            args.push(expression);
+            if !parser.match_operator(Operator::Comma) {
+                break;
+            }
+        }
+        parser.expect_operator(Operator::RParen);
+        let args = parser.wrap_span(args, args_start);
+        Expression::Call(parser.wrap_span(ir::expression::CallExpression::new(expr, args), start))
+    } else {
+        expr
+    })
 }

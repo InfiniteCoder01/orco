@@ -1,63 +1,81 @@
 use super::*;
+use std::sync::Mutex;
 
 /// Variable declaration statement
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct VariableDeclaration {
     /// Variable name
     pub name: Span,
     /// Variable ID, just a counting up number assigned automatically, when calling
-    /// [`crate::variable_mapper::VariableMapper::declare_variable`]
+    /// [`crate::symbol_mapper::VariableMapper::declare_variable`]
     /// Useful for some backends
-    pub id: VariableID,
+    pub id: Mutex<VariableID>,
     /// Is variable mutable?
     pub mutable: Spanned<bool>,
     /// Variable type
-    pub r#type: Spanned<Type>,
+    pub r#type: Spanned<Mutex<Type>>,
     /// Initial value (optional (I wish it was nesessarry))
-    pub value: Option<Box<Expression>>,
+    pub value: Option<Box<Mutex<Expression>>>,
 }
 
 /// Variable ID, for more information see [`VariableDeclaration::id`]
 pub type VariableID = u64;
 
 impl VariableDeclaration {
+    /// Create a new variable declaration
+    pub fn new(
+        name: Span,
+        mutable: Spanned<bool>,
+        r#type: Spanned<Type>,
+        value: Option<Expression>,
+    ) -> Self {
+        Self {
+            name,
+            id: Mutex::new(0),
+            mutable,
+            r#type: r#type.map(Mutex::new),
+            value: value.map(|value| Box::new(Mutex::new(value))),
+        }
+    }
+
+    /// Get the type of the variable, releasing the lock immediately
+    pub fn r#type(&self) -> Type {
+        self.r#type.lock().unwrap().clone()
+    }
+
     /// Infer types
-    pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
-        if let Some(value) = &mut self.value {
-            let value_type = value.infer_types(&self.r#type, type_inference);
-            self.r#type.inner = type_inference.complete(self.r#type.inner.clone());
-            type_inference.equate(&self.r#type, &value_type);
-        } else {
-            self.r#type.inner = type_inference.complete(self.r#type.inner.clone());
+    pub fn infer_types(&self, type_inference: &mut TypeInference) -> Type {
+        let mut r#type = self.r#type.lock().unwrap();
+        *r#type = type_inference.complete(r#type.clone());
+        if let Some(value) = &self.value {
+            let mut value = value.lock().unwrap();
+            let value_type = value.infer_types(type_inference);
+            type_inference.equate(&r#type, &value_type);
         }
         Type::Unit
     }
 
     /// Finish and check types
-    pub fn finish_and_check_types(&mut self, type_inference: &mut TypeInference) -> Type {
-        if let Some(value) = &mut self.value {
+    pub fn finish_and_check_types(&self, type_inference: &mut TypeInference) -> Type {
+        let mut r#type = self.r#type.lock().unwrap();
+        type_inference.finish(
+            &mut r#type,
+            &format!("variable '{}'", self.name),
+            self.name.clone(),
+        );
+        if let Some(value) = &self.value {
+            let mut value = value.lock().unwrap();
             let value_type = value.finish_and_check_types(type_inference);
-            type_inference.finish(
-                &mut self.r#type,
-                &format!("variable '{}'", self.name),
-                self.name.clone(),
-            );
-            if !value_type.morphs(&self.r#type) {
+            if !value_type.morphs(&r#type) {
                 type_inference.reporter.report_type_error(
                     format!(
                         "Type mismatch in variable declaration: Expected '{}', got '{}'",
-                        self.r#type.inner, value_type
+                        r#type, value_type
                     ),
                     value.span(),
                     vec![("Expected because of this", self.r#type.span.clone())],
                 );
             }
-        } else {
-            type_inference.finish(
-                &mut self.r#type,
-                &format!("variable '{}'", self.name),
-                self.name.clone(),
-            );
         }
         Type::Unit
     }
@@ -72,13 +90,15 @@ impl std::fmt::Display for VariableDeclaration {
         }
         write!(f, "{}", self.name)?;
         if show_id {
-            write!(f, " (#{})", self.id)?;
+            write!(f, " (#{})", self.id.lock().unwrap())?;
         }
-        write!(f, ": {}", self.r#type.inner)?;
+        write!(f, ": {}", self.r#type.lock().unwrap())?;
         if let Some(value) = &self.value {
-            write!(f, " = {}", value)?;
+            write!(f, " = {}", value.lock().unwrap())?;
         }
         Ok(())
     }
 }
 
+/// Variable (a reference to it's declaration)
+pub type Variable = std::sync::Arc<Spanned<VariableDeclaration>>;

@@ -1,6 +1,7 @@
 use cranelift_module::Module;
 
 impl crate::Object<'_> {
+    /// Convert OrCo type to a cranelift type
     pub fn convert_type(&self, r#type: &orco::ir::Type) -> cranelift_codegen::ir::Type {
         match r#type {
             orco::ir::Type::Int(bytes) | orco::ir::Type::Unsigned(bytes) => integer(*bytes),
@@ -27,6 +28,7 @@ impl crate::Object<'_> {
     }
 }
 
+/// Get a cranelift integer type from the number of bytes
 pub fn integer(bytes: std::num::NonZeroU16) -> cranelift_codegen::ir::Type {
     match bytes.get() {
         1 => cranelift_codegen::ir::types::I8,

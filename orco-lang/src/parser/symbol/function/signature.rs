@@ -1,9 +1,10 @@
 use super::*;
 
 /// Parse a function signature (assumes, that "fn" token is already consumed)
+/// If register_args is true, registers arguments with parser's symbol mapper
 pub fn parse<R: ErrorReporter + ?Sized>(
     parser: &mut Parser<R>,
-    mut variable_mapper: Option<&mut orco::symbol_mapper::SymbolMapper>,
+    register_args: bool,
 ) -> ir::symbol::function::Signature {
     let start = parser.span().1.start;
     parser.expect_operator(Operator::LParen);
@@ -16,18 +17,18 @@ pub fn parse<R: ErrorReporter + ?Sized>(
         parser.expect_operator(Operator::Colon);
         let r#type = r#type::parse(parser);
 
-        let declaration = ir::expression::variable_declaration::VariableDeclaration {
+        let declaration = ir::expression::variable_declaration::VariableDeclaration::new(
             name,
-            id: args.len() as _,
-            mutable: parser.wrap_point(false),
+            parser.wrap_point(false),
             r#type,
-            value: None,
-        };
+            None,
+        );
         let declaration = parser.wrap_span(declaration, start);
-        let declaration = if let Some(variable_mapper) = &mut variable_mapper {
-            variable_mapper.declare_variable(declaration)
+        let declaration = if register_args {
+            parser.symbol_mapper.declare_variable(declaration)
         } else {
-            std::sync::Arc::new(declaration.map(std::sync::Mutex::new))
+            *declaration.id.lock().unwrap() = args.len() as _;
+            std::sync::Arc::new(declaration)
         };
         args.push(declaration);
 
@@ -51,5 +52,5 @@ pub fn parse_named<R: ErrorReporter + ?Sized>(
 ) -> Option<Named<ir::symbol::function::Signature>> {
     parser
         .expect_ident("function name")
-        .map(|name| Named::new(name, parse(parser, None)))
+        .map(|name| Named::new(name, parse(parser, false)))
 }

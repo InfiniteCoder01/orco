@@ -1,6 +1,7 @@
 use super::*;
 
 impl crate::Object<'_> {
+    /// Build an if expression
     pub fn build_if_expression(
         &mut self,
         builder: &mut FunctionBuilder,
@@ -27,7 +28,7 @@ impl crate::Object<'_> {
         builder.switch_to_block(then_block);
         builder.seal_block(then_block);
         self.build_expression(builder, &expr.then_branch);
-        if expr.then_branch.get_type(self.root) != orco::ir::Type::Never {
+        if expr.then_branch.get_type() != orco::ir::Type::Never {
             builder.ins().jump(merge_block, &[]);
         }
 
