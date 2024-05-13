@@ -1,4 +1,4 @@
-use crate::type_inference::TypeVariableID;
+use crate::type_inference::TypeVariableId;
 use crate::{Span, Spanned};
 use std::num::NonZeroU16;
 
@@ -34,7 +34,7 @@ pub enum Type {
     /// Integer wildcard (number literal, that automatically infers type)
     IntegerWildcard,
     /// Type variable (used only during type inference)
-    TypeVariable(TypeVariableID),
+    TypeVariable(TypeVariableId),
     /// Error type
     Error,
 }

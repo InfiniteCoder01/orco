@@ -17,11 +17,11 @@ a language into an IR, because of LSP support.
 You can watch me do this live on [Twitch](https://www.twitch.tv/infinitecoder01) and [Youtube](https://www.youtube.com/@InfiniteCoder02/)
 
 Roadmap for now:
-- [] Symbols
+- [x] Symbols
 - [] Paths
-- [] Frontend-side diagnostics (and diagnostics refactor)
+- [] Frontend-side diagnostics (and diagnostics refactor (and lints))
 - [] While loop
-- [] C Frontend
+- [] C Frontend (and a blog post on it hopefully)
 - [] Operator Overloading & Traits
 - [] Rust frontend
 - [] Self-hosting

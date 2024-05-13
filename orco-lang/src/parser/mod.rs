@@ -14,49 +14,11 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::Module {
     let mut module = ir::Module::default();
     while !parser.eof() {
         if let Some(symbol) = symbol::parse(parser) {
-            module.symbols.insert(symbol.name, symbol.inner);
+            module.symbols.push(symbol);
         } else {
             parser.expected_error("a symbol");
             parser.next();
         }
     }
     module
-}
-
-/// A named object (for example, if you parse a Function, you'll get Named<Function>, because the
-/// function itself doen't store a name)
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Named<T> {
-    /// Name
-    pub name: Span,
-    /// Value
-    pub inner: T,
-}
-
-impl<T> Named<T> {
-    /// Create a new named object
-    pub fn new(name: Span, value: T) -> Self {
-        Self { name, inner: value }
-    }
-
-    /// Map the value, preserving the name
-    pub fn map<U>(self, mapper: impl FnOnce(T) -> U) -> Named<U> {
-        Named {
-            name: self.name,
-            inner: mapper(self.inner),
-        }
-    }
-}
-
-impl<T> std::ops::Deref for Named<T> {
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<T> std::ops::DerefMut for Named<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
-    }
 }

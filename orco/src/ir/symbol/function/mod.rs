@@ -23,24 +23,33 @@ impl Function {
     }
 
     /// Infer types
-    pub fn infer_and_check_types(&self, reporter: &mut dyn crate::diagnostics::ErrorReporter) {
-        let mut type_inference =
-            crate::type_inference::TypeInference::new(&self.signature.return_type, reporter);
+    pub fn infer_and_check_types(
+        &self,
+        reporter: &mut dyn crate::diagnostics::ErrorReporter,
+        global_scope: &mut crate::type_inference::Scope,
+    ) {
+        let mut type_inference = crate::type_inference::TypeInference::new(
+            &self.signature.return_type,
+            reporter,
+            global_scope,
+        );
+
+        type_inference.push_scope();
+        for arg in self.signature.args.iter() {
+            Expression::VariableDeclaration(arg.clone()).infer_types(&mut type_inference);
+        }
+
         let mut body = self.body.lock().unwrap();
         body.infer_types(&mut type_inference);
-        body.finish_and_check_types(&mut type_inference);
-    }
 
-    /// Format
-    pub fn format(&self, f: &mut std::fmt::Formatter<'_>, name: Option<&str>) -> std::fmt::Result {
-        self.signature.format(f, name)?;
-        write!(f, " {}", self.body.lock().unwrap().inner)?;
-        Ok(())
+        type_inference.pop_scope();
+
+        body.finish_and_check_types(&mut type_inference);
     }
 }
 
 impl std::fmt::Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.format(f, None)
+        write!(f, "{} {}", self.signature, self.body.lock().unwrap().inner)
     }
 }

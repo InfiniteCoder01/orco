@@ -58,8 +58,8 @@ fn function() {
     parse(
         "main(argc: u32, argv: char**) -> i32 { return 42; }",
         |mut parser| {
-            let function = parser::symbol::function::parse_named(&mut parser).unwrap();
-            assert_eq!(function.name, Span::new("main"));
+            let function = parser::symbol::function::parse(&mut parser, true);
+            assert_eq!(function.signature.name, Some(Span::new("main")));
             assert_eq!(function.signature.args.len(), 2);
             assert_eq!(function.signature.args[0].name, Span::new("argc"));
             assert_eq!(

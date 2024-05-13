@@ -1,10 +1,14 @@
 use super::*;
 
+/// Scopes & Symbol mapping
+pub mod scopes;
+pub use scopes::Scope;
+
 /// Type variable ID, used for type inference with Hindley–Milner algorithm
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct TypeVariableID(u64);
+pub struct TypeVariableId(u64);
 
-impl std::fmt::Display for TypeVariableID {
+impl std::fmt::Display for TypeVariableId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "<type variable #{}>", self.0)
     }
@@ -17,9 +21,15 @@ pub struct TypeInference<'a> {
     /// Error reporter
     pub reporter: &'a mut dyn diagnostics::ErrorReporter,
     /// Type table
-    pub type_table: Vec<(Vec<TypeVariableID>, ir::Type)>,
-    /// Next type variable ID
-    pub next_type_variable_id: u64,
+    pub type_table: Vec<(Vec<TypeVariableId>, ir::Type)>,
+
+    next_variable_id: ir::expression::variable_declaration::VariableId,
+    next_type_variable_id: TypeVariableId,
+
+    /// Global scope
+    pub global_scope: &'a mut Scope,
+    /// Local scopes
+    scopes: Vec<Scope>,
 }
 
 impl<'a> TypeInference<'a> {
@@ -27,19 +37,26 @@ impl<'a> TypeInference<'a> {
     pub fn new(
         return_type: &'a diagnostics::Spanned<ir::Type>,
         reporter: &'a mut dyn diagnostics::ErrorReporter,
+        global_scope: &'a mut Scope,
     ) -> Self {
         Self {
             return_type,
             reporter,
             type_table: Vec::new(),
-            next_type_variable_id: 0,
+
+            next_variable_id: 0,
+            next_type_variable_id: TypeVariableId(0),
+
+            global_scope,
+            scopes: Vec::new(),
+
         }
     }
 
     /// Allocate a new type variable
-    pub fn alloc_type_variable(&mut self, r#type: ir::Type) -> TypeVariableID {
-        let id = TypeVariableID(self.next_type_variable_id);
-        self.next_type_variable_id += 1;
+    pub fn alloc_type_variable(&mut self, r#type: ir::Type) -> TypeVariableId {
+        let id = self.next_type_variable_id;
+        self.next_type_variable_id.0 += 1;
         self.type_table.push((vec![id], r#type));
         id
     }
@@ -65,7 +82,7 @@ impl<'a> TypeInference<'a> {
                     .collect::<Vec<_>>();
 
                 pub(crate) type TwoTypeVariables<'a> =
-                    [(usize, &'a mut (Vec<TypeVariableID>, ir::Type)); 2];
+                    [(usize, &'a mut (Vec<TypeVariableId>, ir::Type)); 2];
                 let type_variables: Result<TwoTypeVariables, _> = type_variables.try_into();
 
                 match type_variables {
@@ -110,6 +127,9 @@ impl<'a> TypeInference<'a> {
     /// Finish a type, replace all type variables with concrete types
     pub fn finish(&mut self, r#type: &mut ir::Type, what: &str, span: diagnostics::Span) {
         *r#type = self.inline(r#type.clone());
+        if r#type == &ir::Type::IntegerWildcard {
+            *r#type = ir::Type::Int(std::num::NonZeroU16::new(4).unwrap());
+        }
         if !r#type.complete() {
             self.reporter.report_type_error(
                 format!("Could not infer type for {}", what),

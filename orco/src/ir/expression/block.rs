@@ -25,6 +25,7 @@ impl Block {
 
     /// Infer types
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
+        type_inference.push_scope();
         let mut r#type = Type::Unit;
         for expression in &mut self.expressions {
             let expr_type = expression.infer_types(type_inference);
@@ -32,7 +33,7 @@ impl Block {
                 r#type = Type::Never;
             }
         }
-
+        type_inference.pop_scope();
         r#type
     }
 

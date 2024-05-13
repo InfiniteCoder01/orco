@@ -4,6 +4,8 @@ use crate::ir::expression::Variable;
 #[derive(Clone, Debug)]
 /// Function signature (i.e. parameters and return type)
 pub struct Signature {
+    /// Function name
+    pub name: Option<Span>,
     /// Function parameters
     pub args: Spanned<Vec<Variable>>,
     /// Function return type
@@ -12,8 +14,16 @@ pub struct Signature {
 
 impl Signature {
     /// Create a new function signature
-    pub fn new(args: Spanned<Vec<Variable>>, return_type: Spanned<Type>) -> Self {
-        Self { args, return_type }
+    pub fn new(
+        name: Option<Span>,
+        args: Spanned<Vec<Variable>>,
+        return_type: Spanned<Type>,
+    ) -> Self {
+        Self {
+            name,
+            args,
+            return_type,
+        }
     }
 
     /// Get the type for this function signature
@@ -32,11 +42,12 @@ impl Signature {
             Box::new(self.return_type.clone()),
         )
     }
+}
 
-    /// Format
-    pub fn format(&self, f: &mut std::fmt::Formatter<'_>, name: Option<&str>) -> std::fmt::Result {
+impl std::fmt::Display for Signature {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "fn ")?;
-        if let Some(name) = name {
+        if let Some(name) = &self.name {
             write!(f, "{}", name)?;
         }
         write!(f, "(")?;
@@ -49,11 +60,5 @@ impl Signature {
         write!(f, ")")?;
         write!(f, " -> {}", *self.return_type)?;
         Ok(())
-    }
-}
-
-impl std::fmt::Display for Signature {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.format(f, None)
     }
 }

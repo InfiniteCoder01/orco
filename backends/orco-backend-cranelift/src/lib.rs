@@ -55,24 +55,35 @@ pub fn build(root: &orco::ir::Module) {
     debug!("Compiling module:\n{}", root);
     let mut object = Object::new(root, "x86_64-unknown-linux-gnu");
 
-    for (name, symbol) in &root.symbols {
+    for symbol in &root.symbols {
         match symbol {
             orco::ir::Symbol::Function(function) => {
                 object.declare_function(
-                    name.clone(),
+                    function
+                        .signature
+                        .name
+                        .clone()
+                        .expect("Unnamed global function. Did you run type checking/inference?"),
                     cranelift_module::Linkage::Export,
                     &function.signature,
                 );
             }
             orco::ir::Symbol::ExternalFunction(signature) => {
-                object.declare_function(name.clone(), cranelift_module::Linkage::Import, signature);
+                object.declare_function(
+                    signature
+                        .name
+                        .clone()
+                        .expect("Unnamed global function. Did you run type checking/inference?"),
+                    cranelift_module::Linkage::Import,
+                    &signature,
+                );
             }
         }
     }
 
-    for (name, symbol) in &root.symbols {
+    for symbol in &root.symbols {
         if let orco::ir::Symbol::Function(function) = symbol {
-            object.build_function(root, name, function);
+            object.build_function(function);
         }
     }
 

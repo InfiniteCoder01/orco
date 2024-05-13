@@ -1,100 +1,103 @@
 use super::*;
-use ir::expression::variable_declaration::VariableDeclaration;
-use ir::Type;
+use ir::expression::Variable;
 use std::sync::Arc;
 
-/// Function reference
+/// A reference to a function
 pub type FunctionReference = Arc<Spanned<ir::symbol::Function>>;
-/// Extern function reference
+/// A reference to an external function
 pub type ExternFunctionReference = Arc<Spanned<ir::symbol::function::Signature>>;
 
-/// A symbol (function, variable, etc.)
-pub trait Symbol: std::fmt::Debug {
-    /// Get type this symbol evaluates to when accessed
-    fn get_type(&self) -> Type;
-    /// Infer types for the symbol when referenced
-    fn infer_types(&self, type_inference: &mut TypeInference) -> Type;
-    /// Finish and check types for the symbol when referenced
-    fn finish_and_check_types(&self, span: Span, type_inference: &mut TypeInference) -> Type;
-    /// Display this symbol as if it was accessed
-    fn display(&self, span: Span, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
-
-    /// Variable access if this symbol is a variable of any kind
-    fn as_variable(&self) -> Option<&VariableDeclaration> {
-        None
-    }
-    /// Get the function signature if this symbol is a function of any kind
-    fn as_any_function(&self) -> Option<Spanned<&ir::symbol::function::Signature>> {
-        None
-    }
-    /// Get the function if this symbol is a reference to a normal function
-    fn as_function(&self) -> Option<&Spanned<ir::symbol::Function>> {
-        None
-    }
-    /// Get the extern function if this symbol is a reference to an extern function
-    fn as_extern_function(&self) -> Option<&Spanned<ir::symbol::function::Signature>> {
-        None
-    }
-}
-
 /// Symbol reference
-pub type SymbolReference = Arc<dyn Symbol>;
-
-impl std::fmt::Display for Spanned<SymbolReference> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.display(self.span.clone(), f)
-    }
+#[derive(Clone, Debug)]
+pub enum SymbolReference {
+    /// Symbol, that hasn't been declared yet
+    /// Use it to reference a symbol when generating IR
+    Undeclared(Span),
+    /// Variable
+    Variable(Variable),
+    /// Function
+    Function(FunctionReference),
+    /// External function
+    ExternFunction(ExternFunctionReference),
 }
 
-impl Symbol for Spanned<VariableDeclaration> {
-    fn get_type(&self) -> Type {
-        self.r#type.inner.lock().unwrap().clone()
-    }
-
-    fn infer_types(&self, type_inference: &mut TypeInference) -> Type {
-        let mut r#type = self.r#type.lock().unwrap();
-        *r#type = type_inference.complete(r#type.clone());
-        r#type.clone()
-    }
-
-    fn finish_and_check_types(&self, span: Span, type_inference: &mut TypeInference) -> Type {
-        let mut r#type = self.r#type.lock().unwrap();
-        type_inference.finish(&mut r#type, &format!("variable '{}'", self.name), span);
-        r#type.clone()
-    }
-
-    fn display(&self, span: Span, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let show_id = std::env::var("ORCO_SHOW_VAR_ID").map_or(false, |show_id| show_id == "1");
-        if show_id {
-            write!(f, "{} (#{})", span, self.id.lock().unwrap())
-        } else {
-            write!(f, "{}", span)
+impl SymbolReference {
+    /// Get the type that the symbol evaluates to when accessed
+    pub fn get_type(&self) -> ir::Type {
+        match self {
+            SymbolReference::Undeclared(_) => ir::Type::Error,
+            SymbolReference::Variable(variable) => variable.r#type.lock().unwrap().clone(),
+            SymbolReference::Function(function) => function.signature.get_type(),
+            SymbolReference::ExternFunction(signature) => signature.get_type(),
         }
     }
 
-    fn as_variable(&self) -> Option<&VariableDeclaration> {
-        Some(self)
+    /// Infer types for this symbol
+    pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> ir::Type {
+        match self {
+            SymbolReference::Undeclared(name) => {
+                if let Some(symbol) = type_inference.get_symbol(name) {
+                    *self = symbol;
+                    self.infer_types(type_inference)
+                } else {
+                    ir::Type::Error
+                }
+            }
+            SymbolReference::Variable(variable) => variable.r#type.lock().unwrap().clone(),
+            SymbolReference::Function(function) => function.signature.get_type(),
+            SymbolReference::ExternFunction(signature) => signature.get_type(),
+        }
+    }
+
+    /// Finish and check types
+    pub fn finish_and_check_types(
+        &self,
+        span: Span,
+        type_inference: &mut TypeInference,
+    ) -> ir::Type {
+        match self {
+            SymbolReference::Undeclared(name) => {
+                type_inference.reporter.report_type_error(
+                    format!("Symbol '{}' was not declared in this scope", name),
+                    span,
+                    vec![],
+                );
+                ir::Type::Error
+            }
+            SymbolReference::Variable(variable) => variable.r#type.lock().unwrap().clone(),
+            SymbolReference::Function(function) => function.signature.get_type(),
+            SymbolReference::ExternFunction(function) => function.get_type(),
+        }
     }
 }
 
-impl Symbol for Spanned<ir::symbol::function::Signature> {
-    fn get_type(&self) -> Type {
-        self.inner.get_type()
-    }
-
-    fn infer_types(&self, _type_inference: &mut TypeInference) -> Type {
-        self.inner.get_type()
-    }
-
-    fn finish_and_check_types(&self, _span: Span, _type_inference: &mut TypeInference) -> Type {
-        self.inner.get_type()
-    }
-
-    fn display(&self, span: Span, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", span)
-    }
-
-    fn as_any_function(&self) -> Option<Spanned<&ir::symbol::function::Signature>> {
-        Some(Spanned::new(&self.inner, self.span.clone()))
+impl std::fmt::Display for SymbolReference {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Undeclared(span) => write!(f, "<undeclared symbol '{}'>", span),
+            Self::Variable(variable) => {
+                let show_id =
+                    std::env::var("ORCO_SHOW_VAR_ID").map_or(false, |show_id| show_id == "1");
+                if show_id {
+                    write!(f, "{} (#{})", variable.name, variable.id.lock().unwrap())
+                } else {
+                    write!(f, "{}", variable.name)
+                }
+            }
+            Self::Function(function) => write!(
+                f,
+                "{}",
+                function
+                    .signature
+                    .name
+                    .as_deref()
+                    .unwrap_or("<anonymous function>")
+            ),
+            Self::ExternFunction(function) => write!(
+                f,
+                "{}",
+                function.name.as_deref().unwrap_or("<anonymous function>")
+            ),
+        }
     }
 }

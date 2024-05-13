@@ -22,21 +22,22 @@ impl crate::Object<'_> {
     }
 
     /// Build a function in the object, must declare it first with [`Self::declare_function`]
-    pub fn build_function(
-        &mut self,
-        root: &orco::ir::Module,
-        name: &Span,
-        function: &orco::ir::symbol::function::Function,
-    ) {
-        info!("Compiling function {}", name);
+    pub fn build_function(&mut self, function: &orco::ir::symbol::function::Function) {
+        info!(
+            "Compiling function {}",
+            function.signature.name.as_ref().unwrap()
+        );
         trace!("OrCo IR:\n{}", function);
 
-        let id = *self.functions.get(name).expect("Function wasn't declared");
+        let id = *self
+            .functions
+            .get(function.signature.name.as_ref().unwrap())
+            .expect("Function wasn't declared");
         let sig = self.convert_function_signature(&function.signature);
         let mut ctx = Context::new();
         ctx.func = Function::with_name_signature(
             if cfg!(debug_assertions) {
-                UserFuncName::testcase(name.to_string())
+                UserFuncName::testcase(function.signature.name.as_ref().unwrap().to_string())
             } else {
                 UserFuncName::user(0, id.as_u32())
             },

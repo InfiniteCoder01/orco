@@ -73,11 +73,13 @@ impl CallExpression {
             }
             r#return.inner.clone()
         } else {
-            type_inference.reporter.report_type_error(
-                format!("Can't call {}", r#type),
-                self.expression.span(),
-                vec![],
-            );
+            if r#type != Type::Error {
+                type_inference.reporter.report_type_error(
+                    format!("Can't call {}", r#type),
+                    self.expression.span(),
+                    vec![],
+                );
+            }
             Type::Error
         }
     }

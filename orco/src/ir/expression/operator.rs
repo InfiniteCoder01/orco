@@ -239,23 +239,27 @@ impl AssignmentExpression {
     pub fn finish_and_check_types(&mut self, type_inference: &mut TypeInference) -> Type {
         let value_type = self.value.finish_and_check_types(type_inference);
         let target_type = self.target.finish_and_check_types(type_inference);
-        if let Some(variable) = match self.target.as_ref() {
-            Expression::Symbol(symbol) => (&symbol.inner as &dyn std::any::Any)
-                .downcast_ref::<std::sync::Mutex<VariableDeclaration>>(),
-            _ => None,
-        } {
-            let variable = variable.lock().unwrap();
-            if !variable.mutable.inner {
-                type_inference.reporter.report_type_error(
-                    format!("Cannot assign to an immutable variable '{}'", variable.name),
-                    self.target.span(),
-                    vec![(
-                        "Help: Make this variable mutable",
-                        variable.mutable.span.clone(),
-                    )],
-                )
+        let can_assign = match self.target.as_ref() {
+            Expression::Symbol(symbol) => {
+                if let SymbolReference::Variable(variable) = &symbol.inner {
+                    if !variable.mutable.inner {
+                        type_inference.reporter.report_type_error(
+                            format!("Cannot assign to an immutable variable '{}'", variable.name),
+                            self.target.span(),
+                            vec![(
+                                "Help: Make this variable mutable",
+                                variable.mutable.span.clone(),
+                            )],
+                        );
+                    }
+                    true
+                } else {
+                    false
+                }
             }
-        } else {
+            _ => false,
+        };
+        if !can_assign {
             type_inference.reporter.report_type_error(
                 format!("Cannot assign to '{}'", self.target),
                 self.target.span(),

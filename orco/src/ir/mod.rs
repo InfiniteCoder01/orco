@@ -16,18 +16,42 @@ pub use expression::Expression;
 #[derive(Debug, Default)]
 pub struct Module {
     /// Module content
-    pub symbols: std::collections::HashMap<Span, Symbol>,
+    pub symbols: Vec<Symbol>,
 }
 
 impl Module {
     /// Infer types for the whole module
-    pub fn infer_and_check_types(
-        &self,
-        reporter: &mut dyn crate::diagnostics::ErrorReporter,
-    ) {
-        for symbol in self.symbols.values() {
+    pub fn infer_and_check_types(&self, reporter: &mut dyn crate::diagnostics::ErrorReporter) {
+        let mut global_scope = crate::type_inference::Scope::new();
+        for symbol in &self.symbols {
+            match symbol {
+                Symbol::Function(function) => {
+                    if let Some(name) = &function.signature.name {
+                        global_scope.insert(
+                            name.clone(),
+                            crate::SymbolReference::Function(function.clone()),
+                        );
+                    } else {
+                        panic!("Declaring unnamed external function in global scope!")
+                    }
+                }
+
+                Symbol::ExternalFunction(function) => {
+                    if let Some(name) = &function.name {
+                        global_scope.insert(
+                            name.clone(),
+                            crate::SymbolReference::ExternFunction(function.clone()),
+                        );
+                    } else {
+                        panic!("Declaring unnamed external function in global scope!")
+                    }
+                }
+            }
+        }
+
+        for symbol in &self.symbols {
             if let Symbol::Function(function) = symbol {
-                function.infer_and_check_types(reporter);
+                function.infer_and_check_types(reporter, &mut global_scope);
             }
         }
     }
@@ -35,9 +59,8 @@ impl Module {
 
 impl std::fmt::Display for Module {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (name, symbol) in &self.symbols {
-            symbol.format(f, Some(name))?;
-            writeln!(f, "\n")?;
+        for symbol in &self.symbols {
+            writeln!(f, "{}\n", symbol)?;
         }
         Ok(())
     }

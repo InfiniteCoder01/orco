@@ -1,6 +1,5 @@
 use super::*;
 use orco::ir::Expression;
-use orco::symbol_mapper::SymbolMapper;
 
 /// Parsers for operator-oriented expressions (binary, unary, assignment, etc.)
 pub mod operator;
@@ -46,13 +45,12 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
         } else {
             None
         };
-        let declaration = parser.wrap_span(
-            ir::expression::VariableDeclaration::new(name, mutable, r#type, value),
-            start,
-        );
-        Some(Expression::VariableDeclaration(
-            parser.symbol_mapper.declare_variable(declaration),
-        ))
+        Some(Expression::VariableDeclaration(std::sync::Arc::new(
+            parser.wrap_span(
+                ir::expression::VariableDeclaration::new(name, mutable, r#type, value),
+                start,
+            ),
+        )))
     } else {
         operator::binary(parser, 0)
     };
@@ -84,9 +82,7 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
     } else if parser.match_keyword("if") {
         branching::expect_if(parser, start)
     } else if let Some(name) = parser.match_ident() {
-        parser
-            .symbol_mapper
-            .access_symbol(parser.reporter, &name, name.clone())
+        Expression::Symbol(parser.wrap_span(orco::SymbolReference::Undeclared(name), start))
     } else {
         return None;
     };

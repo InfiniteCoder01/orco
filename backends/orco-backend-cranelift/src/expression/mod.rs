@@ -27,16 +27,17 @@ impl crate::Object<'_> {
         use orco::ir::Expression;
         match expr {
             Expression::Constant(value) => self.build_constant(builder, value),
-            Expression::Symbol(symbol) => {
-                if let Some(variable) = symbol.as_variable() {
+            Expression::Symbol(symbol) => match &symbol.inner {
+                orco::SymbolReference::Variable(variable) => {
                     Some(builder.use_var(Variable::new(*variable.id.lock().unwrap() as _)))
-                } else {
+                }
+                _ => {
                     panic!(
                         "Invalid symbol: {}. Did you run type checking/inference?",
-                        symbol
+                        symbol.inner
                     )
                 }
-            }
+            },
             Expression::BinaryExpression(expr) => self.build_binary_expression(builder, expr),
             Expression::UnaryExpression(expr) => self.build_unary_expression(builder, expr),
             Expression::Block(block) => self.build_block(builder, block),

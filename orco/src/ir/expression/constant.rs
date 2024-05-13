@@ -48,6 +48,7 @@ impl Constant {
                     Type::Unsigned(size) if size.get() == 16 => true,
                     Type::Unsigned(size) => *value < 1 << (size.get() * 8),
                     Type::Int(size) => *value < 1 << (size.get() * 8 - 1),
+                    ref r#type if !r#type.complete() => true,
                     r#type => unimplemented!("{}", r#type),
                 };
                 if !fits {

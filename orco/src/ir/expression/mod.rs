@@ -118,7 +118,14 @@ impl Expression {
                 type_inference.equate(&r#type, &type_inference.return_type);
                 Type::Never
             }
-            Expression::VariableDeclaration(declaration) => declaration.infer_types(type_inference),
+            Expression::VariableDeclaration(declaration) => {
+                let r#type = declaration.infer_types(type_inference);
+                type_inference.current_scope_mut().insert(
+                    declaration.name.clone(),
+                    SymbolReference::Variable(declaration.clone()),
+                );
+                r#type
+            }
             Expression::Assignment(expr) => expr.infer_types(type_inference),
             Expression::Error(_) => Type::Error,
         };
@@ -214,14 +221,16 @@ impl std::fmt::Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Expression::Constant(constant) => write!(f, "{}", constant.inner),
-            Expression::Symbol(symbol) => write!(f, "{}", symbol),
+            Expression::Symbol(symbol) => write!(f, "{}", symbol.inner),
             Expression::BinaryExpression(expr) => write!(f, "{}", expr.inner),
             Expression::UnaryExpression(expr) => write!(f, "{}", expr.inner),
             Expression::Block(block) => write!(f, "{}", block.inner),
             Expression::If(expr) => write!(f, "{}", expr.inner),
             Expression::Call(expr) => write!(f, "{}", expr.inner),
             Expression::Return(expr) => write!(f, "return {}", expr.inner),
-            Expression::VariableDeclaration(declaration) => write!(f, "{}", declaration.inner),
+            Expression::VariableDeclaration(declaration) => {
+                write!(f, "{}", declaration.inner)
+            }
             Expression::Assignment(expr) => write!(f, "{}", expr.inner),
             Expression::Error(_) => write!(f, "<ERROR>"),
         }

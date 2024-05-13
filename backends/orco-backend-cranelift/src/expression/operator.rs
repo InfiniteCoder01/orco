@@ -64,13 +64,13 @@ impl crate::Object<'_> {
     ) -> Option<Value> {
         let value = self.build_expression(builder, &expr.value)?;
         if let orco::ir::Expression::Symbol(symbol) = expr.target.as_ref() {
-            if let Some(variable) = symbol.as_variable() {
+            if let orco::SymbolReference::Variable(variable) = &symbol.inner {
                 let variable = Variable::new(*variable.id.lock().unwrap() as _);
                 builder.def_var(variable, value);
             } else {
                 panic!(
                     "Can't assign to '{}'! Did you run type checking/inference?",
-                    symbol
+                    symbol.inner
                 )
             }
         } else {

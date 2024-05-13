@@ -9,17 +9,17 @@ pub struct VariableDeclaration {
     /// Variable ID, just a counting up number assigned automatically, when calling
     /// [`crate::symbol_mapper::VariableMapper::declare_variable`]
     /// Useful for some backends
-    pub id: Mutex<VariableID>,
+    pub id: Mutex<VariableId>,
     /// Is variable mutable?
     pub mutable: Spanned<bool>,
     /// Variable type
     pub r#type: Spanned<Mutex<Type>>,
     /// Initial value (optional (I wish it was nesessarry))
-    pub value: Option<Box<Mutex<Expression>>>,
+    pub value: Option<Mutex<Expression>>,
 }
 
 /// Variable ID, for more information see [`VariableDeclaration::id`]
-pub type VariableID = u64;
+pub type VariableId = u64;
 
 impl VariableDeclaration {
     /// Create a new variable declaration
@@ -34,22 +34,17 @@ impl VariableDeclaration {
             id: Mutex::new(0),
             mutable,
             r#type: r#type.map(Mutex::new),
-            value: value.map(|value| Box::new(Mutex::new(value))),
+            value: value.map(Mutex::new),
         }
-    }
-
-    /// Get the type of the variable, releasing the lock immediately
-    pub fn r#type(&self) -> Type {
-        self.r#type.lock().unwrap().clone()
     }
 
     /// Infer types
     pub fn infer_types(&self, type_inference: &mut TypeInference) -> Type {
-        let mut r#type = self.r#type.lock().unwrap();
+        *self.id.lock().unwrap() = type_inference.new_variable_id();
+        let mut r#type = self.r#type.inner.lock().unwrap();
         *r#type = type_inference.complete(r#type.clone());
         if let Some(value) = &self.value {
-            let mut value = value.lock().unwrap();
-            let value_type = value.infer_types(type_inference);
+            let value_type = value.lock().unwrap().infer_types(type_inference);
             type_inference.equate(&r#type, &value_type);
         }
         Type::Unit
@@ -57,7 +52,7 @@ impl VariableDeclaration {
 
     /// Finish and check types
     pub fn finish_and_check_types(&self, type_inference: &mut TypeInference) -> Type {
-        let mut r#type = self.r#type.lock().unwrap();
+        let mut r#type = self.r#type.inner.lock().unwrap();
         type_inference.finish(
             &mut r#type,
             &format!("variable '{}'", self.name),

@@ -6,7 +6,6 @@ pub fn parse<R: ErrorReporter + ?Sized>(
 ) -> Option<Spanned<ir::expression::Block>> {
     let start = parser.span().1.start;
     if parser.match_operator(Operator::LBrace) {
-        parser.symbol_mapper.push_scope();
         let mut block = ir::expression::Block::default();
         while !parser.match_operator(Operator::RBrace) {
             match expression::expect(parser) {
@@ -21,7 +20,6 @@ pub fn parse<R: ErrorReporter + ?Sized>(
                 }
             }
         }
-        parser.symbol_mapper.pop_scope();
         Some(parser.wrap_span(block, start))
     } else {
         None
