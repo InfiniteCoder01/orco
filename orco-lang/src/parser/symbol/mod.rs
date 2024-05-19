@@ -7,12 +7,12 @@ pub mod function;
 pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<ir::Symbol> {
     let start = parser.span().1.start;
     if parser.match_keyword("fn") {
-        let function = function::parse(parser, true);
+        let function = function::parse(parser);
         let symbol = std::sync::Arc::new(parser.wrap_span(function, start));
         Some(ir::Symbol::Function(symbol))
     } else if parser.match_keyword("extern") {
         if parser.match_keyword("fn") {
-            let function = function::signature::parse(parser, true);
+            let function = function::signature::parse(parser);
             let symbol = std::sync::Arc::new(parser.wrap_span(function, start));
             parser.expect_operator(Operator::Semicolon);
             Some(ir::Symbol::ExternalFunction(symbol))

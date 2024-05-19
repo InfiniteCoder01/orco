@@ -82,7 +82,10 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
     } else if parser.match_keyword("if") {
         branching::expect_if(parser, start)
     } else if let Some(name) = parser.match_ident() {
-        Expression::Symbol(parser.wrap_span(orco::SymbolReference::Undeclared(name), start))
+        Expression::Symbol(parser.wrap_span(
+            orco::SymbolReference::Undeclared(orco::Path::single(name)),
+            start,
+        ))
     } else {
         return None;
     };

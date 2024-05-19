@@ -18,10 +18,12 @@ You can watch me do this live on [Twitch](https://www.twitch.tv/infinitecoder01)
 
 Roadmap for now:
 - [x] Symbols
-- [] Paths
+- [x] Paths
+- [] Floats
 - [] Frontend-side diagnostics (and diagnostics refactor (and lints))
 - [] While loop
 - [] C Frontend (and a blog post on it hopefully)
+- [] Post-typechecking frontend-side checks
 - [] Operator Overloading & Traits
 - [] Rust frontend
 - [] Self-hosting

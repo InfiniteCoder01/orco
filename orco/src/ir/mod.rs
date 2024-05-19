@@ -1,4 +1,4 @@
-use crate::source::*;
+use crate::*;
 
 /// Of course we are statically-typed
 pub mod types;
@@ -12,46 +12,54 @@ pub use symbol::Symbol;
 pub mod expression;
 pub use expression::Expression;
 
-/// A module, can be one file or the whole project
+/// A module (namespace), can be a file, some small section of it or the whole project
 #[derive(Debug, Default)]
 pub struct Module {
     /// Module content
     pub symbols: Vec<Symbol>,
+    /// Symbol map, can be used to resolve symbols
+    pub symbol_map: std::collections::HashMap<PathSegment, Vec<SymbolReference>>,
 }
 
 impl Module {
-    /// Infer types for the whole module
-    pub fn infer_and_check_types(&self, reporter: &mut dyn crate::diagnostics::ErrorReporter) {
-        let mut global_scope = crate::type_inference::Scope::new();
+    /// Register all symbols in the module
+    pub fn register(&mut self) {
         for symbol in &self.symbols {
             match symbol {
                 Symbol::Function(function) => {
-                    if let Some(name) = &function.signature.name {
-                        global_scope.insert(
-                            name.clone(),
-                            crate::SymbolReference::Function(function.clone()),
-                        );
-                    } else {
-                        panic!("Declaring unnamed external function in global scope!")
-                    }
+                    self.symbol_map
+                        .entry(function.signature.name.clone())
+                        .or_default()
+                        .push(crate::SymbolReference::Function(function.clone()));
                 }
 
                 Symbol::ExternalFunction(function) => {
-                    if let Some(name) = &function.name {
-                        global_scope.insert(
-                            name.clone(),
-                            crate::SymbolReference::ExternFunction(function.clone()),
-                        );
-                    } else {
-                        panic!("Declaring unnamed external function in global scope!")
-                    }
+                    self.symbol_map
+                        .entry(function.name.clone())
+                        .or_default()
+                        .push(crate::SymbolReference::ExternFunction(function.clone()));
                 }
             }
         }
+    }
 
+    /// Infer types for the whole module
+    pub fn infer_and_check_types(
+        &self,
+        reporter: &mut dyn crate::diagnostics::ErrorReporter,
+        root_module: &Module,
+        current_path: &Path,
+        symbol_resolver: &dyn Fn(&mut TypeInference, &Path) -> Option<SymbolReference>,
+    ) {
         for symbol in &self.symbols {
             if let Symbol::Function(function) = symbol {
-                function.infer_and_check_types(reporter, &mut global_scope);
+                function.infer_and_check_types(
+                    reporter,
+                    root_module,
+                    self,
+                    current_path,
+                    symbol_resolver,
+                );
             }
         }
     }

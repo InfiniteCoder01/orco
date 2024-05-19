@@ -7,10 +7,9 @@ pub mod signature;
 /// If parse_name is true, function name is expected
 pub fn parse<R: ErrorReporter + ?Sized>(
     parser: &mut Parser<R>,
-    parse_name: bool,
 ) -> ir::symbol::Function {
     let function = ir::symbol::Function::new(
-        signature::parse(parser, parse_name),
+        signature::parse(parser),
         expression::block::expect(parser),
     );
     function

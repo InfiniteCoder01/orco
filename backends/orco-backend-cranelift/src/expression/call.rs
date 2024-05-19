@@ -14,14 +14,14 @@ impl crate::Object<'_> {
                     orco::SymbolReference::Function(function) => self.object.declare_func_in_func(
                         *self
                             .functions
-                            .get(function.signature.name.as_ref().unwrap())
+                            .get(&function.signature.name)
                             .unwrap_or_else(|| panic!("Function {} is not defined", symbol.span)),
                         builder.func,
                     ),
                     orco::SymbolReference::ExternFunction(function) => self.object.declare_func_in_func(
                         *self
                             .functions
-                            .get(function.name.as_ref().unwrap())
+                            .get(&function.name)
                             .unwrap_or_else(|| panic!("Function {} is not defined", symbol.span)),
                         builder.func,
                     ),

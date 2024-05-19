@@ -26,12 +26,18 @@ impl Function {
     pub fn infer_and_check_types(
         &self,
         reporter: &mut dyn crate::diagnostics::ErrorReporter,
-        global_scope: &mut crate::type_inference::Scope,
+        root_module: &Module,
+        current_module: &Module,
+        current_module_path: &Path,
+        symbol_resolver: &dyn Fn(&mut TypeInference, &Path) -> Option<SymbolReference>,
     ) {
         let mut type_inference = crate::type_inference::TypeInference::new(
             &self.signature.return_type,
             reporter,
-            global_scope,
+            root_module,
+            current_module,
+            current_module_path,
+            symbol_resolver,
         );
 
         type_inference.push_scope();

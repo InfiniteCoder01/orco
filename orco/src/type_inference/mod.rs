@@ -26,10 +26,15 @@ pub struct TypeInference<'a> {
     next_variable_id: ir::expression::variable_declaration::VariableId,
     next_type_variable_id: TypeVariableId,
 
-    /// Global scope
-    pub global_scope: &'a mut Scope,
-    /// Local scopes
+    /// Root module
+    pub root_module: &'a ir::Module,
+    /// Current module
+    pub current_module: &'a ir::Module,
+    /// Current module path
+    pub current_module_path: &'a Path,
+
     scopes: Vec<Scope>,
+    symbol_resolver: &'a dyn Fn(&mut TypeInference, &Path) -> Option<SymbolReference>,
 }
 
 impl<'a> TypeInference<'a> {
@@ -37,7 +42,10 @@ impl<'a> TypeInference<'a> {
     pub fn new(
         return_type: &'a diagnostics::Spanned<ir::Type>,
         reporter: &'a mut dyn diagnostics::ErrorReporter,
-        global_scope: &'a mut Scope,
+        root_module: &'a ir::Module,
+        current_module: &'a ir::Module,
+        current_module_path: &'a Path,
+        symbol_resolver: &'a dyn Fn(&mut TypeInference, &Path) -> Option<SymbolReference>,
     ) -> Self {
         Self {
             return_type,
@@ -47,9 +55,12 @@ impl<'a> TypeInference<'a> {
             next_variable_id: 0,
             next_type_variable_id: TypeVariableId(0),
 
-            global_scope,
-            scopes: Vec::new(),
+            root_module,
+            current_module,
+            current_module_path,
 
+            scopes: Vec::new(),
+            symbol_resolver,
         }
     }
 

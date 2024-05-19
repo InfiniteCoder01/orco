@@ -345,6 +345,12 @@ impl<'a, R: ErrorReporter + ?Sized> Parser<'a, R> {
         }
     }
 
+    /// Get a zero-length span at the current position
+    pub fn point_span(&mut self) -> Span {
+        let start = self.span().1.start;
+        self.span_from(start)
+    }
+
     /// Wrap an object in [`orco::Spanned`], span will be a zero-length point at the current
     /// position
     pub fn wrap_point<T>(&mut self, object: T) -> Spanned<T> {

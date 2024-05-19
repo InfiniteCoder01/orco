@@ -28,8 +28,12 @@ macro_rules! make_type_inference {
     ($type_inference: ident, $errors: ident) => {
         use orco::type_inference::TypeInference;
         let return_type = dummy_spanned(ir::Type::Unit);
-        let mut global_scope = orco::type_inference::Scope::new();
         let mut $errors = Vec::new();
-        let mut $type_inference = TypeInference::new(&return_type, &mut $errors, &mut global_scope);
+        let root = ir::Module::default();
+        let path = orco::Path::new();
+        let mut $type_inference =
+            TypeInference::new(&return_type, &mut $errors, &root, &root, &path, &|_, _| {
+                None
+            });
     };
 }

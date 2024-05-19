@@ -14,7 +14,7 @@ fn main() {
     let cli = Cli::parse();
     let mut reporter = orco::diagnostics::DefaultReporter;
 
-    let krate = if cli.path == std::path::Path::new("-") {
+    let mut krate = if cli.path == std::path::Path::new("-") {
         let mut source = String::new();
         std::io::stdin().read_to_string(&mut source).unwrap();
         orco_lang::Crate {
@@ -26,6 +26,12 @@ fn main() {
     } else {
         orco_lang::Crate::parse(cli.path, &mut reporter)
     };
-    krate.root.infer_and_check_types(&mut reporter);
+    krate.root.register();
+    krate.root.infer_and_check_types(
+        &mut reporter,
+        &krate.root,
+        &orco::Path::new(),
+        &orco_lang::symbol_resolver,
+    );
     orco_backend_cranelift::build(&krate.root);
 }

@@ -1,7 +1,8 @@
-use crate::diagnostics::*;
-use crate::ir::Type;
-use crate::symbol_reference::SymbolReference;
-use crate::type_inference::TypeInference;
+use super::*;
+use diagnostics::*;
+use ir::Type;
+use symbol_reference::SymbolReference;
+use type_inference::TypeInference;
 
 /// Constant value
 pub mod constant;

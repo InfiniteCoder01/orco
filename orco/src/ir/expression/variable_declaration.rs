@@ -5,7 +5,7 @@ use std::sync::Mutex;
 #[derive(Debug)]
 pub struct VariableDeclaration {
     /// Variable name
-    pub name: Span,
+    pub name: PathSegment,
     /// Variable ID, just a counting up number assigned automatically, when calling
     /// [`crate::symbol_mapper::VariableMapper::declare_variable`]
     /// Useful for some backends

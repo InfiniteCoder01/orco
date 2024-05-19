@@ -3,15 +3,8 @@ use super::*;
 /// Parse a function signature (assumes, that "fn" token is already consumed)
 /// If parse_name is true, function name is expected
 /// If register_args is true, registers arguments with parser's symbol mapper
-pub fn parse<R: ErrorReporter + ?Sized>(
-    parser: &mut Parser<R>,
-    parse_name: bool,
-) -> ir::symbol::function::Signature {
-    let name = if parse_name {
-        parser.expect_ident("function name")
-    } else {
-        None
-    };
+pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::symbol::function::Signature {
+    let name = parser.expect_ident("function name").unwrap_or(parser.point_span());
     let start = parser.span().1.start;
     parser.expect_operator(Operator::LParen);
     let mut args = Vec::new();

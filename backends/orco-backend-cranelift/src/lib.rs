@@ -59,21 +59,14 @@ pub fn build(root: &orco::ir::Module) {
         match symbol {
             orco::ir::Symbol::Function(function) => {
                 object.declare_function(
-                    function
-                        .signature
-                        .name
-                        .clone()
-                        .expect("Unnamed global function. Did you run type checking/inference?"),
+                    function.signature.name.clone(),
                     cranelift_module::Linkage::Export,
                     &function.signature,
                 );
             }
             orco::ir::Symbol::ExternalFunction(signature) => {
                 object.declare_function(
-                    signature
-                        .name
-                        .clone()
-                        .expect("Unnamed global function. Did you run type checking/inference?"),
+                    signature.name.clone(),
                     cranelift_module::Linkage::Import,
                     &signature,
                 );
