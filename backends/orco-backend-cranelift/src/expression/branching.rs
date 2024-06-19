@@ -35,7 +35,9 @@ impl crate::Object<'_> {
         if let (Some(else_branch), Some(else_block)) = (&expr.else_branch, else_block) {
             builder.switch_to_block(else_block);
             self.build_expression(builder, else_branch);
-            builder.ins().jump(merge_block, &[]);
+            if else_branch.get_type() != orco::ir::Type::Never {
+                builder.ins().jump(merge_block, &[]);
+            }
             builder.seal_block(else_block);
         }
 

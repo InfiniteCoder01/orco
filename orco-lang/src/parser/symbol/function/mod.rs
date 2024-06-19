@@ -10,7 +10,7 @@ pub fn parse<R: ErrorReporter + ?Sized>(
 ) -> ir::symbol::Function {
     let function = ir::symbol::Function::new(
         signature::parse(parser),
-        expression::block::expect(parser),
+        expression::expect(parser),
     );
     function
 }

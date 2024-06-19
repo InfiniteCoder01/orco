@@ -32,6 +32,22 @@ fn pow(x: i32, y: i32) -> i32 {
   return x * pow(x, y - 1);
 }
 
+fn fastPow(x: i32, y: i32) -> i32 {
+  if y == 0 {
+    return 1;
+  }
+  if y == 1 {
+    return x;
+  }
+  let k = fastPow(x, y / 2);
+  if y % 2 == 1 {
+    return x * k * k;
+  }
+  else {
+    return k * k;
+  }
+}
+
 fn main() -> i32 {
   let a = getint();
   let action = getchar();
@@ -50,7 +66,7 @@ fn main() -> i32 {
     printf(c"%d\n", a / b);
   }
   if action == 0x5E {
-    printf(c"%d\n", pow(a, b));
+    printf(c"%d\n", fastPow(a, b));
   }
   return 0;
 }

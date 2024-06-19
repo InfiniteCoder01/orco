@@ -6,77 +6,60 @@ fn types() {
     use ir::Type;
     use parser::r#type::parse as parse_type;
     parse("i8", |mut parser| {
-        assert_eq!(
-            parse_type(&mut parser).inner,
-            Type::Int(NonZeroU16::new(1).unwrap())
-        );
-        assert_eq!(parser.reporter.len(), 0);
+        check!(parse_type(&mut parser).inner == Type::Int(NonZeroU16::new(1).unwrap()));
+        check!(parser.reporter.is_empty());
     });
     parse("i128", |mut parser| {
-        assert_eq!(
-            parse_type(&mut parser).inner,
-            Type::Int(NonZeroU16::new(16).unwrap())
-        );
-        assert_eq!(parser.reporter.len(), 0);
+        check!(parse_type(&mut parser).inner == Type::Int(NonZeroU16::new(16).unwrap()));
+        check!(parser.reporter.is_empty());
     });
     parse("u16", |mut parser| {
-        assert_eq!(
-            parse_type(&mut parser).inner,
-            Type::Unsigned(NonZeroU16::new(2).unwrap())
-        );
-        assert_eq!(parser.reporter.len(), 0);
+        check!(parse_type(&mut parser).inner == Type::Unsigned(NonZeroU16::new(2).unwrap()));
+        check!(parser.reporter.is_empty());
     });
     parse("f32", |mut parser| {
-        assert_eq!(
-            parse_type(&mut parser).inner,
-            Type::Float(NonZeroU16::new(4).unwrap())
-        );
-        assert_eq!(parser.reporter.len(), 0);
+        check!(parse_type(&mut parser).inner == Type::Float(NonZeroU16::new(4).unwrap()));
+        check!(parser.reporter.is_empty());
     });
     parse("bool", |mut parser| {
-        assert_eq!(parse_type(&mut parser).inner, Type::Bool);
-        assert_eq!(parser.reporter.len(), 0);
+        check!(parse_type(&mut parser).inner == Type::Bool);
+        check!(parser.reporter.is_empty());
     });
     parse("char*", |mut parser| {
-        assert_eq!(
-            parse_type(&mut parser).inner,
-            Type::Pointer(Box::new(ir::Type::Char))
-        );
-        assert_eq!(parser.reporter.len(), 0);
+        check!(parse_type(&mut parser).inner == Type::Pointer(Box::new(ir::Type::Char)));
+        check!(parser.reporter.is_empty());
     });
     parse("Custom", |mut parser| {
-        assert_eq!(
-            parse_type(&mut parser).inner,
-            Type::Custom(Span::new("Custom"))
-        );
-        assert_eq!(parser.reporter.len(), 0);
+        check!(parse_type(&mut parser).inner == Type::Custom(Span::new("Custom")));
+        check!(parser.reporter.is_empty());
     });
 }
 
 #[test]
 fn function() {
-    parse(
-        "main(argc: u32, argv: char**) -> i32 { return 42; }",
-        |mut parser| {
-            let function = parser::symbol::function::parse(&mut parser);
-            assert_eq!(function.signature.name, Span::new("main"));
-            assert_eq!(function.signature.args.len(), 2);
-            assert_eq!(function.signature.args[0].name, Span::new("argc"));
-            assert_eq!(
-                *function.signature.args[0].r#type.lock().unwrap(),
-                ir::Type::Unsigned(NonZeroU16::new(4).unwrap())
-            );
-            assert_eq!(function.signature.args[1].name, Span::new("argv"));
-            assert_eq!(
-                *function.signature.args[1].r#type.lock().unwrap(),
-                ir::Type::Pointer(Box::new(ir::Type::Pointer(Box::new(ir::Type::Char))))
-            );
-            assert_eq!(
-                function.signature.return_type.inner,
-                ir::Type::Int(NonZeroU16::new(4).unwrap())
-            );
-            let body = function.body.lock().unwrap();
-            assert_eq!(body.expressions.len(), 1);
-        },
-    );
+    parse("main(argc: u32, argv: char**) -> i32 42", |mut parser| {
+        let function = parser::symbol::function::parse(&mut parser);
+        check!(function.signature.name == Span::new("main"));
+        check!(function.signature.args.len() == 2);
+        check!(function.signature.args[0].name == Span::new("argc"));
+        check!(
+            *function.signature.args[0].r#type.lock().unwrap()
+                == ir::Type::Unsigned(NonZeroU16::new(4).unwrap())
+        );
+        check!(function.signature.args[1].name == Span::new("argv"));
+        check!(
+            *function.signature.args[1].r#type.lock().unwrap()
+                == ir::Type::Pointer(Box::new(ir::Type::Pointer(Box::new(ir::Type::Char))))
+        );
+        check!(function.signature.return_type.inner == ir::Type::Int(NonZeroU16::new(4).unwrap()));
+        let body = function.body.lock().unwrap();
+        let_assert!(ir::Expression::Constant(expr) = &*body);
+        check!(
+            expr.inner
+                == ir::expression::Constant::Integer {
+                    value: 42,
+                    r#type: ir::Type::IntegerWildcard
+                }
+        );
+    });
 }

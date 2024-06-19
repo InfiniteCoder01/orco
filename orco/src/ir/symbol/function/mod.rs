@@ -10,12 +10,12 @@ pub struct Function {
     /// Function signature
     pub signature: Signature,
     /// Function body
-    pub body: std::sync::Mutex<Spanned<expression::Block>>,
+    pub body: std::sync::Mutex<expression::Expression>,
 }
 
 impl Function {
     /// Create a new function
-    pub fn new(signature: Signature, body: Spanned<expression::Block>) -> Self {
+    pub fn new(signature: Signature, body: expression::Expression) -> Self {
         Self {
             signature,
             body: body.into(),
@@ -50,12 +50,25 @@ impl Function {
 
         type_inference.pop_scope();
 
-        body.finish_and_check_types(&mut type_inference);
+        let return_type = body.finish_and_check_types(&mut type_inference);
+        if !return_type.morphs(&self.signature.return_type) {
+            reporter.report_type_error(
+                format!(
+                    "Return type mismatch: expected '{}', got '{}'",
+                    self.signature.return_type.inner, return_type
+                ),
+                body.span(),
+                vec![(
+                    "Expected because of this",
+                    self.signature.return_type.span.clone(),
+                )],
+            );
+        }
     }
 }
 
 impl std::fmt::Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {}", self.signature, self.body.lock().unwrap().inner)
+        write!(f, "{} {}", self.signature, self.body.lock().unwrap())
     }
 }

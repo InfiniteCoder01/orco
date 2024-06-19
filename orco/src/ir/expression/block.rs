@@ -5,12 +5,17 @@ use super::*;
 pub struct Block {
     /// Block content
     pub expressions: Vec<Expression>,
+    /// What this block evaluates to (basically tail expression)
+    pub tail_expression: Option<Box<Expression>>,
 }
 
 impl Block {
     /// Create a new block
-    pub fn new(expressions: Vec<Expression>) -> Self {
-        Self { expressions }
+    pub fn new(expressions: Vec<Expression>, evaluates_to: Option<Box<Expression>>) -> Self {
+        Self {
+            expressions,
+            tail_expression: evaluates_to,
+        }
     }
 
     /// Get the type this block evaluates to
@@ -26,7 +31,10 @@ impl Block {
     /// Infer types
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
         type_inference.push_scope();
-        let mut r#type = Type::Unit;
+        let mut r#type = self
+            .tail_expression
+            .as_mut()
+            .map_or(Type::Unit, |expr| expr.infer_types(type_inference));
         for expression in &mut self.expressions {
             let expr_type = expression.infer_types(type_inference);
             if expr_type == Type::Never {
@@ -49,6 +57,16 @@ impl Block {
             let expr_type = expression.finish_and_check_types(type_inference);
             if expr_type == Type::Never {
                 r#type = Type::Never;
+            }
+        }
+
+        if let Some(expression) = &mut self.tail_expression {
+            let expr_type = expression.finish_and_check_types(type_inference);
+            if r#type == Type::Never {
+                let span = expression.span();
+                unreachable_span.get_or_insert(span).1.end = span.1.end;
+            } else {
+                r#type = expr_type;
             }
         }
 
@@ -78,6 +96,9 @@ impl std::fmt::Display for Block {
                 write!(f, ";")?;
             }
             writeln!(f)?;
+        }
+        if let Some(expression) = &self.tail_expression {
+            writeln!(f, "{} // Tail expression", indent::indent_all_by(4, format!("{expression}")))?;
         }
         write!(f, "}}")?;
         Ok(())

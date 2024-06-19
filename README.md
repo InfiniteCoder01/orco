@@ -4,8 +4,8 @@ OrCo compiler toolchain
 
 ## Goals
 OrCo has the following goals:
-- Easy FFI
-- Multiple backends
+- Bring hot code reloading, intellisence, debugging, interpreters, cross-compilers and similar features to all supported languages
+- Easy language interop
 
 Note for developers:
 Intermediate Representation is nesesary, because

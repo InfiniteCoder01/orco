@@ -55,7 +55,7 @@ impl crate::Object<'_> {
                 builder.declare_var(variable, self.convert_type(&arg.r#type.lock().unwrap()));
                 builder.def_var(variable, value);
             }
-            let return_value = self.build_block(&mut builder, &function.body.lock().unwrap());
+            let return_value = self.build_expression(&mut builder, &function.body.lock().unwrap());
             if function.body.lock().unwrap().get_type() != orco::ir::Type::Never {
                 builder
                     .ins()

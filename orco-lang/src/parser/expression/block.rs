@@ -13,8 +13,14 @@ pub fn parse<R: ErrorReporter + ?Sized>(
                     parser.next();
                 }
                 expression => {
+                    if parser.match_operator(Operator::RBrace) {
+                        block.tail_expression = Some(Box::new(expression));
+                        break;
+                    }
                     if !expression.is_block() {
                         parser.expect_operator(Operator::Semicolon);
+                    } else {
+                        parser.match_operator(Operator::Semicolon);
                     }
                     block.expressions.push(expression);
                 }
