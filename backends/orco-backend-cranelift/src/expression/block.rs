@@ -14,6 +14,9 @@ impl crate::Object<'_> {
                 return None;
             }
         }
-        block.tail_expression.as_ref().and_then(|expr| self.build_expression(builder, expr))
+        block
+            .tail_expression
+            .as_ref()
+            .and_then(|expr| self.build_expression(builder, expr))
     }
 }

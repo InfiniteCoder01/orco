@@ -177,7 +177,7 @@ impl UnaryExpression {
         let r#type = self.expr.finish_and_check_types(type_inference);
         match self.op {
             UnaryOp::Neg => match r#type {
-                Type::Int(_) => (),
+                Type::Int(_) | Type::Float(_) => (),
                 _ => {
                     type_inference.reporter.report_type_error(
                         format!("Cannot apply unary negation to {}", r#type),

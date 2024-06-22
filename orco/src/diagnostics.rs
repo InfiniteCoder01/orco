@@ -48,17 +48,24 @@ pub trait ErrorReporter {
             }));
         self.report(report.finish());
     }
+
+    /// Check if there were any errors
+    fn has_errors(&self) -> bool;
 }
 
 impl ErrorReporter for Vec<Report> {
     fn report(&mut self, report: Report) {
         self.push(report);
     }
+
+    fn has_errors(&self) -> bool {
+        !self.is_empty()
+    }
 }
 
 /// Default error reporter
 #[derive(Clone, Debug, Default)]
-pub struct DefaultReporter;
+pub struct DefaultReporter(usize);
 
 impl ErrorReporter for DefaultReporter {
     fn report(&mut self, report: Report) {
@@ -72,5 +79,11 @@ impl ErrorReporter for DefaultReporter {
         if let Err(err) = report.eprint(ariadne::FnCache::new(|id: &Src| Ok(Source(id.clone())))) {
             log::error!("Failed to render diagnostic report: {}", err);
         }
+
+        self.0 += 1;
+    }
+
+    fn has_errors(&self) -> bool {
+        self.0 > 0
     }
 }

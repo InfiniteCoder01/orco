@@ -98,7 +98,11 @@ impl std::fmt::Display for Block {
             writeln!(f)?;
         }
         if let Some(expression) = &self.tail_expression {
-            writeln!(f, "{} // Tail expression", indent::indent_all_by(4, format!("{expression}")))?;
+            writeln!(
+                f,
+                "{} // Tail expression",
+                indent::indent_all_by(4, format!("{expression}"))
+            )?;
         }
         write!(f, "}}")?;
         Ok(())

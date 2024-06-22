@@ -140,6 +140,8 @@ impl<'a> TypeInference<'a> {
         *r#type = self.inline(r#type.clone());
         if r#type == &ir::Type::IntegerWildcard {
             *r#type = ir::Type::Int(std::num::NonZeroU16::new(4).unwrap());
+        } else if r#type == &ir::Type::FloatWildcard {
+            *r#type = ir::Type::Float(std::num::NonZeroU16::new(8).unwrap());
         }
         if !r#type.complete() {
             self.reporter.report_type_error(

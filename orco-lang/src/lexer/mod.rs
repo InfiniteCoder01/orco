@@ -63,7 +63,7 @@ impl logos::Source for Source {
 }
 
 /// Token (number, word, operator, comment, etc.)
-#[derive(Logos, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Logos, Clone, Debug, PartialEq, PartialOrd)]
 #[logos(source = Source, error = Error)]
 #[logos(skip r"[ \t\n\f]+")]
 #[logos(skip r"//.*")]
@@ -103,6 +103,7 @@ pub enum Token {
     #[regex("0b[0-1][0-1_]*", |lex| parse_unsigned(lex.slice(), "0b", 2))]
     #[regex("0o[0-7][0-7_]*", |lex| parse_unsigned(lex.slice(), "0o", 8))]
     #[regex("0x[0-9a-fA-F][0-9a-fA-F_]*", |lex| parse_unsigned(lex.slice(), "0x", 16))]
+    #[regex(r"[0-9]*[.][0-9]+", |lex| parse_float(lex.slice()))]
     #[regex("c\"([^\"]|\\\\.)*\"", |lex| parse_cstring(lex.slice()))]
     #[regex("c#\"([^\"]|\"[^#])*\"#", |lex| Constant::CString(lex.slice().as_bytes().to_vec()))]
     Constant(Constant),
@@ -117,6 +118,15 @@ fn parse_unsigned(slice: &str, prefix: &str, radix: u32) -> Result<Constant, Err
             r#type: orco::ir::Type::IntegerWildcard,
         })
         .map_err(|_| Error::IntegerOutOfBounds)
+}
+
+fn parse_float(slice: &str) -> Result<Constant, Error> {
+    fast_float::parse(slice)
+        .map(|value| Constant::Float {
+            value,
+            r#type: orco::ir::Type::FloatWildcard,
+        })
+        .map_err(|_| Error::InvalidFloat)
 }
 
 fn parse_cstring(slice: &str) -> Result<Constant, Error> {
@@ -144,6 +154,8 @@ pub enum Error {
     InvalidToken,
     /// Integer out of bounds
     IntegerOutOfBounds,
+    /// Invalid float
+    InvalidFloat,
     /// Invalid escape code
     InvalidEscapeCode(usize, &'static str, char),
     /// Invalid unicode codepoint
@@ -260,49 +272,44 @@ impl<'a, R: ErrorReporter + ?Sized> Parser<'a, R> {
                             span.1.start,
                         );
                         let report = match err {
-                            Error::InvalidToken => report
-                                .with_code("OL0")
-                                .with_message("Invalid token")
-                                .with_label(
-                                    Label::new(span)
-                                        .with_message("Invalid token")
-                                        .with_color(colors.next()),
-                                ),
-                            Error::IntegerOutOfBounds => report
-                                .with_code("OL1")
-                                .with_message("Integer out of bounds")
-                                .with_label(
+                            Error::InvalidToken => report.with_message("Invalid token").with_label(
+                                Label::new(span)
+                                    .with_message("Invalid token")
+                                    .with_color(colors.next()),
+                            ),
+                            Error::IntegerOutOfBounds => {
+                                report.with_message("Integer out of bounds").with_label(
                                     Label::new(span)
                                         .with_message("This constant")
                                         .with_color(colors.next()),
-                                ),
+                                )
+                            }
+                            Error::InvalidFloat => report.with_message("Invalid float").with_label(
+                                Label::new(span)
+                                    .with_message("This constant")
+                                    .with_color(colors.next()),
+                            ),
                             Error::InvalidEscapeCode(offset, expected, got) => {
                                 span.1 = span.1.start + offset..span.1.start + offset + 1;
-                                report
-                                    .with_code("OL2")
-                                    .with_message("Invalid escape code")
-                                    .with_label(
-                                        Label::new(span)
-                                            .with_message(format!(
-                                                "Expected {}, got '{}'",
-                                                expected, got
-                                            ))
-                                            .with_color(colors.next()),
-                                    )
+                                report.with_message("Invalid escape code").with_label(
+                                    Label::new(span)
+                                        .with_message(format!(
+                                            "Expected {}, got '{}'",
+                                            expected, got
+                                        ))
+                                        .with_color(colors.next()),
+                                )
                             }
                             Error::InvalidUnicodeCodepoint(offset, codepoint) => {
                                 span.1 = span.1.start + offset..span.1.start + offset + 1;
-                                report
-                                    .with_code("OL3")
-                                    .with_message("Invalid unicode codepoint")
-                                    .with_label(
-                                        Label::new(span)
-                                            .with_message(format!(
-                                                "Invalid unicode codepoint: 0x{:x}",
-                                                codepoint
-                                            ))
-                                            .with_color(colors.next()),
-                                    )
+                                report.with_message("Invalid unicode codepoint").with_label(
+                                    Label::new(span)
+                                        .with_message(format!(
+                                            "Invalid unicode codepoint: 0x{:x}",
+                                            codepoint
+                                        ))
+                                        .with_color(colors.next()),
+                                )
                             }
                         }
                         .finish();

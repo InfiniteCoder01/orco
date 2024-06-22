@@ -22,6 +22,7 @@ impl crate::Object<'_> {
 
             orco::ir::Type::Wildcard => panic!("Type inference wasn't done properly"),
             orco::ir::Type::IntegerWildcard => panic!("Type inference wasn't done properly"),
+            orco::ir::Type::FloatWildcard => panic!("Type inference wasn't done properly"),
             orco::ir::Type::TypeVariable(..) => panic!("Type inference wasn't done properly"),
             orco::ir::Type::Error => panic!("IR contains errors!"),
         }

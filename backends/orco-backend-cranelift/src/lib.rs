@@ -68,7 +68,7 @@ pub fn build(root: &orco::ir::Module) {
                 object.declare_function(
                     signature.name.clone(),
                     cranelift_module::Linkage::Import,
-                    &signature,
+                    signature,
                 );
             }
         }

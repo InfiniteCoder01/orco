@@ -33,6 +33,8 @@ pub enum Type {
     Wildcard,
     /// Integer wildcard (number literal, that automatically infers type)
     IntegerWildcard,
+    /// Floating point wildcard (number literal, that automatically infers type)
+    FloatWildcard,
     /// Type variable (used only during type inference)
     TypeVariable(TypeVariableId),
     /// Error type
@@ -56,8 +58,10 @@ impl Type {
             (_, Self::Error) => true,
             (Self::IntegerWildcard, Self::Int(_)) => true,
             (Self::IntegerWildcard, Self::Unsigned(_)) => true,
+            (Self::FloatWildcard, Self::Float(_)) => true,
             (Self::Int(_), Self::IntegerWildcard) => true,
             (Self::Unsigned(_), Self::IntegerWildcard) => true,
+            (Self::Float(_), Self::FloatWildcard) => true,
             _ => self == target_type,
         }
     }
@@ -65,7 +69,10 @@ impl Type {
     /// Is this type complete (nothing to infer)
     /// TypeVariables are considered complete
     pub fn complete(&self) -> bool {
-        !matches!(self, Self::Wildcard | Self::IntegerWildcard | Self::Error)
+        !matches!(
+            self,
+            Self::Wildcard | Self::IntegerWildcard | Self::FloatWildcard | Self::Error
+        )
     }
 
     /// Complete this type to be equal to the other type
@@ -84,7 +91,12 @@ impl Type {
                 *self = other;
                 true
             }
+            (Self::FloatWildcard, Self::Float(_)) => {
+                *self = other;
+                true
+            }
             (Self::Int(_) | Self::Unsigned(_), Self::IntegerWildcard) => true,
+            (Self::Float(_), Self::FloatWildcard) => true,
             _ => false,
         }
     }
@@ -118,6 +130,7 @@ impl std::fmt::Display for Type {
 
             Self::Wildcard => write!(f, "_"),
             Self::IntegerWildcard => write!(f, "integer"),
+            Self::FloatWildcard => write!(f, "float"),
             Self::TypeVariable(id) => write!(f, "{}", id),
             Self::Error => write!(f, "<ERROR>"),
         }

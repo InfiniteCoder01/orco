@@ -14,6 +14,9 @@ categories = [
 ]
 
 [dependencies]
-assert2 = "0.3.14"
-logos = "0.14.0"
 orco = { path = "../orco", version = "0.0.1" }
+logos = "0.14.0"
+fast-float = "0.2.0"
+
+[dev-dependencies]
+assert2 = "0.3.14"

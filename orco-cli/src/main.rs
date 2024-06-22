@@ -1,5 +1,6 @@
 #![doc = include_str!("../README.md")]
 use clap::Parser;
+use orco::diagnostics::ErrorReporter;
 use std::io::Read;
 
 #[derive(Parser)]
@@ -12,7 +13,7 @@ struct Cli {
 fn main() {
     env_logger::init();
     let cli = Cli::parse();
-    let mut reporter = orco::diagnostics::DefaultReporter;
+    let mut reporter = orco::diagnostics::DefaultReporter::default();
 
     let mut krate = if cli.path == std::path::Path::new("-") {
         let mut source = String::new();
@@ -33,5 +34,9 @@ fn main() {
         &orco::Path::new(),
         &orco_lang::symbol_resolver,
     );
-    orco_backend_cranelift::build(&krate.root);
+    if !reporter.has_errors() {
+        orco_backend_cranelift::build(&krate.root);
+    } else {
+        std::process::exit(1);
+    }
 }

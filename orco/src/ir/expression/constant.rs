@@ -1,7 +1,7 @@
 use super::*;
 
 /// Constant value
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum Constant {
     /// Unsigned integer
     Integer {
@@ -10,7 +10,14 @@ pub enum Constant {
         /// Type of this literal
         r#type: Type,
     },
-    /// C-Style String, bytes have to end with '\0'
+    /// Floating point number
+    Float {
+        /// Value
+        value: f64,
+        /// Type of this literal
+        r#type: Type,
+    },
+    /// C-Style String, bytes should end with '\0'
     CString(Vec<u8>),
 }
 
@@ -19,6 +26,7 @@ impl Constant {
     pub fn get_type(&self) -> Type {
         match self {
             Self::Integer { r#type, .. } => r#type.clone(),
+            Self::Float { r#type, .. } => r#type.clone(),
             Self::CString(_) => Type::Pointer(Box::new(Type::Char)),
         }
     }
@@ -27,6 +35,9 @@ impl Constant {
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
         match self {
             Self::Integer { r#type, .. } => {
+                *r#type = type_inference.complete(r#type.clone());
+            }
+            Self::Float { r#type, .. } => {
                 *r#type = type_inference.complete(r#type.clone());
             }
             Self::CString(_) => (),
@@ -40,7 +51,6 @@ impl Constant {
         span: Span,
         type_inference: &mut TypeInference,
     ) -> Type {
-        #[allow(clippy::single_match)]
         match self {
             Self::Integer { r#type, value } => {
                 type_inference.finish(r#type, "constant", span.clone());
@@ -62,6 +72,9 @@ impl Constant {
                     );
                 }
             }
+            Self::Float { r#type, .. } => {
+                type_inference.finish(r#type, "constant", span.clone());
+            }
             _ => (),
         }
         self.get_type()
@@ -72,6 +85,13 @@ impl std::fmt::Display for Constant {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Integer { value, r#type } => {
+                write!(f, "{}", value)?;
+                if r#type != &Type::Wildcard {
+                    write!(f, "{}", r#type)?;
+                }
+                Ok(())
+            }
+            Self::Float { value, r#type } => {
                 write!(f, "{}", value)?;
                 if r#type != &Type::Wildcard {
                     write!(f, "{}", r#type)?;

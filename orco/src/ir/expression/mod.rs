@@ -116,7 +116,7 @@ impl Expression {
             Expression::Call(expr) => expr.infer_types(type_inference),
             Expression::Return(expr) => {
                 let r#type = expr.infer_types(type_inference);
-                type_inference.equate(&r#type, &type_inference.return_type);
+                type_inference.equate(&r#type, type_inference.return_type);
                 Type::Never
             }
             Expression::VariableDeclaration(declaration) => {
@@ -135,7 +135,7 @@ impl Expression {
 
     /// Finish types and check them
     pub fn finish_and_check_types(&mut self, type_inference: &mut TypeInference) -> Type {
-        let r#type = match self {
+        match self {
             Expression::Constant(constant) => constant
                 .inner
                 .finish_and_check_types(constant.span.clone(), type_inference),
@@ -196,8 +196,7 @@ impl Expression {
             }
             Expression::Assignment(expr) => expr.finish_and_check_types(type_inference),
             Expression::Error(_) => Type::Error,
-        };
-        r#type
+        }
     }
 
     /// Get the span of this expression

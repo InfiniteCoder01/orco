@@ -19,9 +19,13 @@ You can watch me do this live on [Twitch](https://www.twitch.tv/infinitecoder01)
 Roadmap for now:
 - [x] Symbols
 - [x] Paths
-- [ ] Floats
+- [x] Floats
 - [ ] Frontend-side diagnostics (and diagnostics refactor (and lints))
+- [ ] Typecasts
 - [ ] While loop
+- [ ] Pointers
+- [ ] Arrays
+- [ ] Structs
 - [ ] C Frontend (and a blog post on it hopefully)
 - [ ] Post-typechecking frontend-side checks
 - [ ] Operator Overloading & Traits
