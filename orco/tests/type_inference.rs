@@ -8,7 +8,7 @@ fn overflow() {
     {
         make_type_inference!(type_inference, errors);
         let mut big_unsigned = ir::expression::Constant::Integer {
-            value: 1 << 127 - 1,
+            value: (1 << 127) - 1,
             r#type: ir::Type::IntegerWildcard,
         };
         let r#type = big_unsigned.infer_types(&mut type_inference);
@@ -17,7 +17,7 @@ fn overflow() {
         check!(
             big_unsigned
                 == ir::expression::Constant::Integer {
-                    value: 1 << 127 - 1,
+                    value: (1 << 127) - 1,
                     r#type: ir::Type::Int(NonZeroU16::new(16).unwrap())
                 }
         );

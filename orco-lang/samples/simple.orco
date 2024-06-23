@@ -1,11 +1,6 @@
 extern fn puts(message: char*) -> i32;
-extern fn printf(format: char*, value: bool) -> i32;
 
 fn main() -> i32 {
-  if 2.0 < 2.5 {
-    puts(c"True");
-  } else {
-    puts(c"False");
-  }
+  puts(c"Hello, World!");
   return 0;
 }

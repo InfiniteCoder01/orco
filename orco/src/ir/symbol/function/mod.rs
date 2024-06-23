@@ -49,6 +49,7 @@ impl Function {
         body.infer_types(&mut type_inference);
 
         type_inference.pop_scope();
+        println!("{}", body);
 
         let return_type = body.finish_and_check_types(&mut type_inference);
         if !return_type.morphs(&self.signature.return_type) {

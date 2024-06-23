@@ -25,20 +25,23 @@ impl Block {
                 return Type::Never;
             }
         }
-        Type::Unit
+        self.tail_expression.as_ref().map_or_else(Type::unit, |expr| expr.get_type())
     }
 
     /// Infer types
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
         type_inference.push_scope();
-        let mut r#type = self
-            .tail_expression
-            .as_mut()
-            .map_or(Type::Unit, |expr| expr.infer_types(type_inference));
+        let mut r#type = Type::unit();
         for expression in &mut self.expressions {
             let expr_type = expression.infer_types(type_inference);
             if expr_type == Type::Never {
                 r#type = Type::Never;
+            }
+        }
+        if let Some(expression) = self.tail_expression.as_mut() {
+            let expr_type = expression.infer_types(type_inference);
+            if r#type != Type::Never {
+                r#type = expr_type;
             }
         }
         type_inference.pop_scope();

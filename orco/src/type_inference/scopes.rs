@@ -8,11 +8,13 @@ pub type Scope = HashMap<PathSegment, SymbolReference>;
 impl TypeInference<'_> {
     /// Start a new scope
     pub fn push_scope(&mut self) {
+        println!("Push");
         self.scopes.push(Scope::new());
     }
 
     /// End the current scope
     pub fn pop_scope(&mut self) {
+        println!("Pop");
         self.scopes.pop();
     }
 
@@ -26,10 +28,17 @@ impl TypeInference<'_> {
     /// Try to find a symbol in the local space, scope-aware
     pub fn get_symbol(&self, name: &PathSegment) -> Option<SymbolReference> {
         for scope in self.scopes.iter().rev() {
+            if name.as_ref() == "k" {
+                println!("New scope");
+                for (var, val) in scope {
+                    println!("Scope contains {}", var);
+                }
+            }
             if let Some(symbol) = scope.get(name) {
                 return Some(symbol.clone());
             }
         }
+        println!("Failed to resolve: {}", name);
         None
     }
 
