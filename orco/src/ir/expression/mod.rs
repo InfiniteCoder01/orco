@@ -3,6 +3,7 @@ use diagnostics::*;
 use ir::Type;
 use symbol_reference::SymbolReference;
 use type_inference::TypeInference;
+use derivative::Derivative;
 
 /// Constant value
 pub mod constant;
@@ -24,6 +25,10 @@ pub use block::Block;
 pub mod branching;
 pub use branching::IfExpression;
 
+/// Control flow
+pub mod control_flow;
+pub use control_flow::ReturnExpression;
+
 /// Call expression (function call)
 pub mod call;
 pub use call::CallExpression;
@@ -34,7 +39,7 @@ pub use variable_declaration::Variable;
 pub use variable_declaration::VariableDeclaration;
 
 /// An expression
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Expression {
     /// A constant value
     Constant(Spanned<Constant>),
@@ -48,19 +53,10 @@ pub enum Expression {
     Block(Spanned<Block>),
     /// If expression (and ternary operator)
     If(Spanned<IfExpression>),
-    // /// While loop
-    // While {
-    //     /// Condition
-    //     condition: Box<Expression>,
-    //     /// Body
-    //     body: Spanned<Block>,
-    //     /// Span
-    //     span: Span,
-    // },
     /// Function call
     Call(Spanned<CallExpression>),
     /// Return a value
-    Return(Spanned<Box<Expression>>),
+    Return(Spanned<ReturnExpression>),
     /// Declare a variable
     VariableDeclaration(Variable),
     /// Assignment
@@ -72,10 +68,7 @@ pub enum Expression {
 impl Expression {
     /// Is this expression a block expression (f.e. a block, if statement, a for loop, etc.)
     pub fn is_block(&self) -> bool {
-        matches!(
-            self,
-            Expression::Block(..) | Expression::If(..) // | Expression::While { .. }
-        )
+        matches!(self, Expression::Block(..) | Expression::If(..))
     }
 
     /// Get the type this expression evaluates to
@@ -87,9 +80,8 @@ impl Expression {
             Expression::UnaryExpression(expr) => expr.get_type(),
             Expression::Block(block) => block.get_type(),
             Expression::If(expr) => expr.get_type(),
-            // Expression::While { .. } => Type::unit(),
             Expression::Call(expr) => expr.get_type(),
-            Expression::Return(..) => Type::Never,
+            Expression::Return(expr) => expr.get_type(),
             Expression::VariableDeclaration(..) => Type::Unit,
             Expression::Assignment(..) => Type::Unit,
             Expression::Error(..) => Type::Error,
@@ -106,19 +98,8 @@ impl Expression {
             Expression::UnaryExpression(expr) => expr.infer_types(type_inference),
             Expression::Block(block) => block.infer_types(type_inference),
             Expression::If(expr) => expr.infer_types(type_inference),
-            // Expression::While {
-            //     condition, body, ..
-            // } => {
-            //     condition.infer_types(&Type::Bool, type_inference);
-            //     body.infer_types(type_inference);
-            //     Type::unit()
-            // }
             Expression::Call(expr) => expr.infer_types(type_inference),
-            Expression::Return(expr) => {
-                let r#type = expr.infer_types(type_inference);
-                type_inference.equate(&r#type, type_inference.return_type);
-                Type::Never
-            }
+            Expression::Return(expr) => expr.infer_types(type_inference),
             Expression::VariableDeclaration(declaration) => {
                 let r#type = declaration.infer_types(type_inference);
                 type_inference.current_scope_mut().insert(
@@ -146,51 +127,10 @@ impl Expression {
             Expression::UnaryExpression(expr) => expr.finish_and_check_types(type_inference),
             Expression::Block(block) => block.finish_and_check_types(type_inference),
             Expression::If(expr) => expr.finish_and_check_types(type_inference),
-            // Expression::While {
-            //     condition, body, ..
-            // } => {
-            //     let condition_type = condition.finish_and_check_types(type_inference);
-            //     if !condition_type.morphs(&Type::Bool) {
-            //         type_inference.reporter.report_type_error(
-            //             format!(
-            //                 "If condition should be of type 'bool', but it is of type '{}'",
-            //                 condition_type
-            //             ),
-            //             condition.span(),
-            //             vec![],
-            //         );
-            //     }
-            //     let body_type = body.finish_and_check_types(type_inference);
-            //     if !body_type.morphs(&Type::Unit) {
-            //         type_inference.reporter.report_type_error(
-            //             format!(
-            //                 "While body should be of type 'bool', but it is of type '{}'",
-            //                 body_type
-            //             ),
-            //             body.span.clone(),
-            //             vec![],
-            //         );
-            //     }
-            //     Type::unit()
-            // }
             Expression::Call(expr) => expr.finish_and_check_types(type_inference),
-            Expression::Return(expr) => {
-                let r#type = expr.finish_and_check_types(type_inference);
-                if !r#type.morphs(type_inference.return_type) {
-                    type_inference.reporter.report_type_error(
-                        format!(
-                            "Return type mismatch: expected '{}', got '{}'",
-                            type_inference.return_type.inner, r#type
-                        ),
-                        expr.span(),
-                        vec![(
-                            "Expected because of this",
-                            type_inference.return_type.span.clone(),
-                        )],
-                    );
-                }
-                Type::Never
-            }
+            Expression::Return(expr) => expr
+                .inner
+                .finish_and_check_types(expr.span.clone(), type_inference),
             Expression::VariableDeclaration(declaration) => {
                 declaration.finish_and_check_types(type_inference)
             }
@@ -227,7 +167,7 @@ impl std::fmt::Display for Expression {
             Expression::Block(block) => write!(f, "{}", block.inner),
             Expression::If(expr) => write!(f, "{}", expr.inner),
             Expression::Call(expr) => write!(f, "{}", expr.inner),
-            Expression::Return(expr) => write!(f, "return {}", expr.inner),
+            Expression::Return(expr) => write!(f, "{}", expr.inner),
             Expression::VariableDeclaration(declaration) => {
                 write!(f, "{}", declaration.inner)
             }

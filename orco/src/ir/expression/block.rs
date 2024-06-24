@@ -1,7 +1,7 @@
 use super::*;
 
 /// Block expression, contains multiple expressions (something along { expr1; expr2; })
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
 pub struct Block {
     /// Block content
     pub expressions: Vec<Expression>,

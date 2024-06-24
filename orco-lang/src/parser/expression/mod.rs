@@ -25,7 +25,10 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
     let start = parser.span().1.start;
     let expression = if parser.match_keyword("return") {
         let value = expect(parser);
-        Some(Expression::Return(parser.wrap_span(Box::new(value), start)))
+        Some(Expression::Return(parser.wrap_span(
+            ir::expression::ReturnExpression(Box::new(value)),
+            start,
+        )))
     } else if parser.match_keyword("let") {
         let mutable = {
             let span = parser.span();

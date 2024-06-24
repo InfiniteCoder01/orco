@@ -1,7 +1,7 @@
 use super::*;
 
 /// Binary expression
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct BinaryExpression {
     /// Left hand side
     pub lhs: Box<Expression>,
@@ -148,7 +148,7 @@ impl std::fmt::Display for BinaryOp {
 }
 
 /// Unary expression
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct UnaryExpression {
     /// Operator
     pub op: UnaryOp,
@@ -213,7 +213,7 @@ impl std::fmt::Display for UnaryOp {
 }
 
 /// Assignment expression
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct AssignmentExpression {
     /// Target
     pub target: Box<Expression>,

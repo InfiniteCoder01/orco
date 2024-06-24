@@ -1,7 +1,8 @@
 use super::*;
 
 /// If expression (and ternary operator)
-#[derive(Clone, Debug)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct IfExpression {
     /// Condition
     pub condition: Box<Expression>,
@@ -9,6 +10,9 @@ pub struct IfExpression {
     pub then_branch: Box<Expression>,
     /// Else branch
     pub else_branch: Option<Box<Expression>>,
+    /// Metadata
+    #[derivative(Debug="ignore")]
+    pub metadata: Box<dyn IfMetadata>,
 }
 
 impl IfExpression {
@@ -17,11 +21,13 @@ impl IfExpression {
         condition: Box<Expression>,
         then_branch: Box<Expression>,
         else_branch: Option<Box<Expression>>,
+        metadata: impl IfMetadata + 'static,
     ) -> Self {
         Self {
             condition,
             then_branch,
             else_branch,
+            metadata: Box::new(metadata),
         }
     }
 
@@ -84,6 +90,23 @@ impl IfExpression {
     }
 }
 
+#[derive(Error, Debug, Diagnostic)]
+#[error("oops!")]
+#[diagnostic(
+    code(oops::my::bad),
+    url(docsrs),
+    help("try doing it better next time?")
+)]
+struct MyBad {
+    // The Source that we're gonna be printing snippets out of.
+    // This can be a String if you don't have or care about file names.
+    #[source_code]
+    src: NamedSource<String>,
+    // Snippets and highlights can be included in the diagnostic!
+    #[label("This bit here")]
+    bad_bit: SourceSpan,
+}
+
 impl std::fmt::Display for IfExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "if {} {}", self.condition, self.then_branch)?;
@@ -93,3 +116,9 @@ impl std::fmt::Display for IfExpression {
         Ok(())
     }
 }
+
+pub trait IfMetadata {
+
+}
+
+impl IfMetadata for () {}

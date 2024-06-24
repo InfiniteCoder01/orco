@@ -70,7 +70,7 @@ impl crate::Object<'_> {
             // }
             Expression::Call(expr) => self.build_call_expression(builder, expr),
             Expression::Return(value) => {
-                let ret = self.build_expression(builder, value);
+                let ret = self.build_expression(builder, &value.0);
                 builder.ins().return_(&ret.into_iter().collect::<Vec<_>>());
                 None
             }
