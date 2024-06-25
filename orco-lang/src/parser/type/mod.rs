@@ -16,6 +16,7 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Spanned<ir::T
                 "bool" => ir::Type::Bool,
                 "char" => ir::Type::Char,
                 "fn" => function_pointer(parser),
+                "_" => ir::Type::Wildcard,
                 _ => ir::Type::Custom(r#type),
             }
         }

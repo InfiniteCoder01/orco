@@ -22,3 +22,4 @@ orco = { path = "../orco", version = "0.0.1" }
 orco-lang = { path = "../orco-lang", version = "0.0.1" }
 orco-backend-cranelift = { path = "../backends/orco-backend-cranelift", version = "0.0.1" }
 env_logger = "0.11.3"
+miette = { version = "7.2.0", features = ["fancy"] }

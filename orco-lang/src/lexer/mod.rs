@@ -341,7 +341,7 @@ impl<'a, R: ErrorReporter + ?Sized> Parser<'a, R> {
 
     /// Get the span from the start to the end of the current token
     pub fn span_from(&mut self, start: usize) -> Span {
-        Span((**self.lexer.source()).clone(), start..self.span().1.start)
+        Span((**self.lexer.source()).clone(), start..self.lexer.span().end)
     }
 
     /// Wrap an object in [`orco::Spanned`], starting at start, ending at the current position

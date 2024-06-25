@@ -19,6 +19,8 @@ ariadne = { version = "0.4.0", features = ["auto-color"] }
 derivative = "2.2.0"
 indent = "0.1.1"
 log = "0.4.21"
+miette = "7.2.0"
+thiserror = "1.0.61"
 
 [dev-dependencies]
 assert2 = "0.3.14"

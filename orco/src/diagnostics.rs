@@ -1,5 +1,7 @@
 pub use crate::source::*;
 pub use ariadne::{ColorGenerator, Label, ReportKind};
+pub use miette::{Diagnostic, NamedSource, SourceSpan};
+pub use thiserror::Error;
 
 /// Diagnostic report (error, warning, etc.)
 pub type Report = ariadne::Report<'static, Span>;
@@ -17,6 +19,27 @@ impl ariadne::Span for Span {
 
     fn end(&self) -> usize {
         self.1.end
+    }
+}
+
+impl miette::SourceCode for Src {
+    fn read_span<'a>(
+        &'a self,
+        span: &SourceSpan,
+        context_lines_before: usize,
+        context_lines_after: usize,
+    ) -> Result<Box<dyn miette::SpanContents<'a> + 'a>, miette::MietteError> {
+        self.content().read_span(span, context_lines_before, context_lines_after)
+    }
+}
+
+impl Span {
+    pub fn named_source(&self) -> NamedSource<Src> {
+        NamedSource::new(self.0.path().to_string_lossy(), self.0.clone())
+    }
+
+    pub fn source_span(&self) -> SourceSpan {
+        self.1.clone().into()
     }
 }
 
@@ -47,6 +70,10 @@ pub trait ErrorReporter {
                     .with_color(colors.next())
             }));
         self.report(report.finish());
+    }
+
+    fn report_miette(&mut self, error: miette::Report) {
+        eprintln!("{:?}", error);
     }
 
     /// Check if there were any errors

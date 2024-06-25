@@ -74,14 +74,14 @@ impl IfExpression {
         if let Some(else_branch) = &mut self.else_branch {
             let else_type = else_branch.finish_and_check_types(type_inference);
             if !else_type.morphs(&then_type) {
-                type_inference.reporter.report_type_error(
-                    format!(
-                        "Else branch type mismatch: Expected '{}', got '{}'",
-                        then_type, else_type
-                    ),
-                    else_branch.span().clone(),
-                    vec![("Expected because of this", self.then_branch.span().clone())],
-                );
+                self.metadata.else_branch_type_mismatch(type_inference, ElseBranchTypeMismatch{
+                    then_type: then_type.clone(),
+                    else_type,
+
+                    src: else_branch.span().named_source(),
+                    else_span: else_branch.span().source_span(),
+                    then_span: self.then_branch.span().source_span(),
+                });
             }
             then_type
         } else {
@@ -91,20 +91,21 @@ impl IfExpression {
 }
 
 #[derive(Error, Debug, Diagnostic)]
-#[error("oops!")]
+#[error("Else branch type mismatch: Expected '{then_type}', got '{else_type}'")]
 #[diagnostic(
-    code(oops::my::bad),
-    url(docsrs),
-    help("try doing it better next time?")
+    code(typechecking::else_branch_type_mismatch),
 )]
-struct MyBad {
-    // The Source that we're gonna be printing snippets out of.
-    // This can be a String if you don't have or care about file names.
+/// Else branch type mismatch
+pub struct ElseBranchTypeMismatch {
+    then_type: Type,
+    else_type: Type,
+
     #[source_code]
-    src: NamedSource<String>,
-    // Snippets and highlights can be included in the diagnostic!
-    #[label("This bit here")]
-    bad_bit: SourceSpan,
+    src: NamedSource<Src>,
+    #[label("Here")]
+    else_span: SourceSpan,
+    #[label("Expected because of this")]
+    then_span: SourceSpan,
 }
 
 impl std::fmt::Display for IfExpression {
@@ -117,8 +118,12 @@ impl std::fmt::Display for IfExpression {
     }
 }
 
+/// Frontend metadata for if expression
 pub trait IfMetadata {
-
+    /// Callback of else branch type mismatch
+    fn else_branch_type_mismatch(&self, type_inference: &mut TypeInference, error: ElseBranchTypeMismatch) {
+        type_inference.reporter.report_miette(error.into());
+    }
 }
 
 impl IfMetadata for () {}
