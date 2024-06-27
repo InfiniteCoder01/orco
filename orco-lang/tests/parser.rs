@@ -58,7 +58,8 @@ fn function() {
             expr.inner
                 == ir::expression::Constant::Integer {
                     value: 42,
-                    r#type: ir::Type::IntegerWildcard
+                    r#type: ir::Type::IntegerWildcard,
+                    metadata: Box::new(()),
                 }
         );
     });

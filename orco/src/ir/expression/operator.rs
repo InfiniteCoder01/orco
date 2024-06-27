@@ -1,7 +1,7 @@
 use super::*;
 
 /// Binary expression
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct BinaryExpression {
     /// Left hand side
     pub lhs: Box<Expression>,
@@ -77,7 +77,7 @@ impl BinaryExpression {
                     .with_message("Right hand side")
                     .with_color(colors.next()),
             );
-            type_inference.reporter.report(report.finish());
+            type_inference.reporter.report_ariadne(report.finish());
             todo!(
                 "Type mismatch for binary operator error: {:?} and {:?}",
                 lhs_type,
@@ -148,7 +148,7 @@ impl std::fmt::Display for BinaryOp {
 }
 
 /// Unary expression
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct UnaryExpression {
     /// Operator
     pub op: UnaryOp,
@@ -213,7 +213,7 @@ impl std::fmt::Display for UnaryOp {
 }
 
 /// Assignment expression
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct AssignmentExpression {
     /// Target
     pub target: Box<Expression>,

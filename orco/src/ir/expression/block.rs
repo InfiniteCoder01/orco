@@ -1,7 +1,7 @@
 use super::*;
 
 /// Block expression, contains multiple expressions (something along { expr1; expr2; })
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Block {
     /// Block content
     pub expressions: Vec<Expression>,
@@ -25,7 +25,9 @@ impl Block {
                 return Type::Never;
             }
         }
-        self.tail_expression.as_ref().map_or_else(Type::unit, |expr| expr.get_type())
+        self.tail_expression
+            .as_ref()
+            .map_or_else(Type::unit, |expr| expr.get_type())
     }
 
     /// Infer types
@@ -83,7 +85,7 @@ impl Block {
                         .with_color(colors.next()),
                 )
                 .finish();
-            type_inference.reporter.report(report);
+            type_inference.reporter.report_ariadne(report);
         }
 
         r#type

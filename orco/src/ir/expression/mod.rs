@@ -3,8 +3,6 @@ use diagnostics::*;
 use ir::Type;
 use symbol_reference::SymbolReference;
 use type_inference::TypeInference;
-use derivative::Derivative;
-
 /// Constant value
 pub mod constant;
 pub use constant::Constant;
@@ -39,7 +37,7 @@ pub use variable_declaration::Variable;
 pub use variable_declaration::VariableDeclaration;
 
 /// An expression
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Expression {
     /// A constant value
     Constant(Spanned<Constant>),

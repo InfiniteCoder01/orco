@@ -14,7 +14,7 @@ impl crate::Object<'_> {
         use orco::ir::expression::Constant;
         use orco::ir::Type;
         match value {
-            Constant::Integer { value, r#type } => {
+            Constant::Integer { value, r#type, ..} => {
                 if let Type::Int(size) = r#type {
                     if size.get() > 8 {
                         todo!("Cranelift integer constants bigger than 64 bits");
@@ -30,12 +30,12 @@ impl crate::Object<'_> {
                         .iconst(self.convert_type(r#type), *value as i64),
                 )
             }
-            Constant::Float { value, r#type } => match r#type {
+            Constant::Float { value, r#type, .. } => match r#type {
                 Type::Float(size) if size.get() == 4 => Some(builder.ins().f32const(*value as f32)),
                 Type::Float(size) if size.get() == 8 => Some(builder.ins().f64const(*value)),
                 _ => panic!("Invalid or unsupported float constant type {}! Did you run type checking/inference?", r#type),
             },
-            Constant::CString(bytes) => {
+            Constant::CString(bytes, ..) => {
                 Some(self.add_constant_to_pool(builder, bytes))
             }
         }

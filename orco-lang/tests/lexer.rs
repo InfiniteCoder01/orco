@@ -33,6 +33,7 @@ fn number() {
                 == Some(Token::Constant(orco::ir::expression::Constant::Integer {
                     value: 42,
                     r#type: orco::ir::Type::IntegerWildcard,
+                    metadata: Box::new(()),
                 }))
         );
         check!(parser.reporter.len() == 0);
@@ -46,7 +47,8 @@ fn number() {
             parser.next()
                 == Some(Token::Constant(orco::ir::expression::Constant::Integer {
                     value: 123_456_789,
-                    r#type: orco::ir::Type::IntegerWildcard
+                    r#type: orco::ir::Type::IntegerWildcard,
+                    metadata: Box::new(()),
                 }))
         );
         check!(parser.reporter.len() == 0);
@@ -56,7 +58,8 @@ fn number() {
             parser.next()
                 == Some(Token::Constant(orco::ir::expression::Constant::Integer {
                     value: 0b00101010,
-                    r#type: orco::ir::Type::IntegerWildcard
+                    r#type: orco::ir::Type::IntegerWildcard,
+                    metadata: Box::new(()),
                 }))
         );
         check!(parser.reporter.len() == 0);
@@ -66,7 +69,8 @@ fn number() {
             parser.next()
                 == Some(Token::Constant(orco::ir::expression::Constant::Integer {
                     value: 0o1741,
-                    r#type: orco::ir::Type::IntegerWildcard
+                    r#type: orco::ir::Type::IntegerWildcard,
+                    metadata: Box::new(()),
                 }))
         );
         check!(parser.reporter.len() == 0);

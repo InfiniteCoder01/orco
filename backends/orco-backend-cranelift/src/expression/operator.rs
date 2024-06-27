@@ -11,7 +11,10 @@ impl crate::Object<'_> {
         let rhs = self.build_expression(builder, &expr.rhs)?;
         let r#type = expr.lhs.get_type() | expr.rhs.get_type();
         use orco::ir::expression::BinaryOp;
-        if matches!(r#type, orco::ir::Type::Float(_) | orco::ir::Type::FloatWildcard) {
+        if matches!(
+            r#type,
+            orco::ir::Type::Float(_) | orco::ir::Type::FloatWildcard
+        ) {
             use cranelift_codegen::ir::condcodes::FloatCC;
             match expr.op {
                 BinaryOp::Add => Some(builder.ins().fadd(lhs, rhs)),

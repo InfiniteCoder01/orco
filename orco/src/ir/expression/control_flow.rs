@@ -1,7 +1,7 @@
 use super::*;
 
 /// Return expression
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ReturnExpression(pub Box<Expression>);
 
 impl ReturnExpression {

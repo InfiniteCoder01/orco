@@ -1,7 +1,7 @@
 use super::*;
 
 /// Call expression (function call)
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct CallExpression {
     /// Expression to call ([SymbolReference] to call a function)
     pub expression: Box<Expression>,

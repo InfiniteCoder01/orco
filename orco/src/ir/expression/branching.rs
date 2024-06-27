@@ -1,7 +1,7 @@
 use super::*;
 
 /// If expression (and ternary operator)
-#[derive(Derivative)]
+#[derive(Derivative, Clone)]
 #[derivative(Debug)]
 pub struct IfExpression {
     /// Condition
@@ -11,7 +11,7 @@ pub struct IfExpression {
     /// Else branch
     pub else_branch: Option<Box<Expression>>,
     /// Metadata
-    #[derivative(Debug="ignore")]
+    #[derivative(Debug = "ignore")]
     pub metadata: Box<dyn IfMetadata>,
 }
 
@@ -61,27 +61,31 @@ impl IfExpression {
     pub fn finish_and_check_types(&mut self, type_inference: &mut TypeInference) -> Type {
         let condition_type = self.condition.finish_and_check_types(type_inference);
         if !condition_type.morphs(&Type::Bool) {
-            type_inference.reporter.report_type_error(
-                format!(
-                    "If condition should be of type 'bool', but it is of type '{}'",
-                    condition_type
-                ),
-                self.condition.span(),
-                vec![],
+            self.metadata.if_condition_not_bool(
+                type_inference,
+                IfConditionNotBool {
+                    condition_type,
+
+                    src: self.condition.span().named_source(),
+                    condition_span: self.condition.span().source_span(),
+                },
             );
         }
         let then_type = self.then_branch.finish_and_check_types(type_inference);
         if let Some(else_branch) = &mut self.else_branch {
             let else_type = else_branch.finish_and_check_types(type_inference);
             if !else_type.morphs(&then_type) {
-                self.metadata.else_branch_type_mismatch(type_inference, ElseBranchTypeMismatch{
-                    then_type: then_type.clone(),
-                    else_type,
+                self.metadata.else_branch_type_mismatch(
+                    type_inference,
+                    ElseBranchTypeMismatch {
+                        then_type: then_type.clone(),
+                        else_type,
 
-                    src: else_branch.span().named_source(),
-                    else_span: else_branch.span().source_span(),
-                    then_span: self.then_branch.span().source_span(),
-                });
+                        src: else_branch.span().named_source(),
+                        else_span: else_branch.span().source_span(),
+                        then_span: self.then_branch.span().source_span(),
+                    },
+                );
             }
             then_type
         } else {
@@ -91,21 +95,32 @@ impl IfExpression {
 }
 
 #[derive(Error, Debug, Diagnostic)]
-#[error("Else branch type mismatch: Expected '{then_type}', got '{else_type}'")]
-#[diagnostic(
-    code(typechecking::else_branch_type_mismatch),
-)]
-/// Else branch type mismatch
-pub struct ElseBranchTypeMismatch {
-    then_type: Type,
-    else_type: Type,
+#[error("If condition should be of type 'bool', but it is of type '{condition_type}'")]
+#[diagnostic(code(typechecking::if_else::condition_not_bool))]
+/// If condition is not bool
+pub struct IfConditionNotBool {
+    pub condition_type: Type,
 
     #[source_code]
-    src: NamedSource<Src>,
+    pub src: NamedSource<Src>,
     #[label("Here")]
-    else_span: SourceSpan,
+    pub condition_span: SourceSpan,
+}
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("Else branch type mismatch: Expected '{then_type}', got '{else_type}'")]
+#[diagnostic(code(typechecking::if_else::else_branch_type_mismatch))]
+/// Else branch type mismatch
+pub struct ElseBranchTypeMismatch {
+    pub then_type: Type,
+    pub else_type: Type,
+
+    #[source_code]
+    pub src: NamedSource<Src>,
+    #[label("Here")]
+    pub else_span: SourceSpan,
     #[label("Expected because of this")]
-    then_span: SourceSpan,
+    pub then_span: SourceSpan,
 }
 
 impl std::fmt::Display for IfExpression {
@@ -119,11 +134,22 @@ impl std::fmt::Display for IfExpression {
 }
 
 /// Frontend metadata for if expression
-pub trait IfMetadata {
+pub trait IfMetadata: Downcast + DynClone + Send {
+    /// Callback of if condition not bool error
+    fn if_condition_not_bool(&self, type_inference: &mut TypeInference, error: IfConditionNotBool) {
+        type_inference.reporter.report(error.into());
+    }
+
     /// Callback of else branch type mismatch
-    fn else_branch_type_mismatch(&self, type_inference: &mut TypeInference, error: ElseBranchTypeMismatch) {
-        type_inference.reporter.report_miette(error.into());
+    fn else_branch_type_mismatch(
+        &self,
+        type_inference: &mut TypeInference,
+        error: ElseBranchTypeMismatch,
+    ) {
+        type_inference.reporter.report(error.into());
     }
 }
 
+impl_downcast!(IfMetadata);
+clone_trait_object!(IfMetadata);
 impl IfMetadata for () {}
