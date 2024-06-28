@@ -76,3 +76,50 @@ impl std::fmt::Display for Module {
         Ok(())
     }
 }
+
+#[macro_export]
+/// Create a new metadata trait
+macro_rules! declare_metadata {
+    (
+        $(
+            $(#[$meta:meta])*
+            trait $trait_name:ident {
+                $(
+                    $(#[$fn_meta:meta])*
+                    fn $fn_name:ident ($($args:tt)*) $(-> $ret:ty)? $fn_body:block
+                )*
+
+                $(
+                    Errors:
+                    $(
+                        $(#[$err_meta:meta])*
+                        $error_handler_name:ident ($error_name:ident)
+                    )*
+                )?
+            }
+        )*
+    ) => {
+        $(
+            $(#[$meta])*
+            pub trait $trait_name: Downcast + DynClone + Send {
+                $(
+                    $(#[$fn_meta])*
+                    fn $fn_name ($($args)*) $(-> $ret) ?$fn_body
+                )*
+
+                $(
+                    $(
+                        $(#[$err_meta])*
+                        fn $error_handler_name (&self, type_inference: &mut TypeInference, error: $error_name) {
+                            type_inference.reporter.report(error.into());
+                        }
+                    )*
+                )?
+            }
+
+            impl_downcast!($trait_name);
+            clone_trait_object!($trait_name);
+            impl $trait_name for () {}
+        )*
+    };
+}

@@ -103,12 +103,16 @@ impl Constant {
 #[diagnostic(code(typechecking::constant::integer_literal_doesnt_fit))]
 /// Integer literal doesn't fit
 pub struct IntegerLiteralDoesntFit {
+    /// Integer literal value
     pub value: u128,
+    /// Type inferred for the integer literal
     pub r#type: Type,
 
     #[source_code]
+    /// Source file where the error occurred
     pub src: NamedSource<Src>,
     #[label("Here")]
+    /// Span of the integer literal
     pub span: SourceSpan,
 }
 
@@ -145,41 +149,27 @@ impl std::fmt::Display for Constant {
     }
 }
 
-/// Frontend metadata for integer constant
-pub trait IntegerMetadata: Downcast + DynClone + Send {
-    /// Name provider for the constant
-    fn name(&self) -> std::borrow::Cow<'static, str> {
-        std::borrow::Cow::Borrowed("integer constant")
+declare_metadata! {
+    /// Frontend metadata for integer constant
+    trait IntegerMetadata {
+        /// Name provider for the constant
+        fn name(&self) -> std::borrow::Cow<'static, str> {
+            std::borrow::Cow::Borrowed("integer constant")
+        }
+
+        Errors:
+        /// Callback of integer literal doesn't fit error
+        integer_literal_doesnt_fit(IntegerLiteralDoesntFit)
     }
 
-    /// Callback of integer literal doesn't fit error
-    fn integer_literal_doesnt_fit(
-        &self,
-        type_inference: &mut TypeInference,
-        error: IntegerLiteralDoesntFit,
-    ) {
-        type_inference.reporter.report(error.into());
+    /// Frontend metadata for float constant
+    trait FloatMetadata {
+        /// Name provider for the constant
+        fn name(&self) -> std::borrow::Cow<'static, str> {
+            std::borrow::Cow::Borrowed("float constant")
+        }
     }
+
+    /// Frontend metadata for C String
+    trait CStringMetadata {}
 }
-
-impl_downcast!(IntegerMetadata);
-clone_trait_object!(IntegerMetadata);
-impl IntegerMetadata for () {}
-
-/// Frontend metadata for float constant
-pub trait FloatMetadata: Downcast + DynClone + Send {
-    /// Name provider for the constant
-    fn name(&self) -> std::borrow::Cow<'static, str> {
-        std::borrow::Cow::Borrowed("float constant")
-    }
-}
-
-impl_downcast!(FloatMetadata);
-clone_trait_object!(FloatMetadata);
-impl FloatMetadata for () {}
-
-/// Frontend metadata for C String
-pub trait CStringMetadata: Downcast + DynClone + Send {}
-impl_downcast!(CStringMetadata);
-clone_trait_object!(CStringMetadata);
-impl CStringMetadata for () {}

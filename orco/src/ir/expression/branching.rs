@@ -99,11 +99,14 @@ impl IfExpression {
 #[diagnostic(code(typechecking::if_else::condition_not_bool))]
 /// If condition is not bool
 pub struct IfConditionNotBool {
+    /// Type of the condition
     pub condition_type: Type,
 
     #[source_code]
+    /// File where the error occurred
     pub src: NamedSource<Src>,
     #[label("Here")]
+    /// Span of the condition
     pub condition_span: SourceSpan,
 }
 
@@ -112,14 +115,19 @@ pub struct IfConditionNotBool {
 #[diagnostic(code(typechecking::if_else::else_branch_type_mismatch))]
 /// Else branch type mismatch
 pub struct ElseBranchTypeMismatch {
+    /// Type of then branch
     pub then_type: Type,
+    /// Type of else branch
     pub else_type: Type,
 
     #[source_code]
+    /// File where the error occurred
     pub src: NamedSource<Src>,
     #[label("Here")]
+    /// Span of else branch
     pub else_span: SourceSpan,
     #[label("Expected because of this")]
+    /// Span of then branch
     pub then_span: SourceSpan,
 }
 
@@ -133,23 +141,13 @@ impl std::fmt::Display for IfExpression {
     }
 }
 
-/// Frontend metadata for if expression
-pub trait IfMetadata: Downcast + DynClone + Send {
-    /// Callback of if condition not bool error
-    fn if_condition_not_bool(&self, type_inference: &mut TypeInference, error: IfConditionNotBool) {
-        type_inference.reporter.report(error.into());
-    }
-
-    /// Callback of else branch type mismatch
-    fn else_branch_type_mismatch(
-        &self,
-        type_inference: &mut TypeInference,
-        error: ElseBranchTypeMismatch,
-    ) {
-        type_inference.reporter.report(error.into());
+declare_metadata! {
+    /// Frontend metadata for if expression
+    trait IfMetadata {
+        Errors:
+        /// Callback of if condition not bool error
+        if_condition_not_bool(IfConditionNotBool)
+        /// Callback of else branch type mismatch
+        else_branch_type_mismatch(ElseBranchTypeMismatch)
     }
 }
-
-impl_downcast!(IfMetadata);
-clone_trait_object!(IfMetadata);
-impl IfMetadata for () {}

@@ -7,7 +7,6 @@ pub struct VariableDeclaration {
     /// Variable name
     pub name: PathSegment,
     /// Variable ID, just a counting up number assigned automatically, when calling
-    /// [`crate::symbol_mapper::VariableMapper::declare_variable`]
     /// Useful for some backends
     pub id: Mutex<VariableId>,
     /// Is variable mutable?
