@@ -33,7 +33,6 @@ fn main() {
         &mut reporter,
         &krate.root,
         &orco::Path::new(),
-        &orco_lang::symbol_resolver,
     );
     if !reporter.has_errors() {
         orco_backend_cranelift::build(&krate.root);

@@ -41,7 +41,7 @@ impl SymbolReference {
     ) -> ir::Type {
         match self {
             SymbolReference::Undeclared(name) => {
-                if let Some(symbol) = type_inference.resolve_symbol(name) {
+                if let Some(symbol) = metadata.resolve_symbol(type_inference, name) {
                     *self = symbol;
                     self.infer_types(type_inference, metadata)
                 } else {
@@ -120,6 +120,18 @@ use dyn_clone::{clone_trait_object, DynClone};
 declare_metadata! {
     /// Frontend metadata for symbols
     trait SymbolMetadata {
+        /// Symbol resolver (resolves variables, functions, etc.)
+        fn resolve_symbol(&self, type_inference: &mut TypeInference, path: &Path) -> Option<SymbolReference> {
+            let start = path.0.first().expect("Trying to resolve an empty path!");
+            if let Some(symbol) = type_inference.get_symbol(start) {
+                return Some(symbol);
+            }
+            if let Some(symbol) = type_inference.current_module.symbol_map.get(start) {
+                return Some(symbol.first().unwrap().clone());
+            }
+            None
+        }
+        
         Errors:
         /// Callback of symbol not found error
         symbol_not_found(SymbolNotFound)

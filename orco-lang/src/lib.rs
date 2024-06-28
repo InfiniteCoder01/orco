@@ -27,18 +27,3 @@ impl Crate {
         }
     }
 }
-
-/// Symbol resolver for OrCo IR language
-pub fn symbol_resolver(
-    type_inference: &mut orco::TypeInference,
-    path: &orco::Path,
-) -> Option<orco::SymbolReference> {
-    let start = path.0.first().expect("Trying to resolve an empty path!");
-    if let Some(symbol) = type_inference.get_symbol(start) {
-        return Some(symbol);
-    }
-    if let Some(symbol) = type_inference.current_module.symbol_map.get(start) {
-        return Some(symbol.first().unwrap().clone());
-    }
-    None
-}

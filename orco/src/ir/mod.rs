@@ -52,7 +52,6 @@ impl Module {
         reporter: &mut dyn crate::diagnostics::ErrorReporter,
         root_module: &Module,
         current_path: &Path,
-        symbol_resolver: &dyn Fn(&mut TypeInference, &Path) -> Option<SymbolReference>,
     ) {
         for symbol in &self.symbols {
             if let Symbol::Function(function) = symbol {
@@ -61,7 +60,6 @@ impl Module {
                     root_module,
                     self,
                     current_path,
-                    symbol_resolver,
                 );
             }
         }
@@ -104,7 +102,7 @@ macro_rules! declare_metadata {
             pub trait $trait_name: Downcast + DynClone + Send {
                 $(
                     $(#[$fn_meta])*
-                    fn $fn_name ($($args)*) $(-> $ret) ?$fn_body
+                    fn $fn_name ($($args)*) $(-> $ret)? $fn_body
                 )*
 
                 $(

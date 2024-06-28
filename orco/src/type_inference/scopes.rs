@@ -33,11 +33,6 @@ impl TypeInference<'_> {
         None
     }
 
-    /// Try to resolve a symbol using the provided resolver
-    pub fn resolve_symbol(&mut self, name: &Path) -> Option<SymbolReference> {
-        (self.symbol_resolver)(self, name)
-    }
-
     /// Get a new variable id (just a counter)
     pub fn new_variable_id(&mut self) -> ir::expression::variable_declaration::VariableId {
         let id = self.next_variable_id;
