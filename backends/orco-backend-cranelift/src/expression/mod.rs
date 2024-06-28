@@ -27,7 +27,7 @@ impl crate::Object<'_> {
         use orco::ir::Expression;
         match expr {
             Expression::Constant(value) => self.build_constant(builder, value),
-            Expression::Symbol(symbol) => match &symbol.inner {
+            Expression::Symbol(symbol, ..) => match &symbol.inner {
                 orco::SymbolReference::Variable(variable) => {
                     Some(builder.use_var(Variable::new(*variable.id.lock().unwrap() as _)))
                 }

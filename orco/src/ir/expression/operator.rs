@@ -240,7 +240,7 @@ impl AssignmentExpression {
         let value_type = self.value.finish_and_check_types(type_inference);
         let target_type = self.target.finish_and_check_types(type_inference);
         let can_assign = match self.target.as_ref() {
-            Expression::Symbol(symbol) => {
+            Expression::Symbol(symbol, ..) => {
                 if let SymbolReference::Variable(variable) = &symbol.inner {
                     if !variable.mutable.inner {
                         type_inference.reporter.report_type_error(

@@ -1,4 +1,5 @@
 use super::*;
+use diagnostics::*;
 use ir::expression::Variable;
 use std::sync::Arc;
 
@@ -33,12 +34,16 @@ impl SymbolReference {
     }
 
     /// Infer types for this symbol
-    pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> ir::Type {
+    pub fn infer_types(
+        &mut self,
+        type_inference: &mut TypeInference,
+        metadata: &mut dyn SymbolMetadata,
+    ) -> ir::Type {
         match self {
             SymbolReference::Undeclared(name) => {
                 if let Some(symbol) = type_inference.resolve_symbol(name) {
                     *self = symbol;
-                    self.infer_types(type_inference)
+                    self.infer_types(type_inference, metadata)
                 } else {
                     ir::Type::Error
                 }
@@ -54,13 +59,17 @@ impl SymbolReference {
         &self,
         span: Span,
         type_inference: &mut TypeInference,
+        metadata: &mut dyn SymbolMetadata,
     ) -> ir::Type {
         match self {
             SymbolReference::Undeclared(path) => {
-                type_inference.reporter.report_type_error(
-                    format!("Symbol '{}' was not declared in this scope", path),
-                    span,
-                    vec![],
+                metadata.symbol_not_found(
+                    type_inference,
+                    SymbolNotFound {
+                        path: path.clone(),
+                        src: span.named_source(),
+                        span: span.source_span(),
+                    },
                 );
                 ir::Type::Error
             }
@@ -69,6 +78,22 @@ impl SymbolReference {
             SymbolReference::ExternFunction(function) => function.get_type(),
         }
     }
+}
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("Symbol '{path}' was not declared in this scope'")]
+#[diagnostic(code(symbol::symbol_not_found))]
+/// Symbol not found
+pub struct SymbolNotFound {
+    /// Path of the symbol
+    pub path: Path,
+
+    #[source_code]
+    /// File where the error occurred
+    pub src: NamedSource<Src>,
+    #[label("Here")]
+    /// Span of the symbol
+    pub span: SourceSpan,
 }
 
 impl std::fmt::Display for SymbolReference {
@@ -87,5 +112,16 @@ impl std::fmt::Display for SymbolReference {
             Self::Function(function) => write!(f, "{}", function.signature.name),
             Self::ExternFunction(function) => write!(f, "{}", function.name),
         }
+    }
+}
+
+use downcast_rs::{impl_downcast, Downcast};
+use dyn_clone::{clone_trait_object, DynClone};
+declare_metadata! {
+    /// Frontend metadata for symbols
+    trait SymbolMetadata {
+        Errors:
+        /// Callback of symbol not found error
+        symbol_not_found(SymbolNotFound)
     }
 }

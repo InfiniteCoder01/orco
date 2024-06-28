@@ -93,7 +93,7 @@ impl crate::Object<'_> {
         expr: &orco::ir::expression::AssignmentExpression,
     ) -> Option<Value> {
         let value = self.build_expression(builder, &expr.value)?;
-        if let orco::ir::Expression::Symbol(symbol) = expr.target.as_ref() {
+        if let orco::ir::Expression::Symbol(symbol, ..) = expr.target.as_ref() {
             if let orco::SymbolReference::Variable(variable) = &symbol.inner {
                 let variable = Variable::new(*variable.id.lock().unwrap() as _);
                 builder.def_var(variable, value);
