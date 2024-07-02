@@ -144,7 +144,7 @@ impl std::fmt::Display for IfExpression {
 declare_metadata! {
     /// Frontend metadata for if expression
     trait IfMetadata {
-        Errors:
+        Diagnostics:
         /// Callback of if condition not bool error
         if_condition_not_bool(IfConditionNotBool)
         /// Callback of else branch type mismatch

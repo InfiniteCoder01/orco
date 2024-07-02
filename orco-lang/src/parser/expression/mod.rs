@@ -62,7 +62,7 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
             let target = Box::new(expression);
             let value = Box::new(expect(parser));
             Some(Expression::Assignment(parser.wrap_span(
-                ir::expression::AssignmentExpression::new(target, value),
+                ir::expression::AssignmentExpression::new(target, value, Box::new(())),
                 start,
             )))
         } else {

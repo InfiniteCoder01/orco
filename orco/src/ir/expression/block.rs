@@ -1,20 +1,29 @@
 use super::*;
 
 /// Block expression, contains multiple expressions (something along { expr1; expr2; })
-#[derive(Clone, Debug, Default)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug, Default)]
 pub struct Block {
     /// Block content
     pub expressions: Vec<Expression>,
     /// What this block evaluates to (basically tail expression)
     pub tail_expression: Option<Box<Expression>>,
+    /// Metadata
+    #[derivative(Debug = "ignore", Default(value = "Box::new(())"))]
+    pub metadata: Box<dyn BlockMetadata>,
 }
 
 impl Block {
     /// Create a new block
-    pub fn new(expressions: Vec<Expression>, evaluates_to: Option<Box<Expression>>) -> Self {
+    pub fn new(
+        expressions: Vec<Expression>,
+        tail_expression: Option<Box<Expression>>,
+        metadata: Box<dyn BlockMetadata>,
+    ) -> Self {
         Self {
             expressions,
-            tail_expression: evaluates_to,
+            tail_expression,
+            metadata,
         }
     }
 
@@ -76,20 +85,30 @@ impl Block {
         }
 
         if let Some(span) = unreachable_span {
-            let mut colors = ColorGenerator::new();
-            let report = Report::build(ReportKind::Warning, span.0.clone(), span.1.start)
-                .with_message("This code is unreachable")
-                .with_label(
-                    Label::new(span)
-                        .with_message("This")
-                        .with_color(colors.next()),
-                )
-                .finish();
-            type_inference.reporter.report_ariadne(report);
+            self.metadata.unreachable_code(
+                type_inference,
+                UnreachableCode {
+                    src: span.named_source(),
+                    span: span.source_span(),
+                },
+            );
         }
 
         r#type
     }
+}
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("Unreachable code")]
+#[diagnostic(code(potential_bugs::unreachable_code), severity(Warning))]
+/// Unreachable code
+pub struct UnreachableCode {
+    #[source_code]
+    /// File where the error occurred
+    pub src: NamedSource<Src>,
+    #[label("This code is unreachable")]
+    /// Span of the unreachable code
+    pub span: SourceSpan,
 }
 
 impl std::fmt::Display for Block {
@@ -111,5 +130,14 @@ impl std::fmt::Display for Block {
         }
         write!(f, "}}")?;
         Ok(())
+    }
+}
+
+declare_metadata! {
+    /// Frontend metadata for block expression
+    trait BlockMetadata {
+        Diagnostics:
+        /// Callback of unreachable code warning
+        unreachable_code(UnreachableCode)
     }
 }

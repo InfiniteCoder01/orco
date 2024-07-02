@@ -157,7 +157,7 @@ declare_metadata! {
             std::borrow::Cow::Borrowed("integer constant")
         }
 
-        Errors:
+        Diagnostics:
         /// Callback of integer literal doesn't fit error
         integer_literal_doesnt_fit(IntegerLiteralDoesntFit)
     }

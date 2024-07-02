@@ -131,8 +131,8 @@ declare_metadata! {
             }
             None
         }
-        
-        Errors:
+
+        Diagnostics:
         /// Callback of symbol not found error
         symbol_not_found(SymbolNotFound)
     }

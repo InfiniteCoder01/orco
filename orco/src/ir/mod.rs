@@ -55,12 +55,7 @@ impl Module {
     ) {
         for symbol in &self.symbols {
             if let Symbol::Function(function) = symbol {
-                function.infer_and_check_types(
-                    reporter,
-                    root_module,
-                    self,
-                    current_path,
-                );
+                function.infer_and_check_types(reporter, root_module, self, current_path);
             }
         }
     }
@@ -88,10 +83,10 @@ macro_rules! declare_metadata {
                 )*
 
                 $(
-                    Errors:
+                    Diagnostics:
                     $(
-                        $(#[$err_meta:meta])*
-                        $error_handler_name:ident ($error_name:ident)
+                        $(#[$diagnostic_meta:meta])*
+                        $diagnostic_handler_name:ident ($diagnostic_name:ident)
                     )*
                 )?
             }
@@ -107,9 +102,9 @@ macro_rules! declare_metadata {
 
                 $(
                     $(
-                        $(#[$err_meta])*
-                        fn $error_handler_name (&self, type_inference: &mut TypeInference, error: $error_name) {
-                            type_inference.reporter.report(error.into());
+                        $(#[$diagnostic_meta])*
+                        fn $diagnostic_handler_name (&self, type_inference: &mut TypeInference, diagnostic: $diagnostic_name) {
+                            type_inference.reporter.report(diagnostic.into());
                         }
                     )*
                 )?
