@@ -94,7 +94,7 @@ macro_rules! declare_metadata {
     ) => {
         $(
             $(#[$meta])*
-            pub trait $trait_name: Downcast + DynClone + Send {
+            pub trait $trait_name: Downcast + DynClone + Send + Sync {
                 $(
                     $(#[$fn_meta])*
                     fn $fn_name ($($args)*) $(-> $ret)? $fn_body

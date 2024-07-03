@@ -24,10 +24,12 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Spanned<ir::T
         parser.expected_error("a type");
         ir::Type::Error
     };
+    let mut span = parser.span_from(start);
     while parser.match_operator(Operator::Star) {
         r#type = ir::Type::Pointer(Box::new(r#type));
+        span = parser.span_from(start);
     }
-    parser.wrap_span(r#type, start)
+    Spanned::new(r#type, span)
 }
 
 fn numeric_type_size(name: &str, prefix: &str) -> Option<NonZeroU16> {

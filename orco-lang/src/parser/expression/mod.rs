@@ -107,7 +107,10 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
         }
         parser.expect_operator(Operator::RParen);
         let args = parser.wrap_span(args, args_start);
-        Expression::Call(parser.wrap_span(ir::expression::CallExpression::new(expr, args), start))
+        Expression::Call(parser.wrap_span(
+            ir::expression::CallExpression::new(expr, args, Box::new(())),
+            start,
+        ))
     } else {
         expr
     })
