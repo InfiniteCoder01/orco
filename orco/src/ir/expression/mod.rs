@@ -136,7 +136,7 @@ impl Expression {
             Expression::Call(expr) => expr.finish_and_check_types(type_inference),
             Expression::Return(expr) => expr
                 .inner
-                .finish_and_check_types(expr.span.clone(), type_inference),
+                .finish_and_check_types(type_inference),
             Expression::VariableDeclaration(declaration) => {
                 declaration.finish_and_check_types(type_inference)
             }

@@ -26,7 +26,7 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
     let expression = if parser.match_keyword("return") {
         let value = expect(parser);
         Some(Expression::Return(parser.wrap_span(
-            ir::expression::ReturnExpression(Box::new(value)),
+            ir::expression::ReturnExpression(Box::new(value), Box::new(())),
             start,
         )))
     } else if parser.match_keyword("let") {
