@@ -158,6 +158,8 @@ pub struct UnaryExpression {
     pub op: UnaryOp,
     /// Expression
     pub expr: Box<Expression>,
+    /// Span of the expression
+    pub span: Span,
     /// Metadata
     #[derivative(Debug = "ignore")]
     pub metadata: Box<dyn UnaryMetadata>,
@@ -165,10 +167,16 @@ pub struct UnaryExpression {
 
 impl UnaryExpression {
     /// Create a new unary expression
-    pub fn new(op: UnaryOp, expr: Box<Expression>, metadata: impl UnaryMetadata + 'static) -> Self {
+    pub fn new(
+        op: UnaryOp,
+        expr: Box<Expression>,
+        span: Span,
+        metadata: impl UnaryMetadata + 'static,
+    ) -> Self {
         Self {
             op,
             expr,
+            span,
             metadata: Box::new(metadata),
         }
     }
@@ -231,6 +239,8 @@ pub struct AssignmentExpression {
     pub target: Box<Expression>,
     /// Value
     pub value: Box<Expression>,
+    /// Span of the expression
+    pub span: Span,
     /// Metadata
     #[derivative(Debug = "ignore")]
     pub metadata: Box<dyn AssignmentMetadata>,
@@ -241,11 +251,13 @@ impl AssignmentExpression {
     pub fn new(
         target: Box<Expression>,
         value: Box<Expression>,
+        span: Span,
         metadata: impl AssignmentMetadata + 'static,
     ) -> Self {
         Self {
             target,
             value,
+            span,
             metadata: Box::new(metadata),
         }
     }

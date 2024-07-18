@@ -49,7 +49,7 @@ pub enum Expression {
     /// Binary expression
     BinaryExpression(BinaryExpression),
     /// Unary expression
-    UnaryExpression(Spanned<UnaryExpression>),
+    UnaryExpression(UnaryExpression),
     /// Block expression, contains multiple expressions (something along { expr1; expr2; })
     Block(Spanned<Block>),
     /// If expression (and ternary operator)
@@ -61,7 +61,7 @@ pub enum Expression {
     /// Declare a variable
     VariableDeclaration(std::sync::Arc<VariableDeclaration>),
     /// Assignment
-    Assignment(Spanned<AssignmentExpression>),
+    Assignment(AssignmentExpression),
     /// Invalid expression
     Error(Span),
 }
@@ -168,13 +168,13 @@ impl std::fmt::Display for Expression {
             Expression::Constant(constant) => write!(f, "{}", constant.inner),
             Expression::Symbol(symbol, ..) => write!(f, "{}", symbol.inner),
             Expression::BinaryExpression(expr) => write!(f, "{}", expr),
-            Expression::UnaryExpression(expr) => write!(f, "{}", expr.inner),
+            Expression::UnaryExpression(expr) => write!(f, "{}", expr),
             Expression::Block(block) => write!(f, "{}", block.inner),
             Expression::If(expr) => write!(f, "{}", expr.inner),
             Expression::Call(expr) => write!(f, "{}", expr.inner),
             Expression::Return(expr) => write!(f, "{}", expr.inner),
             Expression::VariableDeclaration(declaration) => write!(f, "{}", declaration),
-            Expression::Assignment(expr) => write!(f, "{}", expr.inner),
+            Expression::Assignment(expr) => write!(f, "{}", expr),
             Expression::Error(_) => write!(f, "<ERROR>"),
         }
     }

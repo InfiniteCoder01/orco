@@ -65,10 +65,14 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
         if parser.match_operator(Operator::Equal) {
             let target = Box::new(expression);
             let value = Box::new(expect(parser));
-            Some(Expression::Assignment(parser.wrap_span(
-                ir::expression::AssignmentExpression::new(target, value, ()),
-                start,
-            )))
+            Some(Expression::Assignment(
+                ir::expression::AssignmentExpression::new(
+                    target,
+                    value,
+                    parser.span_from(start),
+                    (),
+                ),
+            ))
         } else {
             Some(expression)
         }
