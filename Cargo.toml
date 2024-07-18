@@ -4,5 +4,6 @@ members = [
     "orco",
     "orco-lang",
     "orco-cli",
+    "orco-visual",
     "backends/orco-backend-cranelift",
 ]

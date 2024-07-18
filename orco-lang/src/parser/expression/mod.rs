@@ -76,7 +76,11 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
 /// Parse a unit expression
 pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expression> {
     let start = parser.span().1.start;
-    let expr = if let Some(span) = parser.match_error() {
+    let expr = if parser.match_operator(Operator::LParen) {
+        let expr = expect(parser);
+        parser.expect_operator(Operator::RParen);
+        expr
+    } else if let Some(span) = parser.match_error() {
         Expression::Error(span)
     } else if let Some(constant) = parser.match_constant() {
         Expression::Constant(constant)
