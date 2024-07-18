@@ -23,6 +23,7 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::symbol::f
             parser.wrap_point(false),
             r#type,
             None,
+            (),
         );
         let declaration = parser.wrap_span(declaration, start);
         *declaration.id.lock().unwrap() = args.len() as _;

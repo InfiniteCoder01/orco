@@ -50,7 +50,7 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
         };
         Some(Expression::VariableDeclaration(std::sync::Arc::new(
             parser.wrap_span(
-                ir::expression::VariableDeclaration::new(name, mutable, r#type, value),
+                ir::expression::VariableDeclaration::new(name, mutable, r#type, value, ()),
                 start,
             ),
         )))

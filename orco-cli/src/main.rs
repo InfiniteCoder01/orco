@@ -1,25 +1,13 @@
 #![doc = include_str!("../README.md")]
-use clap::{Parser, Subcommand};
+use clap::Parser;
 use orco::diagnostics::ErrorReporter;
 use std::io::Read;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    #[command(subcommand)]
-    command: Command,
-
     /// Input file, use '-' for stdin
     path: std::path::PathBuf,
-}
-
-#[derive(Subcommand)]
-pub enum Command {
-    /// Build the file
-    Build,
-    #[cfg(feature = "visual")]
-    /// Render IR to a png
-    RenderIR,
 }
 
 fn main() {
@@ -39,33 +27,16 @@ fn main() {
     } else {
         orco_lang::Crate::parse(cli.path, &mut reporter)
     };
-    krate.root.register();
-    krate
-        .root
-        .infer_and_check_types(&mut reporter, &krate.root, &orco::Path::new());
 
-    match cli.command {
-        Command::Build => {
-            if !reporter.has_errors() {
-                orco_backend_cranelift::build(&krate.root);
-            } else {
-                std::process::exit(1);
-            }
-        }
-        Command::RenderIR => {
-            let mut flowchart = orco_visual::ir::Flowchart::default();
-            let orco::SymbolReference::Function(ref main) =
-                krate.root.symbol_map[&orco::Span::new("main")][0]
-            else {
-                panic!("'main' should be a function")
-            };
-            flowchart.render_expression(&main.body.lock().unwrap(), 0);
-            if let Err(err) = flowchart
-                .render()
-                .save(orco_visual::ril::ImageFormat::Png, "ir.png")
-            {
-                log::error!("Failed to save an image: {}", err);
-            }
-        }
+    krate.root.register();
+    krate.root.infer_and_check_types(
+        &mut reporter,
+        &krate.root,
+        &orco::Path::new(),
+    );
+    if !reporter.has_errors() {
+        orco_backend_cranelift::build(&krate.root);
+    } else {
+        std::process::exit(1);
     }
 }

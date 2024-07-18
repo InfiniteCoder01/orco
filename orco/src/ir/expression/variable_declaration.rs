@@ -2,7 +2,8 @@ use super::*;
 use std::sync::Mutex;
 
 /// Variable declaration statement
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct VariableDeclaration {
     /// Variable name
     pub name: PathSegment,
@@ -15,6 +16,9 @@ pub struct VariableDeclaration {
     pub r#type: Spanned<Mutex<Type>>,
     /// Initial value (optional (I wish it was nesessarry))
     pub value: Option<Mutex<Expression>>,
+    /// Metadata
+    #[derivative(Debug = "ignore")]
+    pub metadata: Box<dyn VariableDeclarationMetadata>,
 }
 
 /// Variable ID, for more information see [`VariableDeclaration::id`]
@@ -27,6 +31,7 @@ impl VariableDeclaration {
         mutable: Spanned<bool>,
         r#type: Spanned<Type>,
         value: Option<Expression>,
+        metadata: impl VariableDeclarationMetadata + 'static,
     ) -> Self {
         Self {
             name,
@@ -34,6 +39,7 @@ impl VariableDeclaration {
             mutable,
             r#type: r#type.map(Mutex::new),
             value: value.map(Mutex::new),
+            metadata: Box::new(metadata),
         }
     }
 
@@ -91,6 +97,12 @@ impl std::fmt::Display for VariableDeclaration {
             write!(f, " = {}", value.lock().unwrap())?;
         }
         Ok(())
+    }
+}
+
+declare_metadata! {
+    /// Frontend metadata for variable declaration
+    trait VariableDeclarationMetadata {
     }
 }
 
