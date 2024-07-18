@@ -10,6 +10,8 @@ pub struct BinaryExpression {
     pub op: BinaryOp,
     /// Right hand side
     pub rhs: Box<Expression>,
+    /// Span of the expression
+    pub span: Span,
     /// Metadata
     #[derivative(Debug = "ignore")]
     pub metadata: Box<dyn BinaryMetadata>,
@@ -21,12 +23,14 @@ impl BinaryExpression {
         lhs: Box<Expression>,
         op: BinaryOp,
         rhs: Box<Expression>,
+        span: Span,
         metadata: impl BinaryMetadata + 'static,
     ) -> Self {
         Self {
             lhs,
             op,
             rhs,
+            span,
             metadata: Box::new(metadata),
         }
     }

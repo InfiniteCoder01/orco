@@ -38,9 +38,12 @@ pub fn binary<R: ErrorReporter + ?Sized>(
                 let lhs = Box::new(expression);
                 let rhs = Box::new(binary(parser, level + 1)?);
                 let span = lhs.span().extend(&rhs.span());
-                expression = Expression::BinaryExpression(Spanned::new(
-                    ir::expression::BinaryExpression::new(lhs, op, rhs, ()),
+                expression = Expression::BinaryExpression(ir::expression::BinaryExpression::new(
+                    lhs,
+                    op,
+                    rhs,
                     span,
+                    (),
                 ));
                 any = true;
             }

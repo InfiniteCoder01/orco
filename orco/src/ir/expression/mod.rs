@@ -47,7 +47,7 @@ pub enum Expression {
         #[derivative(Debug = "ignore")] Box<dyn symbol_reference::SymbolMetadata>,
     ),
     /// Binary expression
-    BinaryExpression(Spanned<BinaryExpression>),
+    BinaryExpression(BinaryExpression),
     /// Unary expression
     UnaryExpression(Spanned<UnaryExpression>),
     /// Block expression, contains multiple expressions (something along { expr1; expr2; })
@@ -167,7 +167,7 @@ impl std::fmt::Display for Expression {
         match self {
             Expression::Constant(constant) => write!(f, "{}", constant.inner),
             Expression::Symbol(symbol, ..) => write!(f, "{}", symbol.inner),
-            Expression::BinaryExpression(expr) => write!(f, "{}", expr.inner),
+            Expression::BinaryExpression(expr) => write!(f, "{}", expr),
             Expression::UnaryExpression(expr) => write!(f, "{}", expr.inner),
             Expression::Block(block) => write!(f, "{}", block.inner),
             Expression::If(expr) => write!(f, "{}", expr.inner),
