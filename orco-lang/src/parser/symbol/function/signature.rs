@@ -23,9 +23,9 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::symbol::f
             parser.wrap_point(false),
             r#type,
             None,
+            parser.span_from(start),
             (),
         );
-        let declaration = parser.wrap_span(declaration, start);
         *declaration.id.lock().unwrap() = args.len() as _;
         args.push(std::sync::Arc::new(declaration));
 

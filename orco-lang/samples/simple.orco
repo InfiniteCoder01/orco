@@ -1,3 +1,6 @@
-extern fn puts(message: char*) -> i32;
+extern fn printf(message: char*, value: i32) -> i32;
 
-fn main() -> i32 puts(c"Hello, World!");
+fn main() -> i32 {
+	let x: u32 = 3;
+	printf(c"%d", x * -1)
+}

@@ -42,32 +42,6 @@ impl crate::Object<'_> {
             Expression::UnaryExpression(expr) => self.build_unary_expression(builder, expr),
             Expression::Block(block) => self.build_block(builder, block),
             Expression::If(expr) => self.build_if_expression(builder, expr),
-            // Expression::While {
-            //     condition,
-            //     body,
-            //     ..
-            // } => {
-            //     let condition = self.build_expression(builder, condition).expect("Can't pass a unit type as an argument to an if statement, did you run type checking/inference?");
-            //     let body_block = builder.create_block();
-            //     let merge_block = builder.create_block();
-            //
-            //     builder.switch_to_block(body_block);
-            //     builder.ins().brif(
-            //         condition,
-            //         body_block,
-            //         &[],
-            //         merge_block,
-            //         &[],
-            //     );
-            //
-            //     self.build_block(builder, then_branch);
-            //     builder.ins().jump(body_block, &[]);
-            //     builder.seal_block(body_block);
-            //
-            //     builder.switch_to_block(merge_block);
-            //     builder.seal_block(merge_block);
-            //     None
-            // }
             Expression::Call(expr) => self.build_call_expression(builder, expr),
             Expression::Return(value) => {
                 let ret = self.build_expression(builder, &value.0);

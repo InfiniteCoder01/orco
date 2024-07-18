@@ -8,6 +8,8 @@ pub struct Block {
     pub expressions: Vec<Expression>,
     /// What this block evaluates to (basically tail expression)
     pub tail_expression: Option<Box<Expression>>,
+    /// Set to true, if the block does not form a new scope
+    pub transparent: bool,
     /// Metadata
     #[derivative(Debug = "ignore", Default(value = "Box::new(())"))]
     pub metadata: Box<dyn BlockMetadata>,
@@ -18,12 +20,14 @@ impl Block {
     pub fn new(
         expressions: Vec<Expression>,
         tail_expression: Option<Box<Expression>>,
-        metadata: Box<dyn BlockMetadata>,
+        transparent: bool,
+        metadata: impl BlockMetadata + 'static,
     ) -> Self {
         Self {
             expressions,
             tail_expression,
-            metadata,
+            transparent,
+            metadata: Box::new(metadata),
         }
     }
 
@@ -41,7 +45,9 @@ impl Block {
 
     /// Infer types
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
-        type_inference.push_scope();
+        if !self.transparent {
+            type_inference.push_scope();
+        }
         let mut r#type = Type::unit();
         for expression in &mut self.expressions {
             let expr_type = expression.infer_types(type_inference);
@@ -55,7 +61,9 @@ impl Block {
                 r#type = expr_type;
             }
         }
-        type_inference.pop_scope();
+        if !self.transparent {
+            type_inference.pop_scope();
+        }
         r#type
     }
 

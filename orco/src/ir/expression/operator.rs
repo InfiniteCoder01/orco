@@ -21,13 +21,13 @@ impl BinaryExpression {
         lhs: Box<Expression>,
         op: BinaryOp,
         rhs: Box<Expression>,
-        metadata: Box<dyn BinaryMetadata>,
+        metadata: impl BinaryMetadata + 'static,
     ) -> Self {
         Self {
             lhs,
             op,
             rhs,
-            metadata,
+            metadata: Box::new(metadata),
         }
     }
 
@@ -161,8 +161,12 @@ pub struct UnaryExpression {
 
 impl UnaryExpression {
     /// Create a new unary expression
-    pub fn new(op: UnaryOp, expr: Box<Expression>, metadata: Box<dyn UnaryMetadata>) -> Self {
-        Self { op, expr, metadata }
+    pub fn new(op: UnaryOp, expr: Box<Expression>, metadata: impl UnaryMetadata + 'static) -> Self {
+        Self {
+            op,
+            expr,
+            metadata: Box::new(metadata),
+        }
     }
 
     /// Get the type this unary expression evaluates to
@@ -233,12 +237,12 @@ impl AssignmentExpression {
     pub fn new(
         target: Box<Expression>,
         value: Box<Expression>,
-        metadata: Box<dyn AssignmentMetadata>,
+        metadata: impl AssignmentMetadata + 'static,
     ) -> Self {
         Self {
             target,
             value,
-            metadata,
+            metadata: Box::new(metadata),
         }
     }
 
@@ -256,7 +260,7 @@ impl AssignmentExpression {
         let target_type = self.target.finish_and_check_types(type_inference);
         let can_assign = match self.target.as_ref() {
             Expression::Symbol(symbol, ..) => {
-                if let SymbolReference::Variable(variable) = &symbol.inner {
+                if let SymbolReference::Variable(variable) = symbol.inner {
                     if !variable.mutable.inner {
                         todo!(
                             "Cannot assign to an immutable variable error: '{}'",

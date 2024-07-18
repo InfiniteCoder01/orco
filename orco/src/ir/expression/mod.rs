@@ -33,7 +33,6 @@ pub use call::CallExpression;
 
 /// Variable declaration
 pub mod variable_declaration;
-pub use variable_declaration::Variable;
 pub use variable_declaration::VariableDeclaration;
 
 /// An expression
@@ -60,7 +59,7 @@ pub enum Expression {
     /// Return a value
     Return(Spanned<ReturnExpression>),
     /// Declare a variable
-    VariableDeclaration(Variable),
+    VariableDeclaration(std::sync::Arc<VariableDeclaration>),
     /// Assignment
     Assignment(Spanned<AssignmentExpression>),
     /// Invalid expression
@@ -108,7 +107,9 @@ impl Expression {
                 let r#type = declaration.infer_types(type_inference);
                 type_inference.current_scope_mut().insert(
                     declaration.name.clone(),
-                    SymbolReference::Variable(declaration.clone()),
+                    SymbolReference::Variable(symbol_reference::InternalPointer(
+                        declaration.as_ref() as _,
+                    )),
                 );
                 r#type
             }
@@ -134,9 +135,7 @@ impl Expression {
             Expression::Block(block) => block.finish_and_check_types(type_inference),
             Expression::If(expr) => expr.finish_and_check_types(type_inference),
             Expression::Call(expr) => expr.finish_and_check_types(type_inference),
-            Expression::Return(expr) => expr
-                .inner
-                .finish_and_check_types(type_inference),
+            Expression::Return(expr) => expr.inner.finish_and_check_types(type_inference),
             Expression::VariableDeclaration(declaration) => {
                 declaration.finish_and_check_types(type_inference)
             }
@@ -174,9 +173,7 @@ impl std::fmt::Display for Expression {
             Expression::If(expr) => write!(f, "{}", expr.inner),
             Expression::Call(expr) => write!(f, "{}", expr.inner),
             Expression::Return(expr) => write!(f, "{}", expr.inner),
-            Expression::VariableDeclaration(declaration) => {
-                write!(f, "{}", declaration.inner)
-            }
+            Expression::VariableDeclaration(declaration) => write!(f, "{}", declaration),
             Expression::Assignment(expr) => write!(f, "{}", expr.inner),
             Expression::Error(_) => write!(f, "<ERROR>"),
         }

@@ -1,12 +1,11 @@
 use super::*;
 use derivative::Derivative;
 use diagnostics::*;
-use ir::expression::Variable;
 
 /// Pointer to interanl IR data, use with care!
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""), Copy(bound = ""))]
-pub struct InternalPointer<T>(pub(super) *const T);
+pub struct InternalPointer<T>(pub(crate) *const T);
 unsafe impl<T: Send> Send for InternalPointer<T> {}
 unsafe impl<T: Sync> Sync for InternalPointer<T> {}
 impl<T: std::fmt::Debug> std::fmt::Debug for InternalPointer<T> {
@@ -15,7 +14,7 @@ impl<T: std::fmt::Debug> std::fmt::Debug for InternalPointer<T> {
     }
 }
 
-impl<T: std::ops::Deref> std::ops::Deref for InternalPointer<T> {
+impl<T> std::ops::Deref for InternalPointer<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -23,6 +22,8 @@ impl<T: std::ops::Deref> std::ops::Deref for InternalPointer<T> {
     }
 }
 
+/// A reference to a variable
+pub type VariableReference = InternalPointer<ir::expression::VariableDeclaration>;
 /// A reference to a function
 pub type FunctionReference = InternalPointer<Spanned<ir::symbol::Function>>;
 /// A reference to an external function
@@ -35,7 +36,7 @@ pub enum SymbolReference {
     /// Use it to reference a symbol when generating IR
     Undeclared(Path),
     /// Variable
-    Variable(Variable),
+    Variable(VariableReference),
     /// Function
     Function(FunctionReference),
     /// External function
@@ -101,7 +102,7 @@ impl SymbolReference {
 }
 
 #[derive(Error, Debug, Diagnostic)]
-#[error("Symbol '{path}' was not declared in this scope'")]
+#[error("Symbol '{path}' was not declared in this scope")]
 #[diagnostic(code(symbol::symbol_not_found))]
 /// Symbol not found
 pub struct SymbolNotFound {

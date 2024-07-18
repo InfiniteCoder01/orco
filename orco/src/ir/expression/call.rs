@@ -18,12 +18,12 @@ impl CallExpression {
     pub fn new(
         expression: Expression,
         args: Spanned<Vec<Expression>>,
-        metadata: Box<dyn CallMetadata>,
+        metadata: impl CallMetadata + 'static,
     ) -> Self {
         Self {
             expression: Box::new(expression),
             args,
-            metadata,
+            metadata: Box::new(metadata),
         }
     }
 
