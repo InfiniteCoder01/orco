@@ -1,12 +1,32 @@
 use super::*;
+use derivative::Derivative;
 use diagnostics::*;
 use ir::expression::Variable;
-use std::sync::Arc;
+
+/// Pointer to interanl IR data, use with care!
+#[derive(Derivative)]
+#[derivative(Clone(bound = ""), Copy(bound = ""))]
+pub struct InternalPointer<T>(pub(super) *const T);
+unsafe impl<T: Send> Send for InternalPointer<T> {}
+unsafe impl<T: Sync> Sync for InternalPointer<T> {}
+impl<T: std::fmt::Debug> std::fmt::Debug for InternalPointer<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl<T: std::ops::Deref> std::ops::Deref for InternalPointer<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.0 }
+    }
+}
 
 /// A reference to a function
-pub type FunctionReference = Arc<Spanned<ir::symbol::Function>>;
+pub type FunctionReference = InternalPointer<Spanned<ir::symbol::Function>>;
 /// A reference to an external function
-pub type ExternFunctionReference = Arc<Spanned<ir::symbol::function::Signature>>;
+pub type ExternFunctionReference = InternalPointer<Spanned<ir::symbol::function::Signature>>;
 
 /// Symbol reference
 #[derive(Clone, Debug)]

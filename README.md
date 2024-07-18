@@ -26,8 +26,8 @@ Roadmap for now:
 - [x] Symbols
 - [x] Paths
 - [x] Floats
-- [ ] Frontend-side diagnostics (and diagnostics refactor (and lints))
-- [ ] Fix cyclic Arc by implementing inner pointers
+- [x] Frontend-side diagnostics (and diagnostics refactor (and lints))
+- [x] Fix cyclic Arc by implementing inner pointers
 - [ ] Typecasts
 - [ ] While loop
 - [ ] Pointers

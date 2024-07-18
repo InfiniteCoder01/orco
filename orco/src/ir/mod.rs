@@ -33,14 +33,18 @@ impl Module {
                     self.symbol_map
                         .entry(function.signature.name.clone())
                         .or_default()
-                        .push(crate::SymbolReference::Function(function.clone()));
+                        .push(crate::SymbolReference::Function(
+                            symbol_reference::InternalPointer(function.as_ref() as _),
+                        ));
                 }
 
                 Symbol::ExternalFunction(function) => {
                     self.symbol_map
                         .entry(function.name.clone())
                         .or_default()
-                        .push(crate::SymbolReference::ExternFunction(function.clone()));
+                        .push(crate::SymbolReference::ExternFunction(
+                            symbol_reference::InternalPointer(function.as_ref() as _),
+                        ));
                 }
             }
         }

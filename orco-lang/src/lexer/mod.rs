@@ -450,7 +450,7 @@ impl<'source, R: ErrorReporter + ?Sized> Parser<'source, R> {
         let message = if let Some(token) = self.peek() {
             format!("Expected {}, got {}", what, token)
         } else {
-            format!("Error: Expected {}", what)
+            format!("Expected {}", what)
         };
         let mut colors = ColorGenerator::new();
         let report = Report::build(
