@@ -32,9 +32,10 @@ Roadmap for now:
 - [x] Floats
 - [x] Frontend-side diagnostics (and diagnostics refactor (and lints))
 - [x] Fix cyclic Arc by implementing inner pointers
-- [ ] Reduce the use of `Spanned<Struct>`
-- [ ] ?Unset literal
+- [x] Reduce the use of `Spanned<Struct>`
 - [ ] Typecasts
+- [ ] Effect system?!
+- [ ] ?Unset literal
 - [ ] While loop
 - [ ] Pointers
 - [ ] Arrays

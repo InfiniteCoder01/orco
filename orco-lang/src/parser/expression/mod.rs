@@ -25,9 +25,10 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
     let start = parser.span().1.start;
     let expression = if parser.match_keyword("return") {
         let value = expect(parser);
-        Some(Expression::Return(parser.wrap_span(
-            ir::expression::ReturnExpression(Box::new(value), Box::new(())),
-            start,
+        Some(Expression::Return(ir::expression::ReturnExpression(
+            Box::new(value),
+            parser.span_from(start),
+            Box::new(()),
         )))
     } else if parser.match_keyword("let") {
         let mutable = {
@@ -65,10 +66,14 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
         if parser.match_operator(Operator::Equal) {
             let target = Box::new(expression);
             let value = Box::new(expect(parser));
-            Some(Expression::Assignment(parser.wrap_span(
-                ir::expression::AssignmentExpression::new(target, value, ()),
-                start,
-            )))
+            Some(Expression::Assignment(
+                ir::expression::AssignmentExpression::new(
+                    target,
+                    value,
+                    parser.span_from(start),
+                    (),
+                ),
+            ))
         } else {
             Some(expression)
         }
@@ -115,9 +120,12 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
         }
         parser.expect_operator(Operator::RParen);
         let args = parser.wrap_span(args, args_start);
-        Expression::Call(
-            parser.wrap_span(ir::expression::CallExpression::new(expr, args, ()), start),
-        )
+        Expression::Call(ir::expression::CallExpression::new(
+            expr,
+            args,
+            parser.span_from(start),
+            (),
+        ))
     } else {
         expr
     })

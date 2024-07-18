@@ -4,10 +4,11 @@ use super::*;
 /// If parse_name is true, function name is expected
 /// If register_args is true, registers arguments with parser's symbol mapper
 pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::symbol::function::Signature {
+    let start = parser.span().1.start;
     let name = parser
         .expect_ident("function name")
         .unwrap_or(parser.point_span());
-    let start = parser.span().1.start;
+    let args_start = parser.span().1.start;
     parser.expect_operator(Operator::LParen);
     let mut args = Vec::new();
     while !parser.match_operator(Operator::RParen) {
@@ -34,11 +35,11 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::symbol::f
             break;
         }
     }
-    let args = parser.wrap_span(args, start);
+    let args = parser.wrap_span(args, args_start);
     let return_type = if parser.match_operator(Operator::Arrow) {
         r#type::parse(parser)
     } else {
         parser.wrap_point(ir::Type::unit())
     };
-    ir::symbol::function::Signature::new(name, args, return_type)
+    ir::symbol::function::Signature::new(name, args, return_type, parser.span_from(start))
 }

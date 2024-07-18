@@ -10,6 +10,8 @@ pub struct Signature {
     pub args: Spanned<Vec<Arc<VariableDeclaration>>>,
     /// Function return type
     pub return_type: Spanned<Type>,
+    /// Span of the function signature
+    pub span: Span,
 }
 
 impl Signature {
@@ -18,11 +20,13 @@ impl Signature {
         name: PathSegment,
         args: Spanned<Vec<Arc<VariableDeclaration>>>,
         return_type: Spanned<Type>,
+        span: Span,
     ) -> Self {
         Self {
             name,
             args,
             return_type,
+            span,
         }
     }
 

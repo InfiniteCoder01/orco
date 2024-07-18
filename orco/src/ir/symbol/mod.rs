@@ -10,9 +10,9 @@ use std::sync::Arc;
 /// A symbol
 pub enum Symbol {
     /// A function
-    Function(Arc<Spanned<ir::symbol::Function>>),
+    Function(Arc<ir::symbol::Function>),
     /// External function
-    ExternalFunction(Arc<Spanned<ir::symbol::function::Signature>>),
+    ExternalFunction(Arc<ir::symbol::function::Signature>),
 }
 
 impl std::fmt::Display for Symbol {
@@ -20,7 +20,7 @@ impl std::fmt::Display for Symbol {
         match self {
             Symbol::Function(function) => function.fmt(f),
             Symbol::ExternalFunction(function) => {
-                write!(f, "extern {};", function.inner)
+                write!(f, "extern {};", function)
             }
         }
     }
