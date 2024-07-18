@@ -11,14 +11,17 @@ pub struct Function {
     pub signature: Signature,
     /// Function body
     pub body: std::sync::Mutex<expression::Expression>,
+    /// Span of the function
+    pub span: Span,
 }
 
 impl Function {
     /// Create a new function
-    pub fn new(signature: Signature, body: expression::Expression) -> Self {
+    pub fn new(signature: Signature, body: expression::Expression, span: Span) -> Self {
         Self {
             signature,
             body: body.into(),
+            span,
         }
     }
 

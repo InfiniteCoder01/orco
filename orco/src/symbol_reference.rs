@@ -25,9 +25,9 @@ impl<T> std::ops::Deref for InternalPointer<T> {
 /// A reference to a variable
 pub type VariableReference = InternalPointer<ir::expression::VariableDeclaration>;
 /// A reference to a function
-pub type FunctionReference = InternalPointer<Spanned<ir::symbol::Function>>;
+pub type FunctionReference = InternalPointer<ir::symbol::Function>;
 /// A reference to an external function
-pub type ExternFunctionReference = InternalPointer<Spanned<ir::symbol::function::Signature>>;
+pub type ExternFunctionReference = InternalPointer<ir::symbol::function::Signature>;
 
 /// Symbol reference
 #[derive(Clone, Debug)]

@@ -5,6 +5,7 @@ use super::*;
 #[derivative(Debug)]
 pub struct ReturnExpression(
     pub Box<Expression>,
+    pub Span,
     #[derivative(Debug = "ignore")] pub Box<dyn ReturnMetadata>,
 );
 
@@ -22,13 +23,10 @@ impl ReturnExpression {
     }
 
     /// Finish and check types
-    pub fn finish_and_check_types(
-        &mut self,
-        type_inference: &mut TypeInference,
-    ) -> Type {
+    pub fn finish_and_check_types(&mut self, type_inference: &mut TypeInference) -> Type {
         let r#type = self.0.finish_and_check_types(type_inference);
         if !r#type.morphs(type_inference.return_type) {
-            self.1.return_type_mismatch(
+            self.2.return_type_mismatch(
                 type_inference,
                 ReturnTypeMismatch {
                     expected: type_inference.return_type.inner.clone(),

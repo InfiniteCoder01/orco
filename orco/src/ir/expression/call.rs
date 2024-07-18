@@ -8,6 +8,8 @@ pub struct CallExpression {
     pub expression: Box<Expression>,
     /// Arguments to the call
     pub args: Spanned<Vec<Expression>>,
+    /// Span of the expression
+    pub span: Span,
     /// Metadata
     #[derivative(Debug = "ignore")]
     pub metadata: Box<dyn CallMetadata>,
@@ -18,11 +20,13 @@ impl CallExpression {
     pub fn new(
         expression: Expression,
         args: Spanned<Vec<Expression>>,
+        span: Span,
         metadata: impl CallMetadata + 'static,
     ) -> Self {
         Self {
             expression: Box::new(expression),
             args,
+            span,
             metadata: Box::new(metadata),
         }
     }

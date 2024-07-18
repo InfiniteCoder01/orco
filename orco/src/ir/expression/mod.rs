@@ -51,13 +51,13 @@ pub enum Expression {
     /// Unary expression
     UnaryExpression(UnaryExpression),
     /// Block expression, contains multiple expressions (something along { expr1; expr2; })
-    Block(Spanned<Block>),
+    Block(Block),
     /// If expression (and ternary operator)
-    If(Spanned<IfExpression>),
+    If(IfExpression),
     /// Function call
-    Call(Spanned<CallExpression>),
+    Call(CallExpression),
     /// Return a value
-    Return(Spanned<ReturnExpression>),
+    Return(ReturnExpression),
     /// Declare a variable
     VariableDeclaration(std::sync::Arc<VariableDeclaration>),
     /// Assignment
@@ -135,7 +135,7 @@ impl Expression {
             Expression::Block(block) => block.finish_and_check_types(type_inference),
             Expression::If(expr) => expr.finish_and_check_types(type_inference),
             Expression::Call(expr) => expr.finish_and_check_types(type_inference),
-            Expression::Return(expr) => expr.inner.finish_and_check_types(type_inference),
+            Expression::Return(expr) => expr.finish_and_check_types(type_inference),
             Expression::VariableDeclaration(declaration) => {
                 declaration.finish_and_check_types(type_inference)
             }
@@ -154,7 +154,7 @@ impl Expression {
             Expression::Block(block) => block.span.clone(),
             Expression::If(expr) => expr.span.clone(),
             Expression::Call(expr) => expr.span.clone(),
-            Expression::Return(expr) => expr.span.clone(),
+            Expression::Return(expr) => expr.1.clone(),
             Expression::VariableDeclaration(declaration) => declaration.span.clone(),
             Expression::Assignment(expr) => expr.span.clone(),
             Expression::Error(span) => span.clone(),
@@ -169,10 +169,10 @@ impl std::fmt::Display for Expression {
             Expression::Symbol(symbol, ..) => write!(f, "{}", symbol.inner),
             Expression::BinaryExpression(expr) => write!(f, "{}", expr),
             Expression::UnaryExpression(expr) => write!(f, "{}", expr),
-            Expression::Block(block) => write!(f, "{}", block.inner),
-            Expression::If(expr) => write!(f, "{}", expr.inner),
-            Expression::Call(expr) => write!(f, "{}", expr.inner),
-            Expression::Return(expr) => write!(f, "{}", expr.inner),
+            Expression::Block(block) => write!(f, "{}", block),
+            Expression::If(expr) => write!(f, "{}", expr),
+            Expression::Call(expr) => write!(f, "{}", expr),
+            Expression::Return(expr) => write!(f, "{}", expr),
             Expression::VariableDeclaration(declaration) => write!(f, "{}", declaration),
             Expression::Assignment(expr) => write!(f, "{}", expr),
             Expression::Error(_) => write!(f, "<ERROR>"),
