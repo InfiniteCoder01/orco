@@ -11,14 +11,17 @@ pub struct Function {
     pub signature: Signature,
     /// Function body
     pub body: std::sync::Mutex<expression::Expression>,
+    /// Span of the function
+    pub span: Span,
 }
 
 impl Function {
     /// Create a new function
-    pub fn new(signature: Signature, body: expression::Expression) -> Self {
+    pub fn new(signature: Signature, body: expression::Expression, span: Span) -> Self {
         Self {
             signature,
             body: body.into(),
+            span,
         }
     }
 
@@ -29,7 +32,6 @@ impl Function {
         root_module: &Module,
         current_module: &Module,
         current_module_path: &Path,
-        symbol_resolver: &dyn Fn(&mut TypeInference, &Path) -> Option<SymbolReference>,
     ) {
         let mut type_inference = crate::type_inference::TypeInference::new(
             &self.signature.return_type,
@@ -37,7 +39,6 @@ impl Function {
             root_module,
             current_module,
             current_module_path,
-            symbol_resolver,
         );
 
         type_inference.push_scope();
@@ -49,7 +50,6 @@ impl Function {
         body.infer_types(&mut type_inference);
 
         type_inference.pop_scope();
-        println!("{}", body);
 
         let return_type = body.finish_and_check_types(&mut type_inference);
         if !return_type.morphs(&self.signature.return_type) {

@@ -1,4 +1,7 @@
 use crate::*;
+use derivative::Derivative;
+use downcast_rs::{impl_downcast, Downcast};
+use dyn_clone::{clone_trait_object, DynClone};
 
 /// Of course we are statically-typed
 pub mod types;
@@ -30,14 +33,18 @@ impl Module {
                     self.symbol_map
                         .entry(function.signature.name.clone())
                         .or_default()
-                        .push(crate::SymbolReference::Function(function.clone()));
+                        .push(crate::SymbolReference::Function(
+                            symbol_reference::InternalPointer(function.as_ref() as _),
+                        ));
                 }
 
                 Symbol::ExternalFunction(function) => {
                     self.symbol_map
                         .entry(function.name.clone())
                         .or_default()
-                        .push(crate::SymbolReference::ExternFunction(function.clone()));
+                        .push(crate::SymbolReference::ExternFunction(
+                            symbol_reference::InternalPointer(function.as_ref() as _),
+                        ));
                 }
             }
         }
@@ -49,17 +56,10 @@ impl Module {
         reporter: &mut dyn crate::diagnostics::ErrorReporter,
         root_module: &Module,
         current_path: &Path,
-        symbol_resolver: &dyn Fn(&mut TypeInference, &Path) -> Option<SymbolReference>,
     ) {
         for symbol in &self.symbols {
             if let Symbol::Function(function) = symbol {
-                function.infer_and_check_types(
-                    reporter,
-                    root_module,
-                    self,
-                    current_path,
-                    symbol_resolver,
-                );
+                function.infer_and_check_types(reporter, root_module, self, current_path);
             }
         }
     }
@@ -72,4 +72,51 @@ impl std::fmt::Display for Module {
         }
         Ok(())
     }
+}
+
+#[macro_export]
+/// Create a new metadata trait
+macro_rules! declare_metadata {
+    (
+        $(
+            $(#[$meta:meta])*
+            trait $trait_name:ident {
+                $(
+                    $(#[$fn_meta:meta])*
+                    fn $fn_name:ident ($($args:tt)*) $(-> $ret:ty)? $fn_body:block
+                )*
+
+                $(
+                    Diagnostics:
+                    $(
+                        $(#[$diagnostic_meta:meta])*
+                        $diagnostic_handler_name:ident ($diagnostic_name:ident)
+                    )*
+                )?
+            }
+        )*
+    ) => {
+        $(
+            $(#[$meta])*
+            pub trait $trait_name: Downcast + DynClone + Send + Sync {
+                $(
+                    $(#[$fn_meta])*
+                    fn $fn_name ($($args)*) $(-> $ret)? $fn_body
+                )*
+
+                $(
+                    $(
+                        $(#[$diagnostic_meta])*
+                        fn $diagnostic_handler_name (&self, type_inference: &mut TypeInference, diagnostic: $diagnostic_name) {
+                            type_inference.reporter.report(diagnostic.into());
+                        }
+                    )*
+                )?
+            }
+
+            impl_downcast!($trait_name);
+            clone_trait_object!($trait_name);
+            impl $trait_name for () {}
+        )*
+    };
 }

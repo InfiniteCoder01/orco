@@ -1,11 +1,33 @@
 use super::*;
-use ir::expression::Variable;
-use std::sync::Arc;
+use derivative::Derivative;
+use diagnostics::*;
 
+/// Pointer to interanl IR data, use with care!
+#[derive(Derivative)]
+#[derivative(Clone(bound = ""), Copy(bound = ""))]
+pub struct InternalPointer<T>(pub(crate) *const T);
+unsafe impl<T: Send> Send for InternalPointer<T> {}
+unsafe impl<T: Sync> Sync for InternalPointer<T> {}
+impl<T: std::fmt::Debug> std::fmt::Debug for InternalPointer<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl<T> std::ops::Deref for InternalPointer<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.0 }
+    }
+}
+
+/// A reference to a variable
+pub type VariableReference = InternalPointer<ir::expression::VariableDeclaration>;
 /// A reference to a function
-pub type FunctionReference = Arc<Spanned<ir::symbol::Function>>;
+pub type FunctionReference = InternalPointer<ir::symbol::Function>;
 /// A reference to an external function
-pub type ExternFunctionReference = Arc<Spanned<ir::symbol::function::Signature>>;
+pub type ExternFunctionReference = InternalPointer<ir::symbol::function::Signature>;
 
 /// Symbol reference
 #[derive(Clone, Debug)]
@@ -14,7 +36,7 @@ pub enum SymbolReference {
     /// Use it to reference a symbol when generating IR
     Undeclared(Path),
     /// Variable
-    Variable(Variable),
+    Variable(VariableReference),
     /// Function
     Function(FunctionReference),
     /// External function
@@ -33,12 +55,16 @@ impl SymbolReference {
     }
 
     /// Infer types for this symbol
-    pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> ir::Type {
+    pub fn infer_types(
+        &mut self,
+        type_inference: &mut TypeInference,
+        metadata: &mut dyn SymbolMetadata,
+    ) -> ir::Type {
         match self {
             SymbolReference::Undeclared(name) => {
-                if let Some(symbol) = type_inference.resolve_symbol(name) {
+                if let Some(symbol) = metadata.resolve_symbol(type_inference, name) {
                     *self = symbol;
-                    self.infer_types(type_inference)
+                    self.infer_types(type_inference, metadata)
                 } else {
                     ir::Type::Error
                 }
@@ -54,13 +80,17 @@ impl SymbolReference {
         &self,
         span: Span,
         type_inference: &mut TypeInference,
+        metadata: &mut dyn SymbolMetadata,
     ) -> ir::Type {
         match self {
             SymbolReference::Undeclared(path) => {
-                type_inference.reporter.report_type_error(
-                    format!("Symbol '{}' was not declared in this scope", path),
-                    span,
-                    vec![],
+                metadata.symbol_not_found(
+                    type_inference,
+                    SymbolNotFound {
+                        path: path.clone(),
+                        src: span.named_source(),
+                        span: span.source_span(),
+                    },
                 );
                 ir::Type::Error
             }
@@ -69,6 +99,22 @@ impl SymbolReference {
             SymbolReference::ExternFunction(function) => function.get_type(),
         }
     }
+}
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("Symbol '{path}' was not declared in this scope")]
+#[diagnostic(code(symbol::symbol_not_found))]
+/// Symbol not found
+pub struct SymbolNotFound {
+    /// Path of the symbol
+    pub path: Path,
+
+    #[source_code]
+    /// File where the error occurred
+    pub src: NamedSource<Src>,
+    #[label("Here")]
+    /// Span of the symbol
+    pub span: SourceSpan,
 }
 
 impl std::fmt::Display for SymbolReference {
@@ -87,5 +133,28 @@ impl std::fmt::Display for SymbolReference {
             Self::Function(function) => write!(f, "{}", function.signature.name),
             Self::ExternFunction(function) => write!(f, "{}", function.name),
         }
+    }
+}
+
+use downcast_rs::{impl_downcast, Downcast};
+use dyn_clone::{clone_trait_object, DynClone};
+declare_metadata! {
+    /// Frontend metadata for symbols
+    trait SymbolMetadata {
+        /// Symbol resolver (resolves variables, functions, etc.)
+        fn resolve_symbol(&self, type_inference: &mut TypeInference, path: &Path) -> Option<SymbolReference> {
+            let start = path.0.first().expect("Trying to resolve an empty path!");
+            if let Some(symbol) = type_inference.get_symbol(start) {
+                return Some(symbol);
+            }
+            if let Some(symbol) = type_inference.current_module.symbol_map.get(start) {
+                return Some(symbol.first().unwrap().clone());
+            }
+            None
+        }
+
+        Diagnostics:
+        /// Callback of symbol not found error
+        symbol_not_found(SymbolNotFound)
     }
 }

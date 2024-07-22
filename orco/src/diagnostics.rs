@@ -1,5 +1,7 @@
 pub use crate::source::*;
 pub use ariadne::{ColorGenerator, Label, ReportKind};
+pub use miette::{Diagnostic, NamedSource, SourceSpan};
+pub use thiserror::Error;
 
 /// Diagnostic report (error, warning, etc.)
 pub type Report = ariadne::Report<'static, Span>;
@@ -20,13 +22,41 @@ impl ariadne::Span for Span {
     }
 }
 
+impl miette::SourceCode for Src {
+    fn read_span<'a>(
+        &'a self,
+        span: &SourceSpan,
+        context_lines_before: usize,
+        context_lines_after: usize,
+    ) -> Result<Box<dyn miette::SpanContents<'a> + 'a>, miette::MietteError> {
+        self.content()
+            .read_span(span, context_lines_before, context_lines_after)
+    }
+}
+
+impl Span {
+    /// Get a [`miette::NamedSource`] out of this span
+    pub fn named_source(&self) -> NamedSource<Src> {
+        NamedSource::new(self.0.path().to_string_lossy(), self.0.clone())
+    }
+
+    /// Get a [`miette::SourceSpan`] out of this span
+    pub fn source_span(&self) -> SourceSpan {
+        self.1.clone().into()
+    }
+}
+
 /// Error reporter
 pub trait ErrorReporter {
     /// Report an error
-    fn report(&mut self, report: Report);
+    fn report(&mut self, error: miette::Report);
+
+    /// Report an error, old ariadne API, getting gradually transitioned to [`ErrorReporter::report`]
+    fn report_ariadne(&mut self, report: Report);
 
     /// Report a type error (an error with a given message, a span of the error, and maybe some
     /// labels)
+    /// Old ariadne API, getting gradually transitioned to [`ErrorReporter::report`]
     fn report_type_error(
         &mut self,
         message: String,
@@ -46,7 +76,7 @@ pub trait ErrorReporter {
                     .with_message(label)
                     .with_color(colors.next())
             }));
-        self.report(report.finish());
+        self.report_ariadne(report.finish());
     }
 
     /// Check if there were any errors
@@ -54,7 +84,11 @@ pub trait ErrorReporter {
 }
 
 impl ErrorReporter for Vec<Report> {
-    fn report(&mut self, report: Report) {
+    fn report(&mut self, error: miette::Report) {
+        eprintln!("{:?}", error);
+    }
+
+    fn report_ariadne(&mut self, report: Report) {
         self.push(report);
     }
 
@@ -68,7 +102,13 @@ impl ErrorReporter for Vec<Report> {
 pub struct DefaultReporter(usize);
 
 impl ErrorReporter for DefaultReporter {
-    fn report(&mut self, report: Report) {
+    fn report(&mut self, error: miette::Report) {
+        eprintln!("{:?}", error);
+
+        self.0 += 1;
+    }
+
+    fn report_ariadne(&mut self, report: Report) {
         struct Source(Src);
         impl AsRef<str> for Source {
             fn as_ref(&self) -> &str {

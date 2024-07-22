@@ -25,7 +25,11 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
     let start = parser.span().1.start;
     let expression = if parser.match_keyword("return") {
         let value = expect(parser);
-        Some(Expression::Return(parser.wrap_span(Box::new(value), start)))
+        Some(Expression::Return(ir::expression::ReturnExpression(
+            Box::new(value),
+            parser.span_from(start),
+            Box::new(()),
+        )))
     } else if parser.match_keyword("let") {
         let mutable = {
             let span = parser.span();
@@ -46,9 +50,13 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
             None
         };
         Some(Expression::VariableDeclaration(std::sync::Arc::new(
-            parser.wrap_span(
-                ir::expression::VariableDeclaration::new(name, mutable, r#type, value),
-                start,
+            ir::expression::VariableDeclaration::new(
+                name,
+                mutable,
+                r#type,
+                value,
+                parser.span_from(start),
+                (),
             ),
         )))
     } else {
@@ -58,10 +66,14 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
         if parser.match_operator(Operator::Equal) {
             let target = Box::new(expression);
             let value = Box::new(expect(parser));
-            Some(Expression::Assignment(parser.wrap_span(
-                ir::expression::AssignmentExpression::new(target, value),
-                start,
-            )))
+            Some(Expression::Assignment(
+                ir::expression::AssignmentExpression::new(
+                    target,
+                    value,
+                    parser.span_from(start),
+                    (),
+                ),
+            ))
         } else {
             Some(expression)
         }
@@ -73,7 +85,11 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
 /// Parse a unit expression
 pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expression> {
     let start = parser.span().1.start;
-    let expr = if let Some(span) = parser.match_error() {
+    let expr = if parser.match_operator(Operator::LParen) {
+        let expr = expect(parser);
+        parser.expect_operator(Operator::RParen);
+        expr
+    } else if let Some(span) = parser.match_error() {
         Expression::Error(span)
     } else if let Some(constant) = parser.match_constant() {
         Expression::Constant(constant)
@@ -82,10 +98,13 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
     } else if parser.match_keyword("if") {
         branching::expect_if(parser, start)
     } else if let Some(name) = parser.match_ident() {
-        Expression::Symbol(parser.wrap_span(
-            orco::SymbolReference::Undeclared(orco::Path::single(name)),
-            start,
-        ))
+        Expression::Symbol(
+            parser.wrap_span(
+                orco::SymbolReference::Undeclared(orco::Path::single(name)),
+                start,
+            ),
+            Box::new(()),
+        )
     } else {
         return None;
     };
@@ -101,7 +120,12 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
         }
         parser.expect_operator(Operator::RParen);
         let args = parser.wrap_span(args, args_start);
-        Expression::Call(parser.wrap_span(ir::expression::CallExpression::new(expr, args), start))
+        Expression::Call(ir::expression::CallExpression::new(
+            expr,
+            args,
+            parser.span_from(start),
+            (),
+        ))
     } else {
         expr
     })

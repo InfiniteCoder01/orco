@@ -63,7 +63,7 @@ impl logos::Source for Source {
 }
 
 /// Token (number, word, operator, comment, etc.)
-#[derive(Logos, Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Logos, Clone, Debug, PartialEq)]
 #[logos(source = Source, error = Error)]
 #[logos(skip r"[ \t\n\f]+")]
 #[logos(skip r"//.*")]
@@ -105,7 +105,7 @@ pub enum Token {
     #[regex("0x[0-9a-fA-F][0-9a-fA-F_]*", |lex| parse_unsigned(lex.slice(), "0x", 16))]
     #[regex(r"[0-9]*[.][0-9]+", |lex| parse_float(lex.slice()))]
     #[regex("c\"([^\"]|\\\\.)*\"", |lex| parse_cstring(lex.slice()))]
-    #[regex("c#\"([^\"]|\"[^#])*\"#", |lex| Constant::CString(lex.slice().as_bytes().to_vec()))]
+    #[regex("c#\"([^\"]|\"[^#])*\"#", |lex| Constant::CString(lex.slice().as_bytes().to_vec(), Box::new(())))]
     Constant(Constant),
     /// Error
     Error,
@@ -116,6 +116,7 @@ fn parse_unsigned(slice: &str, prefix: &str, radix: u32) -> Result<Constant, Err
         .map(|value| Constant::Integer {
             value,
             r#type: orco::ir::Type::IntegerWildcard,
+            metadata: Box::new(()),
         })
         .map_err(|_| Error::IntegerOutOfBounds)
 }
@@ -125,6 +126,7 @@ fn parse_float(slice: &str) -> Result<Constant, Error> {
         .map(|value| Constant::Float {
             value,
             r#type: orco::ir::Type::FloatWildcard,
+            metadata: Box::new(()),
         })
         .map_err(|_| Error::InvalidFloat)
 }
@@ -132,7 +134,7 @@ fn parse_float(slice: &str) -> Result<Constant, Error> {
 fn parse_cstring(slice: &str) -> Result<Constant, Error> {
     let mut bytes = unescape::unescape(&slice[2..slice.len() - 1], 2)?;
     bytes.push(0);
-    Ok(Constant::CString(bytes))
+    Ok(Constant::CString(bytes, Box::new(())))
 }
 
 impl std::fmt::Display for Token {
@@ -313,7 +315,7 @@ impl<'a, R: ErrorReporter + ?Sized> Parser<'a, R> {
                             }
                         }
                         .finish();
-                        self.reporter.report(report);
+                        self.reporter.report_ariadne(report);
                         Token::Error
                     }
                 });
@@ -341,7 +343,10 @@ impl<'a, R: ErrorReporter + ?Sized> Parser<'a, R> {
 
     /// Get the span from the start to the end of the current token
     pub fn span_from(&mut self, start: usize) -> Span {
-        Span((**self.lexer.source()).clone(), start..self.span().1.start)
+        Span(
+            (**self.lexer.source()).clone(),
+            start..self.lexer.span().end,
+        )
     }
 
     /// Wrap an object in [`orco::Spanned`], starting at start, ending at the current position
@@ -445,7 +450,7 @@ impl<'source, R: ErrorReporter + ?Sized> Parser<'source, R> {
         let message = if let Some(token) = self.peek() {
             format!("Expected {}, got {}", what, token)
         } else {
-            format!("Error: Expected {}", what)
+            format!("Expected {}", what)
         };
         let mut colors = ColorGenerator::new();
         let report = Report::build(
@@ -460,7 +465,7 @@ impl<'source, R: ErrorReporter + ?Sized> Parser<'source, R> {
                 .with_color(colors.next()),
         )
         .finish();
-        self.reporter.report(report);
+        self.reporter.report_ariadne(report);
     }
 
     /// Expect an identifier to follow, if it is, consume and return it, else report an error

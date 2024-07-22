@@ -27,12 +27,12 @@ fn main() {
     } else {
         orco_lang::Crate::parse(cli.path, &mut reporter)
     };
+
     krate.root.register();
     krate.root.infer_and_check_types(
         &mut reporter,
         &krate.root,
         &orco::Path::new(),
-        &orco_lang::symbol_resolver,
     );
     if !reporter.has_errors() {
         orco_backend_cranelift::build(&krate.root);

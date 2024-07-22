@@ -1,4 +1,4 @@
-//! Unescape a string Based on: https://github.com/BurntSushi/ripgrep/blob/a2e6aec7a4d9382941932245e8854f0ae5703a5e/crates/cli/src/escape.rs#L91
+//! Unescape a string Based on: <https://github.com/BurntSushi/ripgrep/blob/a2e6aec7a4d9382941932245e8854f0ae5703a5e/crates/cli/src/escape.rs#L91>
 use super::Error;
 
 /// A single state in the state machine used by `unescape`.

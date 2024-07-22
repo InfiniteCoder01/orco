@@ -1,5 +1,5 @@
 use super::*;
-use crate::ir::expression::Variable;
+use expression::VariableDeclaration;
 
 #[derive(Clone, Debug)]
 /// Function signature (i.e. parameters and return type)
@@ -7,22 +7,26 @@ pub struct Signature {
     /// Function name
     pub name: PathSegment,
     /// Function parameters
-    pub args: Spanned<Vec<Variable>>,
+    pub args: Spanned<Vec<Arc<VariableDeclaration>>>,
     /// Function return type
     pub return_type: Spanned<Type>,
+    /// Span of the function signature
+    pub span: Span,
 }
 
 impl Signature {
     /// Create a new function signature
     pub fn new(
         name: PathSegment,
-        args: Spanned<Vec<Variable>>,
+        args: Spanned<Vec<Arc<VariableDeclaration>>>,
         return_type: Spanned<Type>,
+        span: Span,
     ) -> Self {
         Self {
             name,
             args,
             return_type,
+            span,
         }
     }
 

@@ -1,20 +1,37 @@
 use super::*;
 
 /// Block expression, contains multiple expressions (something along { expr1; expr2; })
-#[derive(Clone, Debug, Default)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 pub struct Block {
     /// Block content
     pub expressions: Vec<Expression>,
     /// What this block evaluates to (basically tail expression)
     pub tail_expression: Option<Box<Expression>>,
+    /// Span of the expression
+    pub span: Span,
+    /// Set to true, if the block does not form a new scope
+    pub transparent: bool,
+    /// Metadata
+    #[derivative(Debug = "ignore", Default(value = "Box::new(())"))]
+    pub metadata: Box<dyn BlockMetadata>,
 }
 
 impl Block {
     /// Create a new block
-    pub fn new(expressions: Vec<Expression>, evaluates_to: Option<Box<Expression>>) -> Self {
+    pub fn new(
+        expressions: Vec<Expression>,
+        tail_expression: Option<Box<Expression>>,
+        span: Span,
+        transparent: bool,
+        metadata: impl BlockMetadata + 'static,
+    ) -> Self {
         Self {
             expressions,
-            tail_expression: evaluates_to,
+            tail_expression,
+            span,
+            transparent,
+            metadata: Box::new(metadata),
         }
     }
 
@@ -25,12 +42,16 @@ impl Block {
                 return Type::Never;
             }
         }
-        self.tail_expression.as_ref().map_or_else(Type::unit, |expr| expr.get_type())
+        self.tail_expression
+            .as_ref()
+            .map_or_else(Type::unit, |expr| expr.get_type())
     }
 
     /// Infer types
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
-        type_inference.push_scope();
+        if !self.transparent {
+            type_inference.push_scope();
+        }
         let mut r#type = Type::unit();
         for expression in &mut self.expressions {
             let expr_type = expression.infer_types(type_inference);
@@ -44,7 +65,9 @@ impl Block {
                 r#type = expr_type;
             }
         }
-        type_inference.pop_scope();
+        if !self.transparent {
+            type_inference.pop_scope();
+        }
         r#type
     }
 
@@ -74,20 +97,30 @@ impl Block {
         }
 
         if let Some(span) = unreachable_span {
-            let mut colors = ColorGenerator::new();
-            let report = Report::build(ReportKind::Warning, span.0.clone(), span.1.start)
-                .with_message("This code is unreachable")
-                .with_label(
-                    Label::new(span)
-                        .with_message("This")
-                        .with_color(colors.next()),
-                )
-                .finish();
-            type_inference.reporter.report(report);
+            self.metadata.unreachable_code(
+                type_inference,
+                UnreachableCode {
+                    src: span.named_source(),
+                    span: span.source_span(),
+                },
+            );
         }
 
         r#type
     }
+}
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("Unreachable code")]
+#[diagnostic(code(potential_bugs::unreachable_code), severity(Warning))]
+/// Unreachable code
+pub struct UnreachableCode {
+    #[source_code]
+    /// File where the error occurred
+    pub src: NamedSource<Src>,
+    #[label("This code is unreachable")]
+    /// Span of the unreachable code
+    pub span: SourceSpan,
 }
 
 impl std::fmt::Display for Block {
@@ -109,5 +142,14 @@ impl std::fmt::Display for Block {
         }
         write!(f, "}}")?;
         Ok(())
+    }
+}
+
+declare_metadata! {
+    /// Frontend metadata for block expression
+    trait BlockMetadata {
+        Diagnostics:
+        /// Callback of unreachable code warning
+        unreachable_code(UnreachableCode)
     }
 }

@@ -9,7 +9,7 @@ impl crate::Object<'_> {
         call: &orco::ir::expression::CallExpression,
     ) -> Option<Value> {
         match call.expression.as_ref() {
-            orco::ir::Expression::Symbol(symbol) => {
+            orco::ir::Expression::Symbol(symbol, ..) => {
                 let function = match &symbol.inner {
                     orco::SymbolReference::Function(function) => self.object.declare_func_in_func(
                         *self

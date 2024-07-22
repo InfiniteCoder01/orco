@@ -2,12 +2,12 @@ use super::*;
 use std::sync::Mutex;
 
 /// Variable declaration statement
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct VariableDeclaration {
     /// Variable name
     pub name: PathSegment,
     /// Variable ID, just a counting up number assigned automatically, when calling
-    /// [`crate::symbol_mapper::VariableMapper::declare_variable`]
     /// Useful for some backends
     pub id: Mutex<VariableId>,
     /// Is variable mutable?
@@ -16,6 +16,11 @@ pub struct VariableDeclaration {
     pub r#type: Spanned<Mutex<Type>>,
     /// Initial value (optional (I wish it was nesessarry))
     pub value: Option<Mutex<Expression>>,
+    /// Span of the declaration
+    pub span: Span,
+    /// Metadata
+    #[derivative(Debug = "ignore")]
+    pub metadata: Box<dyn VariableDeclarationMetadata>,
 }
 
 /// Variable ID, for more information see [`VariableDeclaration::id`]
@@ -28,6 +33,8 @@ impl VariableDeclaration {
         mutable: Spanned<bool>,
         r#type: Spanned<Type>,
         value: Option<Expression>,
+        span: Span,
+        metadata: impl VariableDeclarationMetadata + 'static,
     ) -> Self {
         Self {
             name,
@@ -35,6 +42,8 @@ impl VariableDeclaration {
             mutable,
             r#type: r#type.map(Mutex::new),
             value: value.map(Mutex::new),
+            span,
+            metadata: Box::new(metadata),
         }
     }
 
@@ -95,5 +104,8 @@ impl std::fmt::Display for VariableDeclaration {
     }
 }
 
-/// Variable (a reference to it's declaration)
-pub type Variable = std::sync::Arc<Spanned<VariableDeclaration>>;
+declare_metadata! {
+    /// Frontend metadata for variable declaration
+    trait VariableDeclarationMetadata {
+    }
+}

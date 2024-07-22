@@ -1,7 +1,8 @@
 use super::*;
 
 /// Binary expression
-#[derive(Clone, Debug)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 pub struct BinaryExpression {
     /// Left hand side
     pub lhs: Box<Expression>,
@@ -9,12 +10,29 @@ pub struct BinaryExpression {
     pub op: BinaryOp,
     /// Right hand side
     pub rhs: Box<Expression>,
+    /// Span of the expression
+    pub span: Span,
+    /// Metadata
+    #[derivative(Debug = "ignore")]
+    pub metadata: Box<dyn BinaryMetadata>,
 }
 
 impl BinaryExpression {
     /// Create a new binary expression
-    pub fn new(lhs: Box<Expression>, op: BinaryOp, rhs: Box<Expression>) -> Self {
-        Self { lhs, op, rhs }
+    pub fn new(
+        lhs: Box<Expression>,
+        op: BinaryOp,
+        rhs: Box<Expression>,
+        span: Span,
+        metadata: impl BinaryMetadata + 'static,
+    ) -> Self {
+        Self {
+            lhs,
+            op,
+            rhs,
+            span,
+            metadata: Box::new(metadata),
+        }
     }
 
     /// Get the type this binary expression evaluates to
@@ -57,27 +75,6 @@ impl BinaryExpression {
         let lhs_type = self.lhs.finish_and_check_types(type_inference);
         let rhs_type = self.rhs.finish_and_check_types(type_inference);
         if !rhs_type.morphs(&lhs_type) {
-            let mut colors = ColorGenerator::new();
-            let report = Report::build(
-                ReportKind::Error,
-                self.lhs.span().0.clone(),
-                self.lhs.span().1.start,
-            )
-            .with_message(format!(
-                "Incompatible types for binary operation '{}': '{}' and '{}'",
-                self.op, lhs_type, rhs_type
-            ))
-            .with_label(
-                Label::new(self.lhs.span().clone())
-                    .with_message("Left hand side")
-                    .with_color(colors.next()),
-            )
-            .with_label(
-                Label::new(self.rhs.span().clone())
-                    .with_message("Right hand side")
-                    .with_color(colors.next()),
-            );
-            type_inference.reporter.report(report.finish());
             todo!(
                 "Type mismatch for binary operator error: {:?} and {:?}",
                 lhs_type,
@@ -147,19 +144,41 @@ impl std::fmt::Display for BinaryOp {
     }
 }
 
+declare_metadata! {
+    /// Frontend metadata for binary expression
+    trait BinaryMetadata {
+    }
+}
+
 /// Unary expression
-#[derive(Clone, Debug)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 pub struct UnaryExpression {
     /// Operator
     pub op: UnaryOp,
     /// Expression
     pub expr: Box<Expression>,
+    /// Span of the expression
+    pub span: Span,
+    /// Metadata
+    #[derivative(Debug = "ignore")]
+    pub metadata: Box<dyn UnaryMetadata>,
 }
 
 impl UnaryExpression {
     /// Create a new unary expression
-    pub fn new(op: UnaryOp, expr: Box<Expression>) -> Self {
-        Self { op, expr }
+    pub fn new(
+        op: UnaryOp,
+        expr: Box<Expression>,
+        span: Span,
+        metadata: impl UnaryMetadata + 'static,
+    ) -> Self {
+        Self {
+            op,
+            expr,
+            span,
+            metadata: Box::new(metadata),
+        }
     }
 
     /// Get the type this unary expression evaluates to
@@ -178,13 +197,7 @@ impl UnaryExpression {
         match self.op {
             UnaryOp::Neg => match r#type {
                 Type::Int(_) | Type::Float(_) => (),
-                _ => {
-                    type_inference.reporter.report_type_error(
-                        format!("Cannot apply unary negation to {}", r#type),
-                        self.expr.span(),
-                        vec![],
-                    );
-                }
+                _ => todo!("Type mismatch on unary operator error: {}", r#type),
             },
         }
         r#type
@@ -212,19 +225,41 @@ impl std::fmt::Display for UnaryOp {
     }
 }
 
+declare_metadata! {
+    /// Frontend metadata for unary expression
+    trait UnaryMetadata {
+    }
+}
+
 /// Assignment expression
-#[derive(Clone, Debug)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 pub struct AssignmentExpression {
     /// Target
     pub target: Box<Expression>,
     /// Value
     pub value: Box<Expression>,
+    /// Span of the expression
+    pub span: Span,
+    /// Metadata
+    #[derivative(Debug = "ignore")]
+    pub metadata: Box<dyn AssignmentMetadata>,
 }
 
 impl AssignmentExpression {
     /// Create a new assignment expression
-    pub fn new(target: Box<Expression>, value: Box<Expression>) -> Self {
-        Self { target, value }
+    pub fn new(
+        target: Box<Expression>,
+        value: Box<Expression>,
+        span: Span,
+        metadata: impl AssignmentMetadata + 'static,
+    ) -> Self {
+        Self {
+            target,
+            value,
+            span,
+            metadata: Box::new(metadata),
+        }
     }
 
     /// Infer types for this assignment expression
@@ -240,16 +275,12 @@ impl AssignmentExpression {
         let value_type = self.value.finish_and_check_types(type_inference);
         let target_type = self.target.finish_and_check_types(type_inference);
         let can_assign = match self.target.as_ref() {
-            Expression::Symbol(symbol) => {
-                if let SymbolReference::Variable(variable) = &symbol.inner {
+            Expression::Symbol(symbol, ..) => {
+                if let SymbolReference::Variable(variable) = symbol.inner {
                     if !variable.mutable.inner {
-                        type_inference.reporter.report_type_error(
-                            format!("Cannot assign to an immutable variable '{}'", variable.name),
-                            self.target.span(),
-                            vec![(
-                                "Help: Make this variable mutable",
-                                variable.mutable.span.clone(),
-                            )],
+                        todo!(
+                            "Cannot assign to an immutable variable error: '{}'",
+                            variable.name
                         );
                     }
                     true
@@ -260,18 +291,10 @@ impl AssignmentExpression {
             _ => false,
         };
         if !can_assign {
-            type_inference.reporter.report_type_error(
-                format!("Cannot assign to '{}'", self.target),
-                self.target.span(),
-                vec![],
-            );
-        };
+            todo!("Cannot assign to error: '{}'", self.target);
+        }
         if !value_type.morphs(&target_type) {
-            type_inference.reporter.report_type_error(
-                format!("Cannot assign '{}' to '{}'", value_type, target_type),
-                self.value.span(),
-                vec![("Expected because of this", self.target.span())],
-            );
+            todo!("Cannot assign error: '{}' to '{}'", value_type, target_type);
         }
         Type::Unit
     }
@@ -280,5 +303,11 @@ impl AssignmentExpression {
 impl std::fmt::Display for AssignmentExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} = {}", self.target, self.value)
+    }
+}
+
+declare_metadata! {
+    /// Frontend metadata for assignment expression
+    trait AssignmentMetadata {
     }
 }

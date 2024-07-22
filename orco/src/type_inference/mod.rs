@@ -34,7 +34,6 @@ pub struct TypeInference<'a> {
     pub current_module_path: &'a Path,
 
     scopes: Vec<Scope>,
-    symbol_resolver: &'a dyn Fn(&mut TypeInference, &Path) -> Option<SymbolReference>,
 }
 
 impl<'a> TypeInference<'a> {
@@ -45,7 +44,6 @@ impl<'a> TypeInference<'a> {
         root_module: &'a ir::Module,
         current_module: &'a ir::Module,
         current_module_path: &'a Path,
-        symbol_resolver: &'a dyn Fn(&mut TypeInference, &Path) -> Option<SymbolReference>,
     ) -> Self {
         Self {
             return_type,
@@ -60,7 +58,6 @@ impl<'a> TypeInference<'a> {
             current_module_path,
 
             scopes: Vec::new(),
-            symbol_resolver,
         }
     }
 

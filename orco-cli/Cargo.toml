@@ -8,17 +8,15 @@ readme = "README.md"
 repository = "https://github.com/InfiniteCoder01/orco"
 license = "MIT OR Apache-2.0"
 keywords = ["orco", "compiler", "cli"]
-categories = [
-    "compilers",
-    "command-line-utilities",
-    "development-tools",
-]
+categories = ["compilers", "command-line-utilities", "development-tools"]
 
 [dependencies]
 clap = { version = "4.4.18", features = ["derive"] }
-rayon = "1.8.1"
 
 orco = { path = "../orco", version = "0.0.1" }
 orco-lang = { path = "../orco-lang", version = "0.0.1" }
 orco-backend-cranelift = { path = "../backends/orco-backend-cranelift", version = "0.0.1" }
+
+miette = { version = "7.2.0", features = ["fancy"] }
 env_logger = "0.11.3"
+log = "0.4.22"

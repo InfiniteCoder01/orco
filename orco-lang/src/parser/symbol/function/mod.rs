@@ -6,11 +6,16 @@ pub mod signature;
 /// Parse a function (assumes, that "fn" token is already consumed)
 /// If parse_name is true, function name is expected
 pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::symbol::Function {
-    ir::symbol::Function::new(signature::parse(parser), {
-        let body = expression::expect(parser);
-        if !body.is_block() {
-            parser.expect_operator(Operator::Semicolon);
-        }
-        body
-    })
+    let start = parser.span().1.start;
+    ir::symbol::Function::new(
+        signature::parse(parser),
+        {
+            let body = expression::expect(parser);
+            if !body.is_block() {
+                parser.expect_operator(Operator::Semicolon);
+            }
+            body
+        },
+        parser.span_from(start),
+    )
 }
