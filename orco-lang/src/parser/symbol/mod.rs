@@ -3,9 +3,16 @@ use super::*;
 /// Parsers for different parts of a function
 pub mod function;
 
-/// Parse a symbol (it there is one, otherwise returns None and does nothing)
+/// Parse a symbol (if there is one, otherwise returns None and does nothing)
 pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<ir::Symbol> {
-    if parser.match_keyword("fn") {
+    // let start = parser.span().1.start;
+    if parser.match_keyword("comptime") {
+        let name = parser.expect_ident("symbol name")?;
+        parser.expect_operator(Operator::Equal);
+        let value = expression::expect(parser);
+        parser.expect_operator(Operator::Semicolon);
+        Some(ir::Symbol::Comptime(name, value))
+    } else if parser.match_keyword("fn") {
         let function = function::parse(parser);
         Some(ir::Symbol::Function(std::sync::Arc::new(function)))
     } else if parser.match_keyword("extern") {

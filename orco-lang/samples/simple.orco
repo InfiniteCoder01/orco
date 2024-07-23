@@ -1,5 +1,7 @@
 extern fn puts(message: char*) -> i32;
 
+comptime a = 0;
+
 fn main() -> i32 {
 	puts(c"Hello, World!")
 }

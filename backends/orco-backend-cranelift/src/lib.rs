@@ -54,17 +54,19 @@ impl<'a> Object<'a> {
 pub fn build(root: &orco::ir::Module) {
     debug!("Compiling module:\n{}", root);
     let mut object = Object::new(root, "x86_64-unknown-linux-gnu");
+    use orco::ir::Symbol;
 
     for symbol in &root.symbols {
         match symbol {
-            orco::ir::Symbol::Function(function) => {
+            Symbol::Comptime(_name, _value) => todo!(),
+            Symbol::Function(function) => {
                 object.declare_function(
                     function.signature.name.clone(),
                     cranelift_module::Linkage::Export,
                     &function.signature,
                 );
             }
-            orco::ir::Symbol::ExternalFunction(signature) => {
+            Symbol::ExternalFunction(signature) => {
                 object.declare_function(
                     signature.name.clone(),
                     cranelift_module::Linkage::Import,
@@ -75,7 +77,7 @@ pub fn build(root: &orco::ir::Module) {
     }
 
     for symbol in &root.symbols {
-        if let orco::ir::Symbol::Function(function) = symbol {
+        if let Symbol::Function(function) = symbol {
             object.build_function(function);
         }
     }

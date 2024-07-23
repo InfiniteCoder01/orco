@@ -29,11 +29,9 @@ fn main() {
     };
 
     krate.root.register();
-    krate.root.infer_and_check_types(
-        &mut reporter,
-        &krate.root,
-        &orco::Path::new(),
-    );
+    krate
+        .root
+        .infer_and_check_types(&mut reporter, &krate.root, &orco::Path::new());
     if !reporter.has_errors() {
         orco_backend_cranelift::build(&krate.root);
     } else {

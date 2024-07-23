@@ -20,7 +20,7 @@ pub use expression::Expression;
 pub struct Module {
     /// Module content
     pub symbols: Vec<Symbol>,
-    /// Symbol map, can be used to resolve symbols
+    /// Symbol map, can be used to resolve symbols; Will be filled automatically in [`Self::register`]
     pub symbol_map: std::collections::HashMap<PathSegment, Vec<SymbolReference>>,
 }
 
@@ -29,6 +29,10 @@ impl Module {
     pub fn register(&mut self) {
         for symbol in &self.symbols {
             match symbol {
+                Symbol::Comptime(_name, _value) => {
+                    todo!()
+                    // self.symbol_map.insert(name.clone(), value);
+                }
                 Symbol::Function(function) => {
                     self.symbol_map
                         .entry(function.signature.name.clone())
