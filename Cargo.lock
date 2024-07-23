@@ -710,7 +710,6 @@ dependencies = [
  "log",
  "miette",
  "orco",
- "orco-backend-cranelift",
  "orco-lang",
 ]
 

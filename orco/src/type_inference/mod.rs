@@ -1,8 +1,8 @@
 use super::*;
 
-/// Scopes & Symbol mapping
-pub mod scopes;
-pub use scopes::Scope;
+// /// Scopes & Symbol mapping
+// pub mod scopes;
+// pub use scopes::Scope;
 
 /// Type variable ID, used for type inference with Hindley–Milner algorithm
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -32,8 +32,7 @@ pub struct TypeInference<'a> {
     pub current_module: &'a ir::Module,
     /// Current module path
     pub current_module_path: &'a Path,
-
-    scopes: Vec<Scope>,
+    // scopes: Vec<Scope>,
 }
 
 impl<'a> TypeInference<'a> {
@@ -56,8 +55,7 @@ impl<'a> TypeInference<'a> {
             root_module,
             current_module,
             current_module_path,
-
-            scopes: Vec::new(),
+            // scopes: Vec::new(),
         }
     }
 

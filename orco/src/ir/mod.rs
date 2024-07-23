@@ -7,7 +7,7 @@ use dyn_clone::{clone_trait_object, DynClone};
 pub mod types;
 pub use types::Type;
 
-/// All kinds of symbols
+/// Symbol - a value that can be exported or used internally, evaluated at compile time
 pub mod symbol;
 pub use symbol::Symbol;
 
@@ -20,38 +20,21 @@ pub use expression::Expression;
 pub struct Module {
     /// Module content
     pub symbols: Vec<Symbol>,
-    /// Symbol map, can be used to resolve symbols; Will be filled automatically in [`Self::register`]
-    pub symbol_map: std::collections::HashMap<PathSegment, Vec<SymbolReference>>,
+    // /// Symbol map, can be used to resolve symbols; Will be filled automatically in [`Self::register_symbols`]
+    // pub symbol_map: std::collections::HashMap<Name, SymbolReference>,
 }
 
 impl Module {
     /// Register all symbols in the module
-    pub fn register(&mut self) {
-        for symbol in &self.symbols {
-            match symbol {
-                Symbol::Comptime(_name, _value) => {
-                    todo!()
-                    // self.symbol_map.insert(name.clone(), value);
-                }
-                Symbol::Function(function) => {
-                    self.symbol_map
-                        .entry(function.signature.name.clone())
-                        .or_default()
-                        .push(crate::SymbolReference::Function(
-                            symbol_reference::InternalPointer(function.as_ref() as _),
-                        ));
-                }
-
-                Symbol::ExternalFunction(function) => {
-                    self.symbol_map
-                        .entry(function.name.clone())
-                        .or_default()
-                        .push(crate::SymbolReference::ExternFunction(
-                            symbol_reference::InternalPointer(function.as_ref() as _),
-                        ));
-                }
-            }
-        }
+    pub fn register_symbols(&mut self) {
+        // for symbol in &self.symbols {
+        //     self.symbol_map.insert(symbol.name.clone(), symbol)
+        //         .entry(function.name.clone())
+        //         .or_default()
+        //         .push(crate::SymbolReference::ExternFunction(
+        //             symbol_reference::InternalPointer(function.as_ref() as _),
+        //         ));
+        // }
     }
 
     /// Infer types for the whole module
@@ -61,19 +44,21 @@ impl Module {
         root_module: &Module,
         current_path: &Path,
     ) {
-        for symbol in &self.symbols {
-            if let Symbol::Function(function) = symbol {
-                function.infer_and_check_types(reporter, root_module, self, current_path);
-            }
-        }
+        // for symbol in &self.symbols {
+        //     if let Symbol::Function(function) = symbol {
+        //         function.infer_and_check_types(reporter, root_module, self, current_path);
+        //     }
+        // }
     }
 }
 
 impl std::fmt::Display for Module {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "module {{")?;
         for symbol in &self.symbols {
-            writeln!(f, "{}\n", symbol)?;
+            writeln!(f, "{}", indent::indent_all_by(4, format!("{symbol}")))?;
         }
+        write!(f, "}}")?;
         Ok(())
     }
 }

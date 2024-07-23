@@ -1,7 +1,8 @@
-extern fn puts(message: char*) -> i32;
+// const std = module {
+// 	const puts = external_function "puts" (message: char*);
+// 	const add = fn (a: i32, b: i32) -> i32 { a + b };
+// };
 
-comptime a = 0;
-
-fn main() -> i32 {
-	puts(c"Hello, World!")
-}
+const main = fn () -> i32 {
+//	puts(c"Hello, World!")
+};

@@ -1,8 +1,12 @@
 use super::*;
 use diagnostics::*;
 use ir::Type;
-use symbol_reference::SymbolReference;
 use type_inference::TypeInference;
+
+/// Function expression
+pub mod function;
+pub use function::Function;
+
 /// Constant value
 pub mod constant;
 pub use constant::Constant;
@@ -39,13 +43,15 @@ pub use variable_declaration::VariableDeclaration;
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
 pub enum Expression {
+    /// Function literal
+    Function(Box<Function>),
     /// A constant value
     Constant(Spanned<Constant>),
-    /// Variable
-    Symbol(
-        Spanned<SymbolReference>,
-        #[derivative(Debug = "ignore")] Box<dyn symbol_reference::SymbolMetadata>,
-    ),
+    // /// Symbol
+    // Symbol(
+    //     Spanned<SymbolReference>,
+    //     #[derivative(Debug = "ignore")] Box<dyn symbol_reference::SymbolMetadata>,
+    // ),
     /// Binary expression
     BinaryExpression(BinaryExpression),
     /// Unary expression
@@ -75,8 +81,9 @@ impl Expression {
     /// Get the type this expression evaluates to
     pub fn get_type(&self) -> Type {
         match self {
+            Expression::Function(_function) => todo!(),
             Expression::Constant(constant) => constant.get_type(),
-            Expression::Symbol(symbol, ..) => symbol.get_type(),
+            // Expression::Symbol(symbol, ..) => symbol.get_type(),
             Expression::BinaryExpression(expr) => expr.get_type(),
             Expression::UnaryExpression(expr) => expr.get_type(),
             Expression::Block(block) => block.get_type(),
@@ -93,10 +100,11 @@ impl Expression {
     /// Returns completed type of this expression (Completed means that type doesn't contain [`Type::Wildcard`], but rather [`Type::TypeVariable`])
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
         let r#type = match self {
+            Expression::Function(_function) => todo!(),
             Expression::Constant(constant) => constant.inner.infer_types(type_inference),
-            Expression::Symbol(symbol, metadata) => {
-                symbol.infer_types(type_inference, metadata.as_mut())
-            }
+            // Expression::Symbol(symbol, metadata) => {
+            //     symbol.infer_types(type_inference, metadata.as_mut())
+            // }
             Expression::BinaryExpression(expr) => expr.infer_types(type_inference),
             Expression::UnaryExpression(expr) => expr.infer_types(type_inference),
             Expression::Block(block) => block.infer_types(type_inference),
@@ -105,12 +113,12 @@ impl Expression {
             Expression::Return(expr) => expr.infer_types(type_inference),
             Expression::VariableDeclaration(declaration) => {
                 let r#type = declaration.infer_types(type_inference);
-                type_inference.current_scope_mut().insert(
-                    declaration.name.clone(),
-                    SymbolReference::Variable(symbol_reference::InternalPointer(
-                        declaration.as_ref() as _,
-                    )),
-                );
+                // type_inference.current_scope_mut().insert(
+                //     declaration.name.clone(),
+                //     SymbolReference::Variable(symbol_reference::InternalPointer(
+                //         declaration.as_ref() as _,
+                //     )),
+                // );
                 r#type
             }
             Expression::Assignment(expr) => expr.infer_types(type_inference),
@@ -122,14 +130,15 @@ impl Expression {
     /// Finish types and check them
     pub fn finish_and_check_types(&mut self, type_inference: &mut TypeInference) -> Type {
         match self {
+            Expression::Function(_function) => todo!(),
             Expression::Constant(constant) => constant
                 .inner
                 .finish_and_check_types(constant.span.clone(), type_inference),
-            Expression::Symbol(symbol, metadata) => symbol.finish_and_check_types(
-                symbol.span.clone(),
-                type_inference,
-                metadata.as_mut(),
-            ),
+            // Expression::Symbol(symbol, metadata) => symbol.finish_and_check_types(
+            //     symbol.span.clone(),
+            //     type_inference,
+            //     metadata.as_mut(),
+            // ),
             Expression::BinaryExpression(expr) => expr.finish_and_check_types(type_inference),
             Expression::UnaryExpression(expr) => expr.finish_and_check_types(type_inference),
             Expression::Block(block) => block.finish_and_check_types(type_inference),
@@ -147,8 +156,9 @@ impl Expression {
     /// Get the span of this expression
     pub fn span(&self) -> Span {
         match self {
+            Expression::Function(_function) => todo!(),
             Expression::Constant(constant) => constant.span.clone(),
-            Expression::Symbol(symbol, ..) => symbol.span.clone(),
+            // Expression::Symbol(symbol, ..) => symbol.span.clone(),
             Expression::BinaryExpression(expr) => expr.span.clone(),
             Expression::UnaryExpression(expr) => expr.span.clone(),
             Expression::Block(block) => block.span.clone(),
@@ -165,8 +175,9 @@ impl Expression {
 impl std::fmt::Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Expression::Function(function) => write!(f, "{}", function),
             Expression::Constant(constant) => write!(f, "{}", constant.inner),
-            Expression::Symbol(symbol, ..) => write!(f, "{}", symbol.inner),
+            // Expression::Symbol(symbol, ..) => write!(f, "{}", symbol.inner),
             Expression::BinaryExpression(expr) => write!(f, "{}", expr),
             Expression::UnaryExpression(expr) => write!(f, "{}", expr),
             Expression::Block(block) => write!(f, "{}", block),

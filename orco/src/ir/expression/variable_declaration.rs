@@ -6,7 +6,7 @@ use std::sync::Mutex;
 #[derivative(Debug)]
 pub struct VariableDeclaration {
     /// Variable name
-    pub name: PathSegment,
+    pub name: Name,
     /// Variable ID, just a counting up number assigned automatically, when calling
     /// Useful for some backends
     pub id: Mutex<VariableId>,
@@ -49,7 +49,7 @@ impl VariableDeclaration {
 
     /// Infer types
     pub fn infer_types(&self, type_inference: &mut TypeInference) -> Type {
-        *self.id.lock().unwrap() = type_inference.new_variable_id();
+        // *self.id.lock().unwrap() = type_inference.new_variable_id();
         let mut r#type = self.r#type.inner.lock().unwrap();
         *r#type = type_inference.complete(r#type.clone());
         if let Some(value) = &self.value {

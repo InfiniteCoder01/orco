@@ -50,7 +50,7 @@ impl Block {
     /// Infer types
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
         if !self.transparent {
-            type_inference.push_scope();
+            // type_inference.push_scope();
         }
         let mut r#type = Type::unit();
         for expression in &mut self.expressions {
@@ -66,7 +66,7 @@ impl Block {
             }
         }
         if !self.transparent {
-            type_inference.pop_scope();
+            // type_inference.pop_scope();
         }
         r#type
     }

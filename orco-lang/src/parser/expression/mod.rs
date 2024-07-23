@@ -82,6 +82,44 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
     }
 }
 
+/// Parse function signature
+pub fn parse_signature<R: ErrorReporter + ?Sized>(
+    parser: &mut Parser<R>,
+) -> ir::expression::function::Signature {
+    parser.expect_operator(Operator::LParen);
+    let mut args = Vec::new();
+    while !parser.match_operator(Operator::RParen) {
+        let start = parser.span().1.start;
+        let name = parser
+            .expect_ident("argument name")
+            .unwrap_or(parser.span());
+        parser.expect_operator(Operator::Colon);
+        let r#type = r#type::parse(parser);
+
+        let declaration = ir::expression::variable_declaration::VariableDeclaration::new(
+            name,
+            parser.wrap_point(false),
+            r#type,
+            None,
+            parser.span_from(start),
+            (),
+        );
+        *declaration.id.lock().unwrap() = args.len() as _;
+        args.push(declaration);
+
+        if !parser.match_operator(Operator::Comma) {
+            parser.expect_operator(Operator::RParen);
+            break;
+        }
+    }
+    let return_type = if parser.match_operator(Operator::Arrow) {
+        r#type::parse(parser)
+    } else {
+        parser.wrap_point(ir::Type::unit())
+    };
+    ir::expression::function::Signature::new(return_type)
+}
+
 /// Parse a unit expression
 pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expression> {
     let start = parser.span().1.start;
@@ -91,6 +129,11 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
         expr
     } else if let Some(span) = parser.match_error() {
         Expression::Error(span)
+    } else if parser.match_keyword("fn") {
+        Expression::Function(Box::new(ir::expression::Function {
+            signature: parse_signature(parser),
+            body: expect(parser),
+        }))
     } else if let Some(constant) = parser.match_constant() {
         Expression::Constant(constant)
     } else if let Some(block) = block::parse(parser) {
@@ -98,13 +141,14 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
     } else if parser.match_keyword("if") {
         branching::expect_if(parser, start)
     } else if let Some(name) = parser.match_ident() {
-        Expression::Symbol(
-            parser.wrap_span(
-                orco::SymbolReference::Undeclared(orco::Path::single(name)),
-                start,
-            ),
-            Box::new(()),
-        )
+        // Expression::Symbol(
+        //     parser.wrap_span(
+        //         orco::SymbolReference::Undeclared(orco::Path::single(name)),
+        //         start,
+        //     ),
+        //     Box::new(()),
+        // )
+        todo!()
     } else {
         return None;
     };

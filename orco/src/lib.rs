@@ -7,21 +7,21 @@ pub mod diagnostics;
 pub mod ir;
 /// Source and span
 pub mod source;
-/// Symbol reference (used to reference symbols/variables in expressions)
-pub mod symbol_reference;
+// /// Symbol reference (used to reference symbols/variables in expressions)
+// pub mod symbol_reference;
 /// Type inference structs and functions
 pub mod type_inference;
 
 pub use source::*;
-pub use symbol_reference::SymbolReference;
+// pub use symbol_reference::SymbolReference;
 pub use type_inference::TypeInference;
 
-/// A segment of a [Path]
-pub type PathSegment = Span;
+/// Name, a segment of a [Path]
+pub type Name = Span;
 
 /// Path to a symbol
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Path(pub Vec<PathSegment>);
+pub struct Path(pub Vec<Name>);
 
 impl Path {
     /// Create a new path
@@ -30,17 +30,17 @@ impl Path {
     }
 
     /// Create a new path with a single segment
-    pub fn single(root: PathSegment) -> Self {
+    pub fn single(root: Name) -> Self {
         Self(vec![root])
     }
 
     /// Append a segment to the end of the path
-    pub fn push(&mut self, segment: PathSegment) {
+    pub fn push(&mut self, segment: Name) {
         self.0.push(segment);
     }
 
     /// Same as [`Self::push`], but returns a new path instead of mutating this path
-    pub fn extend(&self, segment: PathSegment) -> Self {
+    pub fn extend(&self, segment: Name) -> Self {
         let mut path = self.clone();
         path.push(segment);
         path
