@@ -86,6 +86,7 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
 pub fn parse_signature<R: ErrorReporter + ?Sized>(
     parser: &mut Parser<R>,
 ) -> ir::expression::function::Signature {
+    let args_start = parser.span().1.start;
     parser.expect_operator(Operator::LParen);
     let mut args = Vec::new();
     while !parser.match_operator(Operator::RParen) {
@@ -112,12 +113,13 @@ pub fn parse_signature<R: ErrorReporter + ?Sized>(
             break;
         }
     }
+    let args = parser.wrap_span(args, args_start);
     let return_type = if parser.match_operator(Operator::Arrow) {
         r#type::parse(parser)
     } else {
         parser.wrap_point(ir::Type::unit())
     };
-    ir::expression::function::Signature::new(return_type)
+    ir::expression::function::Signature::new(args, return_type)
 }
 
 /// Parse a unit expression
@@ -140,7 +142,7 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
         Expression::Block(block)
     } else if parser.match_keyword("if") {
         branching::expect_if(parser, start)
-    } else if let Some(name) = parser.match_ident() {
+    } else if let Some(_name) = parser.match_ident() {
         // Expression::Symbol(
         //     parser.wrap_span(
         //         orco::SymbolReference::Undeclared(orco::Path::single(name)),

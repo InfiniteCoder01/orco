@@ -3,7 +3,7 @@ use derivative::Derivative;
 use downcast_rs::{impl_downcast, Downcast};
 use dyn_clone::{clone_trait_object, DynClone};
 
-/// Of course we are statically-typed
+/// Types
 pub mod types;
 pub use types::Type;
 
@@ -11,15 +11,15 @@ pub use types::Type;
 pub mod symbol;
 pub use symbol::Symbol;
 
-/// All kinds of expressions (statements are expressions as well)
+/// Expressions (and statements)
 pub mod expression;
 pub use expression::Expression;
 
-/// A module (namespace), can be a file, some small section of it or the whole project
+/// A module (namespace). Can be a file, some small section of it or the whole codebase
 #[derive(Debug, Default)]
 pub struct Module {
     /// Module content
-    pub symbols: Vec<Symbol>,
+    pub symbols: Vec<std::sync::Mutex<Symbol>>,
     // /// Symbol map, can be used to resolve symbols; Will be filled automatically in [`Self::register_symbols`]
     // pub symbol_map: std::collections::HashMap<Name, SymbolReference>,
 }
@@ -37,18 +37,23 @@ impl Module {
         // }
     }
 
-    /// Infer types for the whole module
-    pub fn infer_and_check_types(
-        &self,
-        reporter: &mut dyn crate::diagnostics::ErrorReporter,
-        root_module: &Module,
-        current_path: &Path,
-    ) {
-        // for symbol in &self.symbols {
-        //     if let Symbol::Function(function) = symbol {
-        //         function.infer_and_check_types(reporter, root_module, self, current_path);
-        //     }
-        // }
+    /// Infer and check types for the whole module
+    pub fn infer_and_check_types(&self, type_inference: &mut TypeInference) {
+        for symbol in &self.symbols {
+            let mut symbol = symbol.lock().unwrap();
+            symbol.value.infer_types(type_inference);
+            symbol.value.finish_and_check_types(type_inference);
+        }
+    }
+
+    /// Evaluate comptime symbols, has to be done before building
+    pub fn evaluate_comptimes(&self, interpreter: &mut Interpreter) {
+        for symbol in &self.symbols {
+            let mut symbol = symbol.lock().unwrap();
+            if symbol.evaluated.is_none() {
+                symbol.evaluated = Some(interpreter.evaluate(&symbol.value));
+            }
+        }
     }
 }
 
@@ -56,10 +61,34 @@ impl std::fmt::Display for Module {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "module {{")?;
         for symbol in &self.symbols {
-            writeln!(f, "{}", indent::indent_all_by(4, format!("{symbol}")))?;
+            writeln!(
+                f,
+                "{}",
+                indent::indent_all_by(4, format!("{}", symbol.lock().unwrap()))
+            )?;
         }
         write!(f, "}}")?;
         Ok(())
+    }
+}
+
+/// Pointer to interanl IR data, use with care!
+#[derive(Derivative)]
+#[derivative(Clone(bound = ""), Copy(bound = ""))]
+pub struct InternalPointer<T>(pub(crate) *const T);
+unsafe impl<T: Send> Send for InternalPointer<T> {}
+unsafe impl<T: Sync> Sync for InternalPointer<T> {}
+impl<T: std::fmt::Debug> std::fmt::Debug for InternalPointer<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl<T> std::ops::Deref for InternalPointer<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.0 }
     }
 }
 

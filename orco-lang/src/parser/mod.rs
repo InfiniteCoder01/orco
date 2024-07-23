@@ -9,13 +9,13 @@ pub mod r#type;
 
 /// Parse a symbol
 pub fn parse_symbol<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<ir::Symbol> {
-    if !parser.match_keyword("const") {
+    if !parser.match_keyword("comptime") {
         return None;
     }
     let name = parser.expect_ident("symbol name")?;
     parser.expect_operator(Operator::Equal);
     let value = expression::expect(parser);
-    return Some(ir::Symbol { name, value });
+    return Some(ir::Symbol::new(name, value));
 }
 
 /// Parse the whole file
@@ -24,7 +24,7 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::Module {
     while !parser.eof() {
         if let Some(symbol) = parse_symbol(parser) {
             parser.expect_operator(Operator::Semicolon);
-            module.symbols.push(symbol);
+            module.symbols.push(std::sync::Mutex::new(symbol));
         } else {
             parser.expected_error("a symbol");
             parser.next();

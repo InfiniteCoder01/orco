@@ -28,14 +28,18 @@ fn main() {
         orco_lang::Crate::parse(cli.path, &mut reporter)
     };
 
-    println!("{}", krate.root);
     // krate.root.register();
-    // krate
-    //     .root
-    //     .infer_and_check_types(&mut reporter, &krate.root, &orco::Path::new());
-    // if !reporter.has_errors() {
-    //     orco_backend_cranelift::build(&krate.root);
-    // } else {
-    //     std::process::exit(1);
-    // }
+
+    let mut type_inference = orco::TypeInference::new(&mut reporter, &krate.root);
+    krate.root.infer_and_check_types(&mut type_inference);
+
+    krate
+        .root
+        .evaluate_comptimes(&mut orco::Interpreter::default());
+    println!("{}", krate.root);
+    if !reporter.has_errors() {
+        orco_backend_cranelift::build(&krate.root);
+    } else {
+        std::process::exit(1);
+    }
 }

@@ -85,6 +85,26 @@ impl VariableDeclaration {
     }
 }
 
+impl Clone for VariableDeclaration {
+    fn clone(&self) -> Self {
+        Self {
+            name: self.name.clone(),
+            id: Mutex::new(self.id.lock().unwrap().clone()),
+            mutable: self.mutable.clone(),
+            r#type: Spanned::new(
+                Mutex::new(self.r#type.lock().unwrap().clone()),
+                self.r#type.span.clone(),
+            ),
+            value: self
+                .value
+                .as_ref()
+                .map(|value| Mutex::new(value.lock().unwrap().clone())),
+            span: self.span.clone(),
+            metadata: self.metadata.clone(),
+        }
+    }
+}
+
 impl std::fmt::Display for VariableDeclaration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let show_id = std::env::var("ORCO_SHOW_VAR_ID").map_or(false, |show_id| show_id == "1");

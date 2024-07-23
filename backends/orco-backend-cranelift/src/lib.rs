@@ -3,7 +3,7 @@
 
 use cranelift_module::Module;
 use log::debug;
-use orco::Span;
+use orco::{Name, Path};
 
 /// Build expressions
 pub mod expression;
@@ -19,7 +19,7 @@ pub struct Object<'a> {
     /// Cranelift object
     pub object: cranelift_object::ObjectModule,
     /// Functions table
-    pub functions: std::collections::HashMap<Span, cranelift_module::FuncId>,
+    pub functions: std::collections::HashMap<Path, cranelift_module::FuncId>,
     /// Constant pool
     pub constant_data: Option<(cranelift_module::DataId, Vec<u8>)>,
 }
@@ -54,31 +54,18 @@ impl<'a> Object<'a> {
 pub fn build(root: &orco::ir::Module) {
     debug!("Compiling module:\n{}", root);
     let mut object = Object::new(root, "x86_64-unknown-linux-gnu");
-    use orco::ir::Symbol;
 
     for symbol in &root.symbols {
-        match symbol {
-            Symbol::Comptime(_name, _value) => todo!(),
-            Symbol::Function(function) => {
+        let symbol = symbol.lock().unwrap();
+        if let Some(value) = &symbol.evaluated {
+            if let Ok(function) = value.cast_ref::<orco::ir::expression::Function>() {
                 object.declare_function(
-                    function.signature.name.clone(),
+                    Path::single(symbol.name.clone()),
                     cranelift_module::Linkage::Export,
                     &function.signature,
                 );
+                object.build_function(Path::single(symbol.name.clone()), &function);
             }
-            Symbol::ExternalFunction(signature) => {
-                object.declare_function(
-                    signature.name.clone(),
-                    cranelift_module::Linkage::Import,
-                    signature,
-                );
-            }
-        }
-    }
-
-    for symbol in &root.symbols {
-        if let Symbol::Function(function) = symbol {
-            object.build_function(function);
         }
     }
 

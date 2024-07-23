@@ -10,31 +10,35 @@ impl crate::Object<'_> {
     /// Declare a function in the object
     pub fn declare_function(
         &mut self,
-        name: Span,
+        name: Path,
         linkage: cranelift_module::Linkage,
-        signature: &orco::ir::symbol::function::Signature,
+        signature: &orco::ir::expression::function::Signature,
     ) -> cranelift_module::FuncId {
         trace!("Declaring function {}", name);
         let sig = self.convert_function_signature(signature);
-        let id = self.object.declare_function(&name, linkage, &sig).unwrap();
+        let id = self
+            .object
+            .declare_function(&name.to_string(), linkage, &sig)
+            .unwrap();
         self.functions.insert(name, id);
         id
     }
 
     /// Build a function in the object, must declare it first with [`Self::declare_function`]
-    pub fn build_function(&mut self, function: &orco::ir::symbol::function::Function) {
-        info!("Compiling function {}", function.signature.name);
+    pub fn build_function(
+        &mut self,
+        name: Path,
+        function: &orco::ir::expression::function::Function,
+    ) {
+        info!("Compiling function {}", name);
         trace!("OrCo IR:\n{}", function);
 
-        let id = *self
-            .functions
-            .get(&function.signature.name)
-            .expect("Function wasn't declared");
+        let id = *self.functions.get(&name).expect("Function wasn't declared");
         let sig = self.convert_function_signature(&function.signature);
         let mut ctx = Context::new();
         ctx.func = Function::with_name_signature(
             if cfg!(debug_assertions) {
-                UserFuncName::testcase(function.signature.name.as_ref())
+                UserFuncName::testcase(name.to_string())
             } else {
                 UserFuncName::user(0, id.as_u32())
             },
@@ -55,8 +59,8 @@ impl crate::Object<'_> {
                 builder.declare_var(variable, self.convert_type(&arg.r#type.lock().unwrap()));
                 builder.def_var(variable, value);
             }
-            let return_value = self.build_expression(&mut builder, &function.body.lock().unwrap());
-            if function.body.lock().unwrap().get_type() != orco::ir::Type::Never {
+            let return_value = self.build_expression(&mut builder, &function.body);
+            if function.body.get_type() != orco::ir::Type::Never {
                 builder
                     .ins()
                     .return_(&return_value.into_iter().collect::<Vec<_>>());
@@ -69,7 +73,7 @@ impl crate::Object<'_> {
     /// Convert OrCo function signature to Cranelift function signature
     pub fn convert_function_signature(
         &self,
-        signature: &orco::ir::symbol::function::Signature,
+        signature: &orco::ir::expression::function::Signature,
     ) -> cranelift_codegen::ir::Signature {
         use cranelift_codegen::ir::AbiParam;
         cranelift_codegen::ir::Signature {

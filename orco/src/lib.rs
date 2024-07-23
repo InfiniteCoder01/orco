@@ -7,14 +7,13 @@ pub mod diagnostics;
 pub mod ir;
 /// Source and span
 pub mod source;
-// /// Symbol reference (used to reference symbols/variables in expressions)
-// pub mod symbol_reference;
+pub use source::*;
 /// Type inference structs and functions
 pub mod type_inference;
-
-pub use source::*;
-// pub use symbol_reference::SymbolReference;
 pub use type_inference::TypeInference;
+/// Interpreter for the IR
+pub mod interpreter;
+pub use interpreter::{Interpreter, Value};
 
 /// Name, a segment of a [Path]
 pub type Name = Span;

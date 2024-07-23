@@ -3,7 +3,7 @@ use diagnostics::*;
 use ir::Type;
 use type_inference::TypeInference;
 
-/// Function expression
+/// Function
 pub mod function;
 pub use function::Function;
 
@@ -100,7 +100,7 @@ impl Expression {
     /// Returns completed type of this expression (Completed means that type doesn't contain [`Type::Wildcard`], but rather [`Type::TypeVariable`])
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
         let r#type = match self {
-            Expression::Function(_function) => todo!(),
+            Expression::Function(function) => function.signature.get_type(),
             Expression::Constant(constant) => constant.inner.infer_types(type_inference),
             // Expression::Symbol(symbol, metadata) => {
             //     symbol.infer_types(type_inference, metadata.as_mut())
@@ -130,7 +130,10 @@ impl Expression {
     /// Finish types and check them
     pub fn finish_and_check_types(&mut self, type_inference: &mut TypeInference) -> Type {
         match self {
-            Expression::Function(_function) => todo!(),
+            Expression::Function(function) => {
+                function.infer_and_check_types(type_inference);
+                function.signature.get_type()
+            }
             Expression::Constant(constant) => constant
                 .inner
                 .finish_and_check_types(constant.span.clone(), type_inference),

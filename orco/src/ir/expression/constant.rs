@@ -37,7 +37,7 @@ impl Constant {
         match self {
             Self::Integer { r#type, .. } => r#type.clone(),
             Self::Float { r#type, .. } => r#type.clone(),
-            Self::CString(..) => Type::Pointer(Box::new(Type::Char)),
+            Self::CString(..) => Type::Pointer(Box::new(Type::Char), false),
         }
     }
 

@@ -17,13 +17,12 @@ impl std::fmt::Display for TypeVariableId {
 /// Type inference information for a function
 pub struct TypeInference<'a> {
     /// Return type of a function
-    pub return_type: &'a diagnostics::Spanned<ir::Type>,
+    pub return_type: Option<&'a diagnostics::Spanned<ir::Type>>,
     /// Error reporter
     pub reporter: &'a mut dyn diagnostics::ErrorReporter,
     /// Type table
     pub type_table: Vec<(Vec<TypeVariableId>, ir::Type)>,
 
-    next_variable_id: ir::expression::variable_declaration::VariableId,
     next_type_variable_id: TypeVariableId,
 
     /// Root module
@@ -31,30 +30,26 @@ pub struct TypeInference<'a> {
     /// Current module
     pub current_module: &'a ir::Module,
     /// Current module path
-    pub current_module_path: &'a Path,
+    pub current_module_path: Path,
     // scopes: Vec<Scope>,
 }
 
 impl<'a> TypeInference<'a> {
     /// Create a new [TypeInference]
     pub fn new(
-        return_type: &'a diagnostics::Spanned<ir::Type>,
         reporter: &'a mut dyn diagnostics::ErrorReporter,
         root_module: &'a ir::Module,
-        current_module: &'a ir::Module,
-        current_module_path: &'a Path,
     ) -> Self {
         Self {
-            return_type,
+            return_type: None,
             reporter,
             type_table: Vec::new(),
 
-            next_variable_id: 0,
             next_type_variable_id: TypeVariableId(0),
 
             root_module,
-            current_module,
-            current_module_path,
+            current_module: root_module,
+            current_module_path: Path::new(),
             // scopes: Vec::new(),
         }
     }
@@ -136,7 +131,7 @@ impl<'a> TypeInference<'a> {
         if r#type == &ir::Type::IntegerWildcard {
             *r#type = ir::Type::Int(std::num::NonZeroU16::new(4).unwrap());
         } else if r#type == &ir::Type::FloatWildcard {
-            *r#type = ir::Type::Float(std::num::NonZeroU16::new(8).unwrap());
+            *r#type = ir::Type::Float(std::num::NonZeroU16::new(4).unwrap());
         }
         if !r#type.complete() {
             self.reporter.report_type_error(
