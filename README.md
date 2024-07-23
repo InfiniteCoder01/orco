@@ -33,15 +33,15 @@ Roadmap for now:
 - [x] Frontend-side diagnostics (and diagnostics refactor (and lints))
 - [x] Fix cyclic Arc by implementing inner pointers
 - [x] Reduce the use of `Spanned<Struct>`
-- [ ] Typecasts
-- [ ] Effect system?!
-- [ ] ?Unset literal
-- [ ] While loop
-- [ ] Pointers
-- [ ] Arrays
+- [ ] Make IR first-class
 - [ ] Structs
+- [ ] Pointers
+- [ ] Typecasts
+- [ ] Arrays
+- [ ] Effect system?!
+- [ ] Operator Overloading & Traits
+- [ ] While loop
 - [ ] C Frontend (and a blog post on it hopefully)
 - [ ] Post-typechecking frontend-side checks
-- [ ] Operator Overloading & Traits
 - [ ] Rust frontend
 - [ ] Self-hosting

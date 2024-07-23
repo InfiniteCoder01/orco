@@ -25,7 +25,7 @@ impl Function {
         }
     }
 
-    /// Infer types
+    /// Infer & check types
     pub fn infer_and_check_types(
         &self,
         reporter: &mut dyn crate::diagnostics::ErrorReporter,
