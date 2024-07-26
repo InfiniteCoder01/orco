@@ -11,6 +11,10 @@ pub use function::Function;
 pub mod constant;
 pub use constant::Constant;
 
+/// Symbol reference
+pub mod symbol_reference;
+pub use symbol_reference::SymbolReference;
+
 /// Operator-oriented expressions (binary, unary, assignment, etc.)
 pub mod operator;
 pub use operator::AssignmentExpression;
@@ -47,11 +51,11 @@ pub enum Expression {
     Function(Box<Function>),
     /// A constant value
     Constant(Spanned<Constant>),
-    // /// Symbol
-    // Symbol(
-    //     Spanned<SymbolReference>,
-    //     #[derivative(Debug = "ignore")] Box<dyn symbol_reference::SymbolMetadata>,
-    // ),
+    /// Symbol
+    Symbol(
+        Spanned<SymbolReference>,
+        #[derivative(Debug = "ignore")] Box<dyn symbol_reference::SymbolMetadata>,
+    ),
     /// Binary expression
     BinaryExpression(BinaryExpression),
     /// Unary expression
@@ -81,9 +85,9 @@ impl Expression {
     /// Get the type this expression evaluates to
     pub fn get_type(&self) -> Type {
         match self {
-            Expression::Function(_function) => todo!(),
+            Expression::Function(function) => function.signature.get_type(),
             Expression::Constant(constant) => constant.get_type(),
-            // Expression::Symbol(symbol, ..) => symbol.get_type(),
+            Expression::Symbol(symbol, ..) => symbol.get_type(),
             Expression::BinaryExpression(expr) => expr.get_type(),
             Expression::UnaryExpression(expr) => expr.get_type(),
             Expression::Block(block) => block.get_type(),
@@ -102,9 +106,9 @@ impl Expression {
         let r#type = match self {
             Expression::Function(function) => function.signature.get_type(),
             Expression::Constant(constant) => constant.inner.infer_types(type_inference),
-            // Expression::Symbol(symbol, metadata) => {
-            //     symbol.infer_types(type_inference, metadata.as_mut())
-            // }
+            Expression::Symbol(symbol, metadata) => {
+                symbol.infer_types(type_inference, metadata.as_mut())
+            }
             Expression::BinaryExpression(expr) => expr.infer_types(type_inference),
             Expression::UnaryExpression(expr) => expr.infer_types(type_inference),
             Expression::Block(block) => block.infer_types(type_inference),
@@ -137,11 +141,11 @@ impl Expression {
             Expression::Constant(constant) => constant
                 .inner
                 .finish_and_check_types(constant.span.clone(), type_inference),
-            // Expression::Symbol(symbol, metadata) => symbol.finish_and_check_types(
-            //     symbol.span.clone(),
-            //     type_inference,
-            //     metadata.as_mut(),
-            // ),
+            Expression::Symbol(symbol, metadata) => symbol.finish_and_check_types(
+                symbol.span.clone(),
+                type_inference,
+                metadata.as_mut(),
+            ),
             Expression::BinaryExpression(expr) => expr.finish_and_check_types(type_inference),
             Expression::UnaryExpression(expr) => expr.finish_and_check_types(type_inference),
             Expression::Block(block) => block.finish_and_check_types(type_inference),
@@ -161,7 +165,7 @@ impl Expression {
         match self {
             Expression::Function(_function) => todo!(),
             Expression::Constant(constant) => constant.span.clone(),
-            // Expression::Symbol(symbol, ..) => symbol.span.clone(),
+            Expression::Symbol(symbol, ..) => symbol.span.clone(),
             Expression::BinaryExpression(expr) => expr.span.clone(),
             Expression::UnaryExpression(expr) => expr.span.clone(),
             Expression::Block(block) => block.span.clone(),
@@ -180,7 +184,7 @@ impl std::fmt::Display for Expression {
         match self {
             Expression::Function(function) => write!(f, "{}", function),
             Expression::Constant(constant) => write!(f, "{}", constant.inner),
-            // Expression::Symbol(symbol, ..) => write!(f, "{}", symbol.inner),
+            Expression::Symbol(symbol, ..) => write!(f, "{}", symbol.inner),
             Expression::BinaryExpression(expr) => write!(f, "{}", expr),
             Expression::UnaryExpression(expr) => write!(f, "{}", expr),
             Expression::Block(block) => write!(f, "{}", block),

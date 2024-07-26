@@ -28,7 +28,7 @@ fn main() {
         orco_lang::Crate::parse(cli.path, &mut reporter)
     };
 
-    // krate.root.register();
+    krate.root.register_symbols();
 
     let mut type_inference = orco::TypeInference::new(&mut reporter, &krate.root);
     krate.root.infer_and_check_types(&mut type_inference);
@@ -36,7 +36,6 @@ fn main() {
     krate
         .root
         .evaluate_comptimes(&mut orco::Interpreter::default());
-    println!("{}", krate.root);
     if !reporter.has_errors() {
         orco_backend_cranelift::build(&krate.root);
     } else {

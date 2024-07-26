@@ -20,21 +20,19 @@ pub use expression::Expression;
 pub struct Module {
     /// Module content
     pub symbols: Vec<std::sync::Mutex<Symbol>>,
-    // /// Symbol map, can be used to resolve symbols; Will be filled automatically in [`Self::register_symbols`]
-    // pub symbol_map: std::collections::HashMap<Name, SymbolReference>,
+    /// Symbol map, can be used to resolve symbols; Will be filled automatically in [`Self::register_symbols`]
+    pub symbol_map: std::collections::HashMap<Name, InternalPointer<std::sync::Mutex<Symbol>>>,
 }
 
 impl Module {
     /// Register all symbols in the module
     pub fn register_symbols(&mut self) {
-        // for symbol in &self.symbols {
-        //     self.symbol_map.insert(symbol.name.clone(), symbol)
-        //         .entry(function.name.clone())
-        //         .or_default()
-        //         .push(crate::SymbolReference::ExternFunction(
-        //             symbol_reference::InternalPointer(function.as_ref() as _),
-        //         ));
-        // }
+        for symbol in &self.symbols {
+            self.symbol_map.insert(
+                symbol.lock().unwrap().name.clone(),
+                InternalPointer(symbol as _),
+            );
+        }
     }
 
     /// Infer and check types for the whole module

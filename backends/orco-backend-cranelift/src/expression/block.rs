@@ -1,5 +1,4 @@
-use cranelift_codegen::ir::Value;
-use cranelift_frontend::FunctionBuilder;
+use super::*;
 
 impl crate::Object<'_> {
     /// Build a code block

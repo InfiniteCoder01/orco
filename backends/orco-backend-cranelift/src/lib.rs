@@ -3,7 +3,7 @@
 
 use cranelift_module::Module;
 use log::debug;
-use orco::{Name, Path};
+use orco::Path;
 
 /// Build expressions
 pub mod expression;
@@ -58,7 +58,11 @@ pub fn build(root: &orco::ir::Module) {
     for symbol in &root.symbols {
         let symbol = symbol.lock().unwrap();
         if let Some(value) = &symbol.evaluated {
-            if let Ok(function) = value.cast_ref::<orco::ir::expression::Function>() {
+            if matches!(
+                symbol.value.get_type(),
+                orco::ir::Type::FunctionPointer(_, _)
+            ) {
+                let function = value.r#as::<orco::ir::expression::Function>();
                 object.declare_function(
                     Path::single(symbol.name.clone()),
                     cranelift_module::Linkage::Export,

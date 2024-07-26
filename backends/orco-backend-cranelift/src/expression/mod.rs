@@ -5,6 +5,9 @@ use cranelift_frontend::{FunctionBuilder, Variable};
 /// Build constants
 pub mod constant;
 
+/// Reference symbols
+pub mod symbol_reference;
+
 /// Build code blocks
 pub mod block;
 
@@ -28,17 +31,7 @@ impl crate::Object<'_> {
         match expr {
             Expression::Function(_) => unimplemented!("Functions in runtime are not supported"),
             Expression::Constant(value) => self.build_constant(builder, value),
-            // Expression::Symbol(symbol, ..) => match &symbol.inner {
-            //     orco::SymbolReference::Variable(variable) => {
-            //         Some(builder.use_var(Variable::new(*variable.id.lock().unwrap() as _)))
-            //     }
-            //     _ => {
-            //         panic!(
-            //             "Invalid symbol: {}. Did you run type checking/inference?",
-            //             symbol.inner
-            //         )
-            //     }
-            // },
+            Expression::Symbol(symbol, ..) => self.build_symbol_reference(builder, symbol),
             Expression::BinaryExpression(expr) => self.build_binary_expression(builder, expr),
             Expression::UnaryExpression(expr) => self.build_unary_expression(builder, expr),
             Expression::Block(block) => self.build_block(builder, block),
