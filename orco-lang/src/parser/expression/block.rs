@@ -9,7 +9,10 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<ir::ex
             while !parser.match_operator(Operator::RBrace) {
                 match expression::expect(parser) {
                     ir::Expression::Error(_) => {
-                        parser.next();
+                        if parser.next().is_none() {
+                            parser.expect_operator(Operator::RBrace);
+                            break;
+                        }
                     }
                     expression => {
                         if parser.match_operator(Operator::RBrace) {

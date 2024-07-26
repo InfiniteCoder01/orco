@@ -104,8 +104,8 @@ declare_metadata! {
             // if let Some(symbol) = type_inference.get_symbol(start) {
             //     return Some(symbol);
             // }
-            if let Some(symbol) = type_inference.current_module.symbol_map.get(start) {
-                return Some(SymbolReference::Symbol(symbol.clone()));
+            if let Some(symbol) = type_inference.current_module.symbols.get(start) {
+                return Some(SymbolReference::Symbol(InternalPointer::new(symbol)));
             }
             None
         }
@@ -113,5 +113,35 @@ declare_metadata! {
         Diagnostics:
         /// Callback of symbol not found error
         symbol_not_found(SymbolNotFound)
+    }
+}
+
+/// Pointer to interanl IR data, use with care!
+#[derive(Derivative)]
+#[derivative(Clone(bound = ""), Copy(bound = ""))]
+pub struct InternalPointer<T>(*const T);
+
+impl<T> InternalPointer<T> {
+    /// Create a new internal pointer. Only use this for
+    /// IR nodes that have to be referenced anywhere in IR
+    pub fn new(value: &Box<T>) -> Self {
+        Self(value.as_ref() as _)
+    }
+}
+
+unsafe impl<T: Send> Send for InternalPointer<T> {}
+unsafe impl<T: Sync> Sync for InternalPointer<T> {}
+
+impl<T: std::fmt::Debug> std::fmt::Debug for InternalPointer<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl<T> std::ops::Deref for InternalPointer<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.0 }
     }
 }

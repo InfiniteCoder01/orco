@@ -15,7 +15,7 @@ fn main() {
     let cli = Cli::parse();
     let mut reporter = orco::diagnostics::DefaultReporter::default();
 
-    let mut krate = if cli.path == std::path::Path::new("-") {
+    let krate = if cli.path == std::path::Path::new("-") {
         let mut source = String::new();
         std::io::stdin().read_to_string(&mut source).unwrap();
         orco_lang::Crate {
@@ -27,8 +27,6 @@ fn main() {
     } else {
         orco_lang::Crate::parse(cli.path, &mut reporter)
     };
-
-    krate.root.register_symbols();
 
     let mut type_inference = orco::TypeInference::new(&mut reporter, &krate.root);
     krate.root.infer_and_check_types(&mut type_inference);

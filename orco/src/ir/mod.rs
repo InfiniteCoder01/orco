@@ -19,25 +19,13 @@ pub use expression::Expression;
 #[derive(Debug, Default)]
 pub struct Module {
     /// Module content
-    pub symbols: Vec<std::sync::Mutex<Symbol>>,
-    /// Symbol map, can be used to resolve symbols; Will be filled automatically in [`Self::register_symbols`]
-    pub symbol_map: std::collections::HashMap<Name, InternalPointer<std::sync::Mutex<Symbol>>>,
+    pub symbols: std::collections::HashMap<Name, Box<std::sync::Mutex<Symbol>>>,
 }
 
 impl Module {
-    /// Register all symbols in the module
-    pub fn register_symbols(&mut self) {
-        for symbol in &self.symbols {
-            self.symbol_map.insert(
-                symbol.lock().unwrap().name.clone(),
-                InternalPointer(symbol as _),
-            );
-        }
-    }
-
     /// Infer and check types for the whole module
     pub fn infer_and_check_types(&self, type_inference: &mut TypeInference) {
-        for symbol in &self.symbols {
+        for symbol in self.symbols.values() {
             let mut symbol = symbol.lock().unwrap();
             symbol.value.infer_types(type_inference);
             symbol.value.finish_and_check_types(type_inference);
@@ -46,7 +34,7 @@ impl Module {
 
     /// Evaluate comptime symbols, has to be done before building
     pub fn evaluate_comptimes(&self, interpreter: &mut Interpreter) {
-        for symbol in &self.symbols {
+        for symbol in self.symbols.values() {
             let mut symbol = symbol.lock().unwrap();
             if symbol.evaluated.is_none() {
                 symbol.evaluated = Some(interpreter.evaluate(&symbol.value));
@@ -58,7 +46,7 @@ impl Module {
 impl std::fmt::Display for Module {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "module {{")?;
-        for symbol in &self.symbols {
+        for symbol in self.symbols.values() {
             writeln!(
                 f,
                 "{}",
@@ -67,26 +55,6 @@ impl std::fmt::Display for Module {
         }
         write!(f, "}}")?;
         Ok(())
-    }
-}
-
-/// Pointer to interanl IR data, use with care!
-#[derive(Derivative)]
-#[derivative(Clone(bound = ""), Copy(bound = ""))]
-pub struct InternalPointer<T>(pub(crate) *const T);
-unsafe impl<T: Send> Send for InternalPointer<T> {}
-unsafe impl<T: Sync> Sync for InternalPointer<T> {}
-impl<T: std::fmt::Debug> std::fmt::Debug for InternalPointer<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl<T> std::ops::Deref for InternalPointer<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        unsafe { &*self.0 }
     }
 }
 

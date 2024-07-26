@@ -3,14 +3,18 @@
 
 /// Diagnostics
 pub mod diagnostics;
+
 /// OrCo Intermediate Representation lives here
 pub mod ir;
+
 /// Source and span
 pub mod source;
 pub use source::*;
+
 /// Type inference structs and functions
 pub mod type_inference;
 pub use type_inference::TypeInference;
+
 /// Interpreter for the IR
 pub mod interpreter;
 pub use interpreter::{Interpreter, Value};

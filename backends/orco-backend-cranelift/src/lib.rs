@@ -55,7 +55,7 @@ pub fn build(root: &orco::ir::Module) {
     debug!("Compiling module:\n{}", root);
     let mut object = Object::new(root, "x86_64-unknown-linux-gnu");
 
-    for symbol in &root.symbols {
+    for symbol in root.symbols.values() {
         let symbol = symbol.lock().unwrap();
         if let Some(value) = &symbol.evaluated {
             if matches!(
