@@ -1,9 +1,6 @@
-// comptime f = fn () -> i32 42;
-
-comptime x = 23 * 3;
+comptime f = fn () -> i32 42;
 
 comptime main = fn () -> i32 {
 //	puts(c"Hello, World!")
-//	f()
-	x
+	f()
 };

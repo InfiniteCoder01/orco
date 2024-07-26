@@ -68,6 +68,18 @@ pub fn build(root: &orco::ir::Module) {
                     cranelift_module::Linkage::Export,
                     &function.signature,
                 );
+            }
+        }
+    }
+
+    for symbol in root.symbols.values() {
+        let symbol = symbol.lock().unwrap();
+        if let Some(value) = &symbol.evaluated {
+            if matches!(
+                symbol.value.get_type(),
+                orco::ir::Type::FunctionPointer(_, _)
+            ) {
+                let function = value.r#as::<orco::ir::expression::Function>();
                 object.build_function(Path::single(symbol.name.clone()), &function);
             }
         }
