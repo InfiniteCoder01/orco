@@ -131,10 +131,26 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
         expr
     } else if let Some(span) = parser.match_error() {
         Expression::Error(span)
+    } else if parser.match_keyword("extern") {
+        if parser.match_keyword("fn") {
+            if let Some(name) = parser.expect_ident("external name") {
+                Expression::ExternFunction(ir::expression::ExternFunction {
+                    name,
+                    signature: parse_signature(parser),
+                    span: parser.span_from(start),
+                })
+            } else {
+                Expression::Error(parser.span_from(start))
+            }
+        } else {
+            parser.expected_error("valid extern symbol");
+            Expression::Error(parser.span_from(start))
+        }
     } else if parser.match_keyword("fn") {
         Expression::Function(Box::new(ir::expression::Function {
             signature: parse_signature(parser),
             body: expect(parser),
+            span: parser.span_from(start),
         }))
     } else if let Some(constant) = parser.match_constant() {
         Expression::Constant(constant)

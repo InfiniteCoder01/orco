@@ -4,7 +4,7 @@ use std::num::NonZeroU16;
 /// Parse a type, error if there is no
 pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Spanned<ir::Type> {
     let start = parser.span().1.start;
-    let r#type = if let Some(r#type) = parser.expect_ident("type") {
+    let r#type = if let Some(r#type) = parser.match_ident() {
         if let Some(bytes) = numeric_type_size(&r#type, "i") {
             ir::Type::Int(bytes)
         } else if let Some(bytes) = numeric_type_size(&r#type, "u") {

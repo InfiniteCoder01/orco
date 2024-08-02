@@ -31,6 +31,9 @@ impl crate::Object<'_> {
         use orco::ir::Expression;
         match expr {
             Expression::Function(_) => unimplemented!("Functions in runtime are not supported"),
+            Expression::ExternFunction(_) => {
+                unimplemented!("Extern functions in runtime are not supported")
+            }
             Expression::Constant(value) => self.build_constant(builder, value),
             Expression::Symbol(symbol, ..) => self.build_symbol_reference(builder, symbol),
             Expression::BinaryExpression(expr) => self.build_binary_expression(builder, expr),

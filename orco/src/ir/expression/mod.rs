@@ -5,6 +5,7 @@ use type_inference::TypeInference;
 
 /// Function
 pub mod function;
+pub use function::ExternFunction;
 pub use function::Function;
 
 /// Constant value
@@ -49,6 +50,8 @@ pub use variable_declaration::VariableDeclaration;
 pub enum Expression {
     /// Function literal
     Function(Box<Function>),
+    /// Extern function literal
+    ExternFunction(ExternFunction),
     /// A constant value
     Constant(Spanned<Constant>),
     /// Symbol
@@ -85,7 +88,8 @@ impl Expression {
     /// Get the type this expression evaluates to
     pub fn get_type(&self) -> Type {
         match self {
-            Expression::Function(function) => function.signature.get_type(),
+            Expression::Function(_) => Type::Function,
+            Expression::ExternFunction(_) => Type::ExternFunction,
             Expression::Constant(constant) => constant.get_type(),
             Expression::Symbol(symbol, ..) => symbol.get_type(),
             Expression::BinaryExpression(expr) => expr.get_type(),
@@ -104,7 +108,8 @@ impl Expression {
     /// Returns completed type of this expression (Completed means that type doesn't contain [`Type::Wildcard`], but rather [`Type::TypeVariable`])
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
         let r#type = match self {
-            Expression::Function(function) => function.signature.get_type(),
+            Expression::Function(_) => Type::Function,
+            Expression::ExternFunction(_) => Type::ExternFunction,
             Expression::Constant(constant) => constant.inner.infer_types(type_inference),
             Expression::Symbol(symbol, metadata) => {
                 symbol.infer_types(type_inference, metadata.as_mut())
@@ -136,8 +141,9 @@ impl Expression {
         match self {
             Expression::Function(function) => {
                 function.infer_and_check_types(type_inference);
-                function.signature.get_type()
+                Type::Function
             }
+            Expression::ExternFunction(_) => Type::ExternFunction,
             Expression::Constant(constant) => constant
                 .inner
                 .finish_and_check_types(constant.span.clone(), type_inference),
@@ -163,7 +169,8 @@ impl Expression {
     /// Get the span of this expression
     pub fn span(&self) -> Span {
         match self {
-            Expression::Function(_function) => todo!(),
+            Expression::Function(function) => function.span.clone(),
+            Expression::ExternFunction(function) => function.span.clone(),
             Expression::Constant(constant) => constant.span.clone(),
             Expression::Symbol(symbol, ..) => symbol.span.clone(),
             Expression::BinaryExpression(expr) => expr.span.clone(),
@@ -183,6 +190,7 @@ impl std::fmt::Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Expression::Function(function) => write!(f, "{}", function),
+            Expression::ExternFunction(function) => write!(f, "{}", function),
             Expression::Constant(constant) => write!(f, "{}", constant.inner),
             Expression::Symbol(symbol, ..) => write!(f, "{}", symbol.inner),
             Expression::BinaryExpression(expr) => write!(f, "{}", expr),

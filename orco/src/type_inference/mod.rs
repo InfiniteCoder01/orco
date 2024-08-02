@@ -20,6 +20,8 @@ pub struct TypeInference<'a> {
     pub return_type: Option<&'a diagnostics::Spanned<ir::Type>>,
     /// Error reporter
     pub reporter: &'a mut dyn diagnostics::ErrorReporter,
+    /// Interpreter context
+    pub interpreter: Interpreter,
     /// Type table
     pub type_table: Vec<(Vec<TypeVariableId>, ir::Type)>,
 
@@ -38,11 +40,13 @@ impl<'a> TypeInference<'a> {
     /// Create a new [TypeInference]
     pub fn new(
         reporter: &'a mut dyn diagnostics::ErrorReporter,
+        interpreter: Interpreter,
         root_module: &'a ir::Module,
     ) -> Self {
         Self {
             return_type: None,
             reporter,
+            interpreter,
             type_table: Vec::new(),
 
             next_type_variable_id: TypeVariableId(0),

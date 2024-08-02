@@ -19,25 +19,18 @@ pub use expression::Expression;
 #[derive(Debug, Default)]
 pub struct Module {
     /// Module content
-    pub symbols: std::collections::HashMap<Name, Box<std::sync::Mutex<Symbol>>>,
+    pub symbols: std::collections::HashMap<Name, Box<std::sync::RwLock<Symbol>>>,
 }
 
 impl Module {
     /// Infer and check types for the whole module
     pub fn infer_and_check_types(&self, type_inference: &mut TypeInference) {
         for symbol in self.symbols.values() {
-            let mut symbol = symbol.lock().unwrap();
+            let mut symbol = symbol.write().unwrap();
             symbol.value.infer_types(type_inference);
             symbol.value.finish_and_check_types(type_inference);
-        }
-    }
-
-    /// Evaluate comptime symbols, has to be done before building
-    pub fn evaluate_comptimes(&self, interpreter: &mut Interpreter) {
-        for symbol in self.symbols.values() {
-            let mut symbol = symbol.lock().unwrap();
             if symbol.evaluated.is_none() {
-                symbol.evaluated = Some(interpreter.evaluate(&symbol.value));
+                symbol.evaluated = Some(type_inference.interpreter.evaluate(&symbol.value));
             }
         }
     }
@@ -50,7 +43,7 @@ impl std::fmt::Display for Module {
             writeln!(
                 f,
                 "{}",
-                indent::indent_all_by(4, format!("{}", symbol.lock().unwrap()))
+                indent::indent_all_by(4, format!("{}", symbol.read().unwrap()))
             )?;
         }
         write!(f, "}}")?;

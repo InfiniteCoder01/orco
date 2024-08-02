@@ -11,7 +11,7 @@ impl crate::Object<'_> {
     ) -> Option<Value> {
         match &symbol {
             SymbolReference::Symbol(symbol) => {
-                let symbol = symbol.lock().unwrap();
+                let symbol = symbol.read().unwrap();
                 self.build_constant_value(
                     builder,
                     symbol

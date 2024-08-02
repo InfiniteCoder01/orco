@@ -1,6 +1,7 @@
 use super::*;
 
 impl Interpreter {
+    /// Evaluate a binary expression
     pub fn evaluate_binary(&mut self, expr: &ir::expression::BinaryExpression) -> Value {
         let lhs = self.evaluate(expr.lhs.as_ref());
         let rhs = self.evaluate(expr.rhs.as_ref());

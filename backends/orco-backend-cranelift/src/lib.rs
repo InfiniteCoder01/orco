@@ -56,31 +56,36 @@ pub fn build(root: &orco::ir::Module) {
     let mut object = Object::new(root, "x86_64-unknown-linux-gnu");
 
     for symbol in root.symbols.values() {
-        let symbol = symbol.lock().unwrap();
+        let symbol = symbol.read().unwrap();
         if let Some(value) = &symbol.evaluated {
-            if matches!(
-                symbol.value.get_type(),
-                orco::ir::Type::FunctionPointer(_, _)
-            ) {
-                let function = value.r#as::<orco::ir::expression::Function>();
-                object.declare_function(
-                    Path::single(symbol.name.clone()),
-                    cranelift_module::Linkage::Export,
-                    &function.signature,
-                );
+            match symbol.value.get_type() {
+                orco::ir::Type::Function => {
+                    let function = value.r#as::<orco::ir::expression::Function>();
+                    object.declare_function(
+                        Path::single(symbol.name.clone()),
+                        cranelift_module::Linkage::Export,
+                        &function.signature,
+                    );
+                }
+                orco::ir::Type::ExternFunction => {
+                    let function = value.r#as::<orco::ir::expression::ExternFunction>();
+                    object.declare_function(
+                        Path::single(function.name.clone()),
+                        cranelift_module::Linkage::Import,
+                        &function.signature,
+                    );
+                }
+                _ => (),
             }
         }
     }
 
     for symbol in root.symbols.values() {
-        let symbol = symbol.lock().unwrap();
+        let symbol = symbol.read().unwrap();
         if let Some(value) = &symbol.evaluated {
-            if matches!(
-                symbol.value.get_type(),
-                orco::ir::Type::FunctionPointer(_, _)
-            ) {
+            if symbol.value.get_type() == orco::ir::Type::Function {
                 let function = value.r#as::<orco::ir::expression::Function>();
-                object.build_function(Path::single(symbol.name.clone()), &function);
+                object.build_function(Path::single(symbol.name.clone()), function);
             }
         }
     }

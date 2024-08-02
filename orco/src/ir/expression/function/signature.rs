@@ -35,7 +35,7 @@ impl Signature {
 
 impl std::fmt::Display for Signature {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "fn (")?;
+        write!(f, "(")?;
         // for (index, arg) in self.args.iter().enumerate() {
         //     if index > 0 {
         //         write!(f, ", ")?;

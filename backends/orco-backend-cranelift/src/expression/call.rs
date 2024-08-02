@@ -11,8 +11,8 @@ impl crate::Object<'_> {
         match call.expression.as_ref() {
             orco::ir::Expression::Symbol(symbol, ..) => {
                 let function = match &symbol.inner {
-                    orco::ir::expression::SymbolReference::Symbol(symbol) if matches!(symbol.lock().unwrap().value.get_type(), orco::ir::Type::FunctionPointer(_, _)) => {
-                        let symbol = symbol.lock().unwrap();
+                    orco::ir::expression::SymbolReference::Symbol(symbol) if matches!(symbol.read().unwrap().value.get_type(), orco::ir::Type::Function | orco::ir::Type::ExternFunction) => {
+                        let symbol = symbol.read().unwrap();
                         self.object.declare_func_in_func(
                         *self
                             .functions

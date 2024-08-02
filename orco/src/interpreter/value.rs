@@ -2,18 +2,18 @@ use super::*;
 
 /// Value - any object returned from an interpreter (or JIT)
 #[derive(Debug)]
-pub struct Value(Box<dyn std::any::Any + Send>);
+pub struct Value(Box<dyn std::any::Any + Send + Sync>);
 
 impl Value {}
 
 impl Value {
     /// Create a new value
-    pub fn new<T: Send + 'static>(value: T) -> Self {
+    pub fn new<T: Send + Sync + 'static>(value: T) -> Self {
         Self(Box::new(value))
     }
 
     /// Try to cast the value to a concrete type (only works if the types match exactly)
-    pub fn r#as<'a, T: Send + 'static>(&'a self) -> &'a T {
+    pub fn r#as<T: 'static>(&self) -> &T {
         self.0.downcast_ref().unwrap_or_else(|| {
             panic!(
                 "Pointer cast of dynamic value (type_id {:?}) to an invalid type {}",
@@ -24,7 +24,7 @@ impl Value {
     }
 
     /// Try to cast the value to a concrete type (only works if the types match exactly)
-    pub fn into<T: Send + 'static>(self) -> Box<T> {
+    pub fn into<T: 'static>(self) -> Box<T> {
         self.0.downcast().unwrap_or_else(|val| {
             panic!(
                 "Cast of dynamic value (type_id {:?}) to an invalid type {}",
@@ -54,7 +54,7 @@ impl Value {
             },
             ir::expression::Constant::Float { value, r#type, .. } => match r#type {
                 ir::Type::Float(size) if size.get() == 4 => Value::new(value as f32),
-                ir::Type::Float(size) if size.get() == 8 => Value::new(value as f64),
+                ir::Type::Float(size) if size.get() == 8 => Value::new(value),
                 invalid => panic!("Invalid floating point literal type: {}", invalid),
             },
             ir::expression::Constant::CString(_, _) => todo!("CString value"),

@@ -23,6 +23,11 @@ pub enum Type {
     /// Custom type, f.e. a struct or a type alias
     Custom(Span),
 
+    /// Function
+    Function,
+    /// External function
+    ExternFunction,
+
     /// Never type, can't hold any value
     Never,
 
@@ -126,6 +131,9 @@ impl std::fmt::Display for Type {
                 Ok(())
             }
             Self::Custom(name) => write!(f, "{}", name),
+
+            Self::Function => write!(f, "Function"),
+            Self::ExternFunction => write!(f, "ExternFunction"),
 
             Self::Never => write!(f, "!"),
             Self::Unit => write!(f, "()"),

@@ -15,7 +15,7 @@ pub fn parse_symbol<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option
     let name = parser.expect_ident("symbol name")?;
     parser.expect_operator(Operator::Equal);
     let value = expression::expect(parser);
-    return Some(ir::Symbol::new(name, value));
+    Some(ir::Symbol::new(name, value))
 }
 
 /// Parse the whole file
@@ -26,7 +26,7 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::Module {
             parser.expect_operator(Operator::Semicolon);
             module
                 .symbols
-                .insert(symbol.name.clone(), Box::new(std::sync::Mutex::new(symbol)));
+                .insert(symbol.name.clone(), Box::new(std::sync::RwLock::new(symbol)));
         } else {
             parser.expected_error("a symbol");
             parser.next();

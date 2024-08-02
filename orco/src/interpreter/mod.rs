@@ -17,6 +17,7 @@ impl Interpreter {
     pub fn evaluate(&mut self, expr: &ir::Expression) -> Value {
         match expr {
             ir::Expression::Function(function) => Value::new(function.as_ref().clone()),
+            ir::Expression::ExternFunction(function) => Value::new(function.clone()),
             ir::Expression::Constant(constant) => Value::from_constant(constant.inner.clone()),
             ir::Expression::Symbol(_, _) => todo!(),
             ir::Expression::BinaryExpression(expr) => self.evaluate_binary(expr),
