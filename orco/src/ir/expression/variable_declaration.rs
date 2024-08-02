@@ -89,7 +89,7 @@ impl Clone for VariableDeclaration {
     fn clone(&self) -> Self {
         Self {
             name: self.name.clone(),
-            id: Mutex::new(self.id.lock().unwrap().clone()),
+            id: Mutex::new(*self.id.lock().unwrap()),
             mutable: self.mutable.clone(),
             r#type: Spanned::new(
                 Mutex::new(self.r#type.lock().unwrap().clone()),

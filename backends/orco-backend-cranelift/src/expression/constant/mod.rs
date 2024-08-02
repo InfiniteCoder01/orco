@@ -53,7 +53,7 @@ impl crate::Object<'_> {
                 Some(
                     builder
                         .ins()
-                        .iconst(self.convert_type(&r#type), match size.get(){
+                        .iconst(self.convert_type(r#type), match size.get(){
                             1 => *value.r#as::<i8>() as i64,
                             2 => *value.r#as::<i16>() as i64,
                             4 => *value.r#as::<i32>() as i64,
@@ -67,7 +67,7 @@ impl crate::Object<'_> {
                 Some(
                     builder
                         .ins()
-                        .iconst(self.convert_type(&r#type), match size.get(){
+                        .iconst(self.convert_type(r#type), match size.get(){
                             1 => *value.r#as::<u8>() as i64,
                             2 => *value.r#as::<u16>() as i64,
                             4 => *value.r#as::<u32>() as i64,
