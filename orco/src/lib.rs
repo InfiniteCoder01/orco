@@ -1,7 +1,6 @@
 #![doc = include_str!("../README.md")]
 #![warn(missing_docs)]
 
-pub use ariadne;
 pub use log;
 pub use miette;
 pub use thiserror;

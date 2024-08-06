@@ -34,7 +34,7 @@ Roadmap for now:
 - [x] Fix cyclic Arc by implementing inner pointers
 - [x] Reduce the use of `Spanned<Struct>`
 - [x] Make IR first-class (a BIG refactor)
-- [ ] Remove Ariadne completely (+ lexer abort compilation)
+- [x] Remove Ariadne completely (+ lexer abort compilation)
 - [ ] Move spans to frontend?
 - [ ] Path as an operator
 - [ ] Comptime type hints

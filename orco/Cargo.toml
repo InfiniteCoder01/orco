@@ -15,7 +15,6 @@ categories = [
 ]
 
 [dependencies]
-ariadne = { version = "0.4.0", features = ["auto-color"] }
 derivative = "2.2.0"
 downcast-rs = "1.2.1"
 dyn-clone = "1.0.17"

@@ -267,55 +267,30 @@ impl<'a, R: ErrorReporter + ?Sized> Parser<'a, R> {
                     Ok(token) => token,
                     Err(err) => {
                         let mut span = Span((**self.lexer.source()).clone(), self.lexer.span());
-                        let mut colors = ColorGenerator::new();
-                        let report = orco::ariadne::Report::build(
-                            orco::diagnostics::ReportKind::Error,
-                            self.lexer.source().0.clone(),
-                            span.1.start,
-                        );
-                        let report = match err {
-                            Error::InvalidToken => report.with_message("Invalid token").with_label(
-                                Label::new(span)
-                                    .with_message("Invalid token")
-                                    .with_color(colors.next()),
-                            ),
+                        let message = match err {
+                            Error::InvalidToken => "Invalid token".to_owned(),
                             Error::IntegerOutOfBounds => {
-                                report.with_message("Integer out of bounds").with_label(
-                                    Label::new(span)
-                                        .with_message("This constant")
-                                        .with_color(colors.next()),
-                                )
+                                "Integer constant out of bounds".to_owned()
                             }
-                            Error::InvalidFloat => report.with_message("Invalid float").with_label(
-                                Label::new(span)
-                                    .with_message("This constant")
-                                    .with_color(colors.next()),
-                            ),
+                            Error::InvalidFloat => "Invalid floating point constant".to_owned(),
                             Error::InvalidEscapeCode(offset, expected, got) => {
                                 span.1 = span.1.start + offset..span.1.start + offset + 1;
-                                report.with_message("Invalid escape code").with_label(
-                                    Label::new(span)
-                                        .with_message(format!(
-                                            "Expected {}, got '{}'",
-                                            expected, got
-                                        ))
-                                        .with_color(colors.next()),
-                                )
+                                format!("Invalid escape code: Expected {}, got '{}'", expected, got)
                             }
                             Error::InvalidUnicodeCodepoint(offset, codepoint) => {
                                 span.1 = span.1.start + offset..span.1.start + offset + 1;
-                                report.with_message("Invalid unicode codepoint").with_label(
-                                    Label::new(span)
-                                        .with_message(format!(
-                                            "Invalid unicode codepoint: 0x{:x}",
-                                            codepoint
-                                        ))
-                                        .with_color(colors.next()),
-                                )
+                                format!("Invalid unicode codepoint: 0x{:x}", codepoint)
                             }
-                        }
-                        .finish();
-                        self.reporter.report_ariadne(report);
+                        };
+                        self.reporter.report(
+                            orco::miette::miette!(
+                                labels =
+                                    vec![orco::miette::LabeledSpan::at(span.source_span(), "Here")],
+                                "{}",
+                                message
+                            )
+                            .with_source_code(span.named_source()),
+                        );
                         Token::Error
                     }
                 });
@@ -452,20 +427,15 @@ impl<'source, R: ErrorReporter + ?Sized> Parser<'source, R> {
         } else {
             format!("Expected {}", what)
         };
-        let mut colors = ColorGenerator::new();
-        let report = orco::ariadne::Report::build(
-            ReportKind::Error,
-            self.lexer.source().0.clone(),
-            self.span().1.start,
-        )
-        .with_message(message)
-        .with_label(
-            Label::new(self.span())
-                .with_message("Here")
-                .with_color(colors.next()),
-        )
-        .finish();
-        self.reporter.report_ariadne(report);
+        let span = self.span();
+        self.reporter.report(
+            orco::miette::miette!(
+                labels = vec![orco::miette::LabeledSpan::at(span.source_span(), "Here")],
+                "{}",
+                message
+            )
+            .with_source_code(span.named_source()),
+        );
     }
 
     /// Expect an identifier to follow, if it is, consume and return it, else report an error

@@ -147,7 +147,7 @@ impl<'a> TypeInference<'a> {
         if !r#type.complete() {
             self.reporter.report(
                 miette::miette!(
-                    labels = vec![miette::LabeledSpan::at(span.source_span(), "here"),],
+                    labels = vec![miette::LabeledSpan::at(span.source_span(), "Here"),],
                     "Could not infer type for {}",
                     what,
                 )
