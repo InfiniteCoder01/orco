@@ -18,24 +18,31 @@ impl ReturnExpression {
     /// Infer the type for this expression
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
         let r#type = self.0.infer_types(type_inference);
-        type_inference.equate(&r#type, type_inference.return_type);
+        if let Some(return_type) = type_inference.return_type.take() {
+            type_inference.equate(&r#type, &return_type);
+            type_inference.return_type = Some(return_type);
+        }
         Type::Never
     }
 
     /// Finish and check types
     pub fn finish_and_check_types(&mut self, type_inference: &mut TypeInference) -> Type {
         let r#type = self.0.finish_and_check_types(type_inference);
-        if !r#type.morphs(type_inference.return_type) {
-            self.2.return_type_mismatch(
-                type_inference,
-                ReturnTypeMismatch {
-                    expected: type_inference.return_type.inner.clone(),
-                    got: r#type,
-                    src: self.0.span().named_source(),
-                    expression_span: self.0.span().source_span(),
-                    return_type_span: type_inference.return_type.span.source_span(),
-                },
-            );
+        if let Some(return_type) = &type_inference.return_type {
+            if !r#type.morphs(return_type) {
+                self.2.return_type_mismatch(
+                    type_inference,
+                    ReturnTypeMismatch {
+                        expected: return_type.inner.clone(),
+                        got: r#type,
+                        src: self.0.span().named_source(),
+                        expression_span: self.0.span().source_span(),
+                        return_type_span: return_type.span.source_span(),
+                    },
+                );
+            }
+        } else {
+            todo!("return without a function error message")
         }
         Type::Never
     }
@@ -73,6 +80,6 @@ declare_metadata! {
     trait ReturnMetadata {
         Diagnostics:
         /// Return type mismatch error callback
-        return_type_mismatch(ReturnTypeMismatch)
+        return_type_mismatch(ReturnTypeMismatch) abort_compilation;
     }
 }

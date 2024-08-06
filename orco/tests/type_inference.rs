@@ -14,7 +14,7 @@ fn overflow() {
         };
         let r#type = big_unsigned.infer_types(&mut type_inference);
         type_inference.equate(&r#type, &ir::Type::Int(NonZeroU16::new(16).unwrap()));
-        big_unsigned.finish_and_check_types(dummy_span(), &mut type_inference);
+        big_unsigned.finish_and_check_types(orco::Span::new("dummy"), &mut type_inference);
         check!(
             big_unsigned
                 == ir::expression::Constant::Integer {
@@ -35,7 +35,7 @@ fn overflow() {
         };
         let r#type = big_unsigned.infer_types(&mut type_inference);
         type_inference.equate(&r#type, &ir::Type::Int(NonZeroU16::new(16).unwrap()));
-        big_unsigned.finish_and_check_types(dummy_span(), &mut type_inference);
+        big_unsigned.finish_and_check_types(orco::Span::new("dummy"), &mut type_inference);
         check!(
             big_unsigned
                 == ir::expression::Constant::Integer {

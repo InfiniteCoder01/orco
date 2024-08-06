@@ -11,20 +11,16 @@ impl crate::Object<'_> {
         match call.expression.as_ref() {
             orco::ir::Expression::Symbol(symbol, ..) => {
                 let function = match &symbol.inner {
-                    orco::SymbolReference::Function(function) => self.object.declare_func_in_func(
-                        *self
-                            .functions
-                            .get(&function.signature.name)
-                            .unwrap_or_else(|| panic!("Function {} is not defined", symbol.span)),
-                        builder.func,
-                    ),
-                    orco::SymbolReference::ExternFunction(function) => self.object.declare_func_in_func(
-                        *self
-                            .functions
-                            .get(&function.name)
-                            .unwrap_or_else(|| panic!("Function {} is not defined", symbol.span)),
-                        builder.func,
-                    ),
+                    orco::ir::expression::SymbolReference::Symbol(symbol) if matches!(symbol.try_read().unwrap().value.get_type(), orco::ir::Type::Function | orco::ir::Type::ExternFunction) => {
+                        let symbol = symbol.try_read().unwrap();
+                        self.object.declare_func_in_func(
+	                        *self
+	                            .functions
+	                            .get(&Path::single(symbol.name.clone()))
+	                            .unwrap_or_else(|| panic!("Function {} is not defined", symbol.name)),
+	                        builder.func,
+                        )
+                    },
                     _ => panic!("Can only call functions, not '{}'. Operator overloads should've been replaced by now, did you run type checking/inference?", call.expression),
                 };
                 let args = call

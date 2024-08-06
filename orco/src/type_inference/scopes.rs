@@ -1,9 +1,10 @@
+use ir::expression::SymbolReference;
 use std::collections::HashMap;
 
 use super::*;
 
 /// Scope
-pub type Scope = HashMap<PathSegment, SymbolReference>;
+pub type Scope = HashMap<Name, SymbolReference>;
 
 impl TypeInference<'_> {
     /// Start a new scope
@@ -24,7 +25,7 @@ impl TypeInference<'_> {
     }
 
     /// Try to find a symbol in the local space, scope-aware
-    pub fn get_symbol(&self, name: &PathSegment) -> Option<SymbolReference> {
+    pub fn get_symbol(&self, name: &Name) -> Option<SymbolReference> {
         for scope in self.scopes.iter().rev() {
             if let Some(symbol) = scope.get(name) {
                 return Some(symbol.clone());

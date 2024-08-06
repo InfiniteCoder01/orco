@@ -17,11 +17,16 @@ pub enum Type {
     Char,
 
     /// Pointer type
-    Pointer(Box<Type>),
+    Pointer(Box<Type>, bool),
     /// Function pointer
     FunctionPointer(Spanned<Vec<Spanned<Type>>>, Box<Spanned<Type>>),
     /// Custom type, f.e. a struct or a type alias
     Custom(Span),
+
+    /// Function
+    Function,
+    /// External function
+    ExternFunction,
 
     /// Never type, can't hold any value
     Never,
@@ -111,7 +116,9 @@ impl std::fmt::Display for Type {
             Self::Bool => write!(f, "bool"),
             Self::Char => write!(f, "char"),
 
-            Self::Pointer(r#type) => write!(f, "{}*", r#type),
+            Self::Pointer(r#type, mutable) => {
+                write!(f, "*{}{}", if *mutable { "mut " } else { "" }, r#type)
+            }
             Self::FunctionPointer(args, r#return) => {
                 write!(f, "fn(")?;
                 for (index, arg) in args.iter().enumerate() {
@@ -124,6 +131,9 @@ impl std::fmt::Display for Type {
                 Ok(())
             }
             Self::Custom(name) => write!(f, "{}", name),
+
+            Self::Function => write!(f, "Function"),
+            Self::ExternFunction => write!(f, "ExternFunction"),
 
             Self::Never => write!(f, "!"),
             Self::Unit => write!(f, "()"),

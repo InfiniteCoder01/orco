@@ -4,7 +4,7 @@ use std::num::NonZeroU16;
 /// Parse a type, error if there is no
 pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Spanned<ir::Type> {
     let start = parser.span().1.start;
-    let mut r#type = if let Some(r#type) = parser.expect_ident("type") {
+    let r#type = if let Some(r#type) = parser.match_ident() {
         if let Some(bytes) = numeric_type_size(&r#type, "i") {
             ir::Type::Int(bytes)
         } else if let Some(bytes) = numeric_type_size(&r#type, "u") {
@@ -20,16 +20,14 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Spanned<ir::T
                 _ => ir::Type::Custom(r#type),
             }
         }
+    } else if parser.match_operator(Operator::Star) {
+        let mutable = parser.match_keyword("mut");
+        ir::Type::Pointer(Box::new(parse(parser).inner), mutable)
     } else {
         parser.expected_error("a type");
         ir::Type::Error
     };
-    let mut span = parser.span_from(start);
-    while parser.match_operator(Operator::Star) {
-        r#type = ir::Type::Pointer(Box::new(r#type));
-        span = parser.span_from(start);
-    }
-    Spanned::new(r#type, span)
+    parser.wrap_span(r#type, start)
 }
 
 fn numeric_type_size(name: &str, prefix: &str) -> Option<NonZeroU16> {

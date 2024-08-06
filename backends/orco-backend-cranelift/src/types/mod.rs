@@ -17,6 +17,9 @@ impl crate::Object<'_> {
             orco::ir::Type::FunctionPointer(..) => self.object.target_config().pointer_type(),
             orco::ir::Type::Custom(..) => todo!(),
 
+            orco::ir::Type::Function => unimplemented!("Function type at runtime"),
+            orco::ir::Type::ExternFunction => unimplemented!("ExternFunction type at runtime"),
+
             orco::ir::Type::Never => panic!("Can't convert a never type"),
             orco::ir::Type::Unit => panic!("Can't convert a unit type"),
 

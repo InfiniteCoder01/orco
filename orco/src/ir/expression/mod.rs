@@ -1,11 +1,20 @@
 use super::*;
 use diagnostics::*;
 use ir::Type;
-use symbol_reference::SymbolReference;
 use type_inference::TypeInference;
+
+/// Function
+pub mod function;
+pub use function::ExternFunction;
+pub use function::Function;
+
 /// Constant value
 pub mod constant;
 pub use constant::Constant;
+
+/// Symbol reference
+pub mod symbol_reference;
+pub use symbol_reference::SymbolReference;
 
 /// Operator-oriented expressions (binary, unary, assignment, etc.)
 pub mod operator;
@@ -39,9 +48,13 @@ pub use variable_declaration::VariableDeclaration;
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
 pub enum Expression {
+    /// Function literal
+    Function(Box<Function>),
+    /// Extern function literal
+    ExternFunction(ExternFunction),
     /// A constant value
     Constant(Spanned<Constant>),
-    /// Variable
+    /// Symbol
     Symbol(
         Spanned<SymbolReference>,
         #[derivative(Debug = "ignore")] Box<dyn symbol_reference::SymbolMetadata>,
@@ -59,7 +72,7 @@ pub enum Expression {
     /// Return a value
     Return(ReturnExpression),
     /// Declare a variable
-    VariableDeclaration(std::sync::Arc<VariableDeclaration>),
+    VariableDeclaration(std::pin::Pin<Box<VariableDeclaration>>),
     /// Assignment
     Assignment(AssignmentExpression),
     /// Invalid expression
@@ -75,6 +88,8 @@ impl Expression {
     /// Get the type this expression evaluates to
     pub fn get_type(&self) -> Type {
         match self {
+            Expression::Function(_) => Type::Function,
+            Expression::ExternFunction(_) => Type::ExternFunction,
             Expression::Constant(constant) => constant.get_type(),
             Expression::Symbol(symbol, ..) => symbol.get_type(),
             Expression::BinaryExpression(expr) => expr.get_type(),
@@ -93,6 +108,8 @@ impl Expression {
     /// Returns completed type of this expression (Completed means that type doesn't contain [`Type::Wildcard`], but rather [`Type::TypeVariable`])
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
         let r#type = match self {
+            Expression::Function(_) => Type::Function,
+            Expression::ExternFunction(_) => Type::ExternFunction,
             Expression::Constant(constant) => constant.inner.infer_types(type_inference),
             Expression::Symbol(symbol, metadata) => {
                 symbol.infer_types(type_inference, metadata.as_mut())
@@ -104,14 +121,7 @@ impl Expression {
             Expression::Call(expr) => expr.infer_types(type_inference),
             Expression::Return(expr) => expr.infer_types(type_inference),
             Expression::VariableDeclaration(declaration) => {
-                let r#type = declaration.infer_types(type_inference);
-                type_inference.current_scope_mut().insert(
-                    declaration.name.clone(),
-                    SymbolReference::Variable(symbol_reference::InternalPointer(
-                        declaration.as_ref() as _,
-                    )),
-                );
-                r#type
+                declaration.as_ref().infer_types(type_inference)
             }
             Expression::Assignment(expr) => expr.infer_types(type_inference),
             Expression::Error(_) => Type::Error,
@@ -122,6 +132,8 @@ impl Expression {
     /// Finish types and check them
     pub fn finish_and_check_types(&mut self, type_inference: &mut TypeInference) -> Type {
         match self {
+            Expression::Function(_) => Type::Function,
+            Expression::ExternFunction(_) => Type::ExternFunction,
             Expression::Constant(constant) => constant
                 .inner
                 .finish_and_check_types(constant.span.clone(), type_inference),
@@ -147,6 +159,8 @@ impl Expression {
     /// Get the span of this expression
     pub fn span(&self) -> Span {
         match self {
+            Expression::Function(function) => function.span.clone(),
+            Expression::ExternFunction(function) => function.span.clone(),
             Expression::Constant(constant) => constant.span.clone(),
             Expression::Symbol(symbol, ..) => symbol.span.clone(),
             Expression::BinaryExpression(expr) => expr.span.clone(),
@@ -165,6 +179,8 @@ impl Expression {
 impl std::fmt::Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Expression::Function(function) => write!(f, "{}", function),
+            Expression::ExternFunction(function) => write!(f, "{}", function),
             Expression::Constant(constant) => write!(f, "{}", constant.inner),
             Expression::Symbol(symbol, ..) => write!(f, "{}", symbol.inner),
             Expression::BinaryExpression(expr) => write!(f, "{}", expr),

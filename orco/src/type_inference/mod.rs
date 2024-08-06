@@ -17,47 +17,51 @@ impl std::fmt::Display for TypeVariableId {
 /// Type inference information for a function
 pub struct TypeInference<'a> {
     /// Return type of a function
-    pub return_type: &'a diagnostics::Spanned<ir::Type>,
+    pub return_type: Option<diagnostics::Spanned<ir::Type>>,
     /// Error reporter
     pub reporter: &'a mut dyn diagnostics::ErrorReporter,
+    /// Interpreter context
+    pub interpreter: Interpreter,
     /// Type table
     pub type_table: Vec<(Vec<TypeVariableId>, ir::Type)>,
-
-    next_variable_id: ir::expression::variable_declaration::VariableId,
-    next_type_variable_id: TypeVariableId,
 
     /// Root module
     pub root_module: &'a ir::Module,
     /// Current module
     pub current_module: &'a ir::Module,
     /// Current module path
-    pub current_module_path: &'a Path,
+    pub current_module_path: Path,
 
-    scopes: Vec<Scope>,
+    /// Set this flag once a fatal error has been encountered
+    pub abort_compilation: bool,
+
+    pub(crate) scopes: Vec<Scope>,
+    next_type_variable_id: TypeVariableId,
+    next_variable_id: ir::expression::variable_declaration::VariableId,
 }
 
 impl<'a> TypeInference<'a> {
     /// Create a new [TypeInference]
     pub fn new(
-        return_type: &'a diagnostics::Spanned<ir::Type>,
         reporter: &'a mut dyn diagnostics::ErrorReporter,
+        interpreter: Interpreter,
         root_module: &'a ir::Module,
-        current_module: &'a ir::Module,
-        current_module_path: &'a Path,
     ) -> Self {
         Self {
-            return_type,
+            return_type: None,
             reporter,
+            interpreter,
             type_table: Vec::new(),
 
-            next_variable_id: 0,
-            next_type_variable_id: TypeVariableId(0),
-
             root_module,
-            current_module,
-            current_module_path,
+            current_module: root_module,
+            current_module_path: Path::new(),
+
+            abort_compilation: false,
 
             scopes: Vec::new(),
+            next_type_variable_id: TypeVariableId(0),
+            next_variable_id: 0,
         }
     }
 
@@ -138,7 +142,7 @@ impl<'a> TypeInference<'a> {
         if r#type == &ir::Type::IntegerWildcard {
             *r#type = ir::Type::Int(std::num::NonZeroU16::new(4).unwrap());
         } else if r#type == &ir::Type::FloatWildcard {
-            *r#type = ir::Type::Float(std::num::NonZeroU16::new(8).unwrap());
+            *r#type = ir::Type::Float(std::num::NonZeroU16::new(4).unwrap());
         }
         if !r#type.complete() {
             self.reporter.report_type_error(
@@ -146,6 +150,7 @@ impl<'a> TypeInference<'a> {
                 span,
                 vec![],
             );
+            self.abort_compilation = true;
         }
     }
 }

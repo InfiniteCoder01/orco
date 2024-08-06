@@ -11,6 +11,7 @@ pub struct BinaryExpression {
     /// Right hand side
     pub rhs: Box<Expression>,
     /// Span of the expression
+    #[derivative(Debug = "ignore")]
     pub span: Span,
     /// Metadata
     #[derivative(Debug = "ignore")]
@@ -159,6 +160,7 @@ pub struct UnaryExpression {
     /// Expression
     pub expr: Box<Expression>,
     /// Span of the expression
+    #[derivative(Debug = "ignore")]
     pub span: Span,
     /// Metadata
     #[derivative(Debug = "ignore")]
@@ -240,6 +242,7 @@ pub struct AssignmentExpression {
     /// Value
     pub value: Box<Expression>,
     /// Span of the expression
+    #[derivative(Debug = "ignore")]
     pub span: Span,
     /// Metadata
     #[derivative(Debug = "ignore")]
@@ -274,22 +277,23 @@ impl AssignmentExpression {
     pub fn finish_and_check_types(&mut self, type_inference: &mut TypeInference) -> Type {
         let value_type = self.value.finish_and_check_types(type_inference);
         let target_type = self.target.finish_and_check_types(type_inference);
-        let can_assign = match self.target.as_ref() {
-            Expression::Symbol(symbol, ..) => {
-                if let SymbolReference::Variable(variable) = symbol.inner {
-                    if !variable.mutable.inner {
-                        todo!(
-                            "Cannot assign to an immutable variable error: '{}'",
-                            variable.name
-                        );
-                    }
-                    true
-                } else {
-                    false
-                }
-            }
-            _ => false,
-        };
+        let can_assign = true;
+        // match self.target.as_ref() {
+        //     Expression::Symbol(symbol, ..) => {
+        //         if let SymbolReference::Variable(variable) = symbol.inner {
+        //             if !variable.mutable.inner {
+        //                 todo!(
+        //                     "Cannot assign to an immutable variable error: '{}'",
+        //                     variable.name
+        //                 );
+        //             }
+        //             true
+        //         } else {
+        //             false
+        //         }
+        //     }
+        //     _ => false,
+        // };
         if !can_assign {
             todo!("Cannot assign to error: '{}'", self.target);
         }

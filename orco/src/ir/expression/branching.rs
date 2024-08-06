@@ -11,6 +11,7 @@ pub struct IfExpression {
     /// Else branch
     pub else_branch: Option<Box<Expression>>,
     /// Span of the expression
+    #[derivative(Debug = "ignore")]
     pub span: Span,
     /// Metadata
     #[derivative(Debug = "ignore")]
@@ -47,13 +48,13 @@ impl IfExpression {
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
         let condition_type = self.condition.infer_types(type_inference);
         type_inference.equate(&condition_type, &Type::Bool);
-        type_inference.push_scope();
+        // type_inference.push_scope();
         let then_type = self.then_branch.infer_types(type_inference);
-        type_inference.pop_scope();
+        // type_inference.pop_scope();
         if let Some(else_branch) = &mut self.else_branch {
-            type_inference.push_scope();
+            // type_inference.push_scope();
             let else_type = else_branch.infer_types(type_inference);
-            type_inference.pop_scope();
+            // type_inference.pop_scope();
             type_inference.equate(&then_type, &else_type)
         } else {
             type_inference.equate(&then_type, &Type::Unit);
@@ -150,8 +151,8 @@ declare_metadata! {
     trait IfMetadata {
         Diagnostics:
         /// Callback of if condition not bool error
-        if_condition_not_bool(IfConditionNotBool)
+        if_condition_not_bool(IfConditionNotBool) abort_compilation;
         /// Callback of else branch type mismatch
-        else_branch_type_mismatch(ElseBranchTypeMismatch)
+        else_branch_type_mismatch(ElseBranchTypeMismatch) abort_compilation;
     }
 }

@@ -1,6 +1,6 @@
-extern fn printf(message: char*, value: i32) -> i32;
+comptime puts = extern fn puts(msg: *char) -> i32;
 
-fn main() -> i32 {
-	let x: u32 = 3;
-	printf(c"%d", x * -1)
-}
+comptime main = fn () -> i32 {
+    puts(c"Hello, World!");
+    0
+};

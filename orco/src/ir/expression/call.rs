@@ -9,6 +9,7 @@ pub struct CallExpression {
     /// Arguments to the call
     pub args: Spanned<Vec<Expression>>,
     /// Span of the expression
+    #[derivative(Debug = "ignore")]
     pub span: Span,
     /// Metadata
     #[derivative(Debug = "ignore")]
@@ -49,7 +50,7 @@ impl CallExpression {
             }
             r#return.inner.clone()
         } else {
-            Type::Error
+            Type::Wildcard
         }
     }
 
@@ -95,6 +96,7 @@ impl CallExpression {
                     self.expression.span(),
                     vec![],
                 );
+                type_inference.abort_compilation = true;
             }
             Type::Error
         }
@@ -168,8 +170,8 @@ declare_metadata! {
     trait CallMetadata {
         Diagnostics:
         /// Argument count mismatch error callback
-        argument_count_mismatch(ArgumentCountMismatch)
+        argument_count_mismatch(ArgumentCountMismatch) abort_compilation;
         /// Argument type mismatch error callback
-        argument_type_mismatch(ArgumentTypeMismatch)
+        argument_type_mismatch(ArgumentTypeMismatch) abort_compilation;
     }
 }

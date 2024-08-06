@@ -37,7 +37,7 @@ impl Constant {
         match self {
             Self::Integer { r#type, .. } => r#type.clone(),
             Self::Float { r#type, .. } => r#type.clone(),
-            Self::CString(..) => Type::Pointer(Box::new(Type::Char)),
+            Self::CString(..) => Type::Pointer(Box::new(Type::Char), false),
         }
     }
 
@@ -159,7 +159,7 @@ declare_metadata! {
 
         Diagnostics:
         /// Callback of integer literal doesn't fit error
-        integer_literal_doesnt_fit(IntegerLiteralDoesntFit)
+        integer_literal_doesnt_fit(IntegerLiteralDoesntFit) abort_compilation;
     }
 
     /// Frontend metadata for float constant

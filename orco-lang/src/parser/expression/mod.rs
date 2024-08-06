@@ -49,7 +49,7 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
         } else {
             None
         };
-        Some(Expression::VariableDeclaration(std::sync::Arc::new(
+        Some(Expression::VariableDeclaration(Box::pin(
             ir::expression::VariableDeclaration::new(
                 name,
                 mutable,
@@ -82,6 +82,45 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
     }
 }
 
+/// Parse function signature
+pub fn parse_signature<R: ErrorReporter + ?Sized>(
+    parser: &mut Parser<R>,
+) -> ir::expression::function::Signature {
+    let args_start = parser.span().1.start;
+    parser.expect_operator(Operator::LParen);
+    let mut args = Vec::new();
+    while !parser.match_operator(Operator::RParen) {
+        let start = parser.span().1.start;
+        let name = parser
+            .expect_ident("argument name")
+            .unwrap_or(parser.span());
+        parser.expect_operator(Operator::Colon);
+        let r#type = r#type::parse(parser);
+
+        let declaration = ir::expression::variable_declaration::VariableDeclaration::new(
+            name,
+            parser.wrap_point(false),
+            r#type,
+            None,
+            parser.span_from(start),
+            (),
+        );
+        args.push(Box::pin(declaration));
+
+        if !parser.match_operator(Operator::Comma) {
+            parser.expect_operator(Operator::RParen);
+            break;
+        }
+    }
+    let args = parser.wrap_span(args, args_start);
+    let return_type = if parser.match_operator(Operator::Arrow) {
+        r#type::parse(parser)
+    } else {
+        parser.wrap_point(ir::Type::unit())
+    };
+    ir::expression::function::Signature::new(args, return_type)
+}
+
 /// Parse a unit expression
 pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expression> {
     let start = parser.span().1.start;
@@ -91,6 +130,27 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
         expr
     } else if let Some(span) = parser.match_error() {
         Expression::Error(span)
+    } else if parser.match_keyword("extern") {
+        if parser.match_keyword("fn") {
+            if let Some(name) = parser.expect_ident("external name") {
+                Expression::ExternFunction(ir::expression::ExternFunction {
+                    name,
+                    signature: parse_signature(parser),
+                    span: parser.span_from(start),
+                })
+            } else {
+                Expression::Error(parser.span_from(start))
+            }
+        } else {
+            parser.expected_error("valid extern symbol");
+            Expression::Error(parser.span_from(start))
+        }
+    } else if parser.match_keyword("fn") {
+        Expression::Function(Box::new(ir::expression::Function::new(
+            parse_signature(parser),
+            expect(parser),
+            parser.span_from(start),
+        )))
     } else if let Some(constant) = parser.match_constant() {
         Expression::Constant(constant)
     } else if let Some(block) = block::parse(parser) {
@@ -100,7 +160,7 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
     } else if let Some(name) = parser.match_ident() {
         Expression::Symbol(
             parser.wrap_span(
-                orco::SymbolReference::Undeclared(orco::Path::single(name)),
+                orco::ir::expression::SymbolReference::Unresolved(orco::Path::single(name)),
                 start,
             ),
             Box::new(()),

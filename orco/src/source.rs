@@ -68,11 +68,19 @@ impl std::hash::Hash for Span {
 }
 
 /// Spanned value (uses [Span])
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(derivative::Derivative, Clone)]
+#[derivative(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Spanned<T> {
     /// Inner value
     pub inner: T,
     /// Span
+    #[derivative(
+        Debug = "ignore",
+        PartialEq = "ignore",
+        PartialOrd = "ignore",
+        Ord = "ignore",
+        Hash = "ignore"
+    )]
     pub span: Span,
 }
 

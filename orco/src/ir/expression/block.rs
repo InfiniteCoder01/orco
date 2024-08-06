@@ -9,6 +9,7 @@ pub struct Block {
     /// What this block evaluates to (basically tail expression)
     pub tail_expression: Option<Box<Expression>>,
     /// Span of the expression
+    #[derivative(Debug = "ignore")]
     pub span: Span,
     /// Set to true, if the block does not form a new scope
     pub transparent: bool,
@@ -150,6 +151,6 @@ declare_metadata! {
     trait BlockMetadata {
         Diagnostics:
         /// Callback of unreachable code warning
-        unreachable_code(UnreachableCode)
+        unreachable_code(UnreachableCode);
     }
 }

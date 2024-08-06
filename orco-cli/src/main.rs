@@ -1,6 +1,5 @@
 #![doc = include_str!("../README.md")]
 use clap::Parser;
-use orco::diagnostics::ErrorReporter;
 use std::io::Read;
 
 #[derive(Parser)]
@@ -15,7 +14,7 @@ fn main() {
     let cli = Cli::parse();
     let mut reporter = orco::diagnostics::DefaultReporter::default();
 
-    let mut krate = if cli.path == std::path::Path::new("-") {
+    let krate = if cli.path == std::path::Path::new("-") {
         let mut source = String::new();
         std::io::stdin().read_to_string(&mut source).unwrap();
         orco_lang::Crate {
@@ -28,15 +27,12 @@ fn main() {
         orco_lang::Crate::parse(cli.path, &mut reporter)
     };
 
-    krate.root.register();
-    krate.root.infer_and_check_types(
-        &mut reporter,
-        &krate.root,
-        &orco::Path::new(),
-    );
-    if !reporter.has_errors() {
-        orco_backend_cranelift::build(&krate.root);
-    } else {
+    let mut type_inference =
+        orco::TypeInference::new(&mut reporter, orco::Interpreter::default(), &krate.root);
+    krate.root.infer_and_check_types(&mut type_inference);
+    if type_inference.abort_compilation {
         std::process::exit(1);
     }
+
+    orco_backend_cranelift::build(&krate.root);
 }

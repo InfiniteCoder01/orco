@@ -1,9 +1,13 @@
+use super::*;
 use cranelift_codegen::entity::EntityRef;
 use cranelift_codegen::ir::{InstBuilder, Value};
 use cranelift_frontend::{FunctionBuilder, Variable};
 
 /// Build constants
 pub mod constant;
+
+/// Reference symbols
+pub mod symbol_reference;
 
 /// Build code blocks
 pub mod block;
@@ -26,18 +30,12 @@ impl crate::Object<'_> {
     ) -> Option<Value> {
         use orco::ir::Expression;
         match expr {
+            Expression::Function(_) => unimplemented!("Functions in runtime are not supported"),
+            Expression::ExternFunction(_) => {
+                unimplemented!("Extern functions in runtime are not supported")
+            }
             Expression::Constant(value) => self.build_constant(builder, value),
-            Expression::Symbol(symbol, ..) => match &symbol.inner {
-                orco::SymbolReference::Variable(variable) => {
-                    Some(builder.use_var(Variable::new(*variable.id.lock().unwrap() as _)))
-                }
-                _ => {
-                    panic!(
-                        "Invalid symbol: {}. Did you run type checking/inference?",
-                        symbol.inner
-                    )
-                }
-            },
+            Expression::Symbol(symbol, ..) => self.build_symbol_reference(builder, symbol),
             Expression::BinaryExpression(expr) => self.build_binary_expression(builder, expr),
             Expression::UnaryExpression(expr) => self.build_unary_expression(builder, expr),
             Expression::Block(block) => self.build_block(builder, block),
@@ -49,13 +47,13 @@ impl crate::Object<'_> {
                 None
             }
             Expression::VariableDeclaration(declaration) => {
-                let variable = Variable::new(*declaration.id.lock().unwrap() as _);
+                let variable = Variable::new(*declaration.id.try_lock().unwrap() as _);
                 builder.declare_var(
                     variable,
-                    self.convert_type(&declaration.r#type.lock().unwrap()),
+                    self.convert_type(&declaration.r#type.try_lock().unwrap()),
                 );
                 if let Some(value) = &declaration.value {
-                    let value = self.build_expression(builder, &value.lock().unwrap()).expect("Can't initialize a variable to a unit type, did you run type checking/inference?");
+                    let value = self.build_expression(builder, &value.try_lock().unwrap()).expect("Can't initialize a variable to a unit type, did you run type checking/inference?");
                     builder.def_var(variable, value);
                 }
                 None

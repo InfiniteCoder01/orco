@@ -53,6 +53,14 @@ pub fn unescape(s: &str, index_offset: usize) -> Result<Vec<u8>, Error> {
                     bytes.push(b'\\');
                     state = Literal;
                 }
+                '\'' => {
+                    bytes.push(b'\'');
+                    state = Literal;
+                }
+                '"' => {
+                    bytes.push(b'"');
+                    state = Literal;
+                }
                 '0' => {
                     bytes.push(b'\0');
                     state = Literal;
