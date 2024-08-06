@@ -13,11 +13,25 @@ impl Value {
     }
 
     /// Try to cast the value to a concrete type (only works if the types match exactly)
-    pub fn r#as<T: 'static>(&self) -> &T {
+    #[allow(clippy::should_implement_trait)]
+    pub fn as_ref<T: 'static>(&self) -> &T {
         self.0.downcast_ref().unwrap_or_else(|| {
             panic!(
                 "Pointer cast of dynamic value (type_id {:?}) to an invalid type {}",
                 self.0.type_id(),
+                std::any::type_name::<T>()
+            )
+        })
+    }
+
+    /// Try to cast the value to a concrete type (only works if the types match exactly)
+    #[allow(clippy::should_implement_trait)]
+    pub fn as_mut<T: 'static>(&mut self) -> &mut T {
+        let type_id = self.0.type_id();
+        self.0.downcast_mut().unwrap_or_else(|| {
+            panic!(
+                "Pointer cast of dynamic value (type_id {:?}) to an invalid type {}",
+                type_id,
                 std::any::type_name::<T>()
             )
         })

@@ -33,7 +33,12 @@ Roadmap for now:
 - [x] Frontend-side diagnostics (and diagnostics refactor (and lints))
 - [x] Fix cyclic Arc by implementing inner pointers
 - [x] Reduce the use of `Spanned<Struct>`
-- [ ] Make IR first-class
+- [x] Make IR first-class (a BIG refactor)
+- [ ] Remove Ariadne completely (+ lexer abort compilation)
+- [ ] Move spans to frontend?
+- [ ] Path as an operator
+- [ ] Comptime type hints
+- [ ] Comptimes in blocks
 - [ ] Structs
 - [ ] Pointers
 - [ ] Typecasts

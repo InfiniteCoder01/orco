@@ -56,11 +56,11 @@ pub fn build(root: &orco::ir::Module) {
     let mut object = Object::new(root, "x86_64-unknown-linux-gnu");
 
     for symbol in root.symbols.values() {
-        let symbol = symbol.read().unwrap();
+        let symbol = symbol.try_read().unwrap();
         if let Some(value) = &symbol.evaluated {
             match symbol.value.get_type() {
                 orco::ir::Type::Function => {
-                    let function = value.r#as::<orco::ir::expression::Function>();
+                    let function = value.as_ref::<orco::ir::expression::Function>();
                     object.declare_function(
                         Path::single(symbol.name.clone()),
                         cranelift_module::Linkage::Export,
@@ -68,7 +68,7 @@ pub fn build(root: &orco::ir::Module) {
                     );
                 }
                 orco::ir::Type::ExternFunction => {
-                    let function = value.r#as::<orco::ir::expression::ExternFunction>();
+                    let function = value.as_ref::<orco::ir::expression::ExternFunction>();
                     object.declare_function(
                         Path::single(function.name.clone()),
                         cranelift_module::Linkage::Import,
@@ -81,10 +81,10 @@ pub fn build(root: &orco::ir::Module) {
     }
 
     for symbol in root.symbols.values() {
-        let symbol = symbol.read().unwrap();
+        let symbol = symbol.try_read().unwrap();
         if let Some(value) = &symbol.evaluated {
             if symbol.value.get_type() == orco::ir::Type::Function {
-                let function = value.r#as::<orco::ir::expression::Function>();
+                let function = value.as_ref::<orco::ir::expression::Function>();
                 object.build_function(Path::single(symbol.name.clone()), function);
             }
         }

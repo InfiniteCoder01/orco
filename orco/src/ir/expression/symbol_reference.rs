@@ -7,6 +7,8 @@ pub enum SymbolReference {
     Unresolved(Path),
     /// Reference to a symbol
     Symbol(InternalPointer<std::sync::RwLock<Symbol>>),
+    /// Reference to a symbol
+    Variable(InternalPointer<VariableDeclaration>),
 }
 
 impl SymbolReference {
@@ -15,15 +17,22 @@ impl SymbolReference {
         match self {
             SymbolReference::Unresolved(_) => ir::Type::Error,
             SymbolReference::Symbol(symbol) => {
-                let symbol = symbol.read().unwrap();
+                if symbol::check_for_recursion(symbol) {
+                    return Type::Error;
+                }
+
+                let symbol = symbol.try_read().unwrap();
                 let r#type = symbol.value.get_type();
-                let value = symbol.evaluated.as_ref().expect("Tried to get type of a reference to a non-evaluated symbol");
+                let Some(value) = symbol.evaluated.as_ref() else {
+                    return Type::Error;
+                };
                 match r#type {
-                    Type::Function => value.r#as::<Function>().signature.get_type(),
-                    Type::ExternFunction => value.r#as::<ExternFunction>().signature.get_type(),
-                    r#type => r#type
+                    Type::Function => value.as_ref::<Function>().signature.get_type(),
+                    Type::ExternFunction => value.as_ref::<ExternFunction>().signature.get_type(),
+                    r#type => r#type,
                 }
             }
+            SymbolReference::Variable(variable) => variable.r#type.try_lock().unwrap().clone(),
         }
     }
 
@@ -43,19 +52,16 @@ impl SymbolReference {
                 }
             }
             SymbolReference::Symbol(symbol) => {
-                if symbol.read().unwrap().evaluated.is_none() {
-                    let mut symbol = match symbol.try_write() {
-                        Ok(symbol) => symbol,
-                        Err(std::sync::TryLockError::WouldBlock) => {
-                            return Type::Error;
-                        }
-                        e => e.unwrap(),
-                    };
-                    if symbol.evaluated.is_none() {
-                        symbol.evaluated = Some(type_inference.interpreter.evaluate(&symbol.value));
-                    }
+                if symbol::check_for_recursion(symbol) {
+                    return Type::Error;
                 }
+                symbol::ensure_evaluated(symbol, type_inference);
                 self.get_type()
+            }
+            SymbolReference::Variable(variable) => {
+                let mut r#type = variable.r#type.inner.try_lock().unwrap();
+                *r#type = type_inference.complete(r#type.clone());
+                r#type.clone()
             }
         }
     }
@@ -80,8 +86,7 @@ impl SymbolReference {
                 ir::Type::Error
             }
             SymbolReference::Symbol(symbol) => {
-                let symbol = symbol.read().unwrap();
-                if symbol.evaluated.is_none() {
+                if symbol::check_for_recursion(symbol) {
                     metadata.recursive_evaluation(
                         type_inference,
                         RecursiveEvaluation {
@@ -95,6 +100,7 @@ impl SymbolReference {
                     self.get_type()
                 }
             }
+            _ => self.get_type(),
         }
     }
 }
@@ -135,16 +141,21 @@ impl std::fmt::Display for SymbolReference {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Unresolved(path) => write!(f, "<unresolved symbol '{}'>", path),
-            Self::Symbol(symbol) => write!(f, "<symbol {}>", symbol.read().unwrap().name),
-            // Self::Variable(variable) => {
-            //     let show_id =
-            //         std::env::var("ORCO_SHOW_VAR_ID").map_or(false, |show_id| show_id == "1");
-            //     if show_id {
-            //         write!(f, "{} (#{})", variable.name, variable.id.lock().unwrap())
-            //     } else {
-            //         write!(f, "{}", variable.name)
-            //     }
-            // }
+            Self::Symbol(symbol) => write!(f, "<symbol {}>", symbol.try_read().unwrap().name),
+            Self::Variable(variable) => {
+                let show_id =
+                    std::env::var("ORCO_SHOW_VAR_ID").map_or(false, |show_id| show_id == "1");
+                if show_id {
+                    write!(
+                        f,
+                        "{} (#{})",
+                        variable.name,
+                        variable.id.try_lock().unwrap()
+                    )
+                } else {
+                    write!(f, "{}", variable.name)
+                }
+            }
         }
     }
 }
@@ -155,20 +166,20 @@ declare_metadata! {
         /// Symbol resolver (resolves variables, functions, etc.)
         fn resolve_symbol(&self, type_inference: &mut TypeInference, path: &Path) -> Option<SymbolReference> {
             let start = path.0.first().expect("Trying to resolve an empty path!");
-            // if let Some(symbol) = type_inference.get_symbol(start) {
-            //     return Some(symbol);
-            // }
+            if let Some(symbol) = type_inference.get_symbol(start) {
+                return Some(symbol);
+            }
             if let Some(symbol) = type_inference.current_module.symbols.get(start) {
-                return Some(SymbolReference::Symbol(InternalPointer::new(symbol)));
+                return Some(SymbolReference::Symbol(InternalPointer::new(symbol.as_ref())));
             }
             None
         }
 
         Diagnostics:
         /// Callback of symbol not found error
-        symbol_not_found(SymbolNotFound)
+        symbol_not_found(SymbolNotFound) abort_compilation;
         /// Callback of recursive evaluation error
-        recursive_evaluation(RecursiveEvaluation)
+        recursive_evaluation(RecursiveEvaluation) abort_compilation;
     }
 }
 
@@ -181,8 +192,8 @@ impl<T> InternalPointer<T> {
     /// Create a new internal pointer. Only use this for
     /// IR nodes that have to be referenced anywhere in IR
     #[allow(clippy::borrowed_box)]
-    pub fn new(value: &Box<T>) -> Self {
-        Self(value.as_ref() as _)
+    pub fn new(value: std::pin::Pin<&T>) -> Self {
+        Self(&*value as _)
     }
 }
 

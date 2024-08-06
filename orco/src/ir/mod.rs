@@ -19,19 +19,14 @@ pub use expression::Expression;
 #[derive(Debug, Default)]
 pub struct Module {
     /// Module content
-    pub symbols: std::collections::HashMap<Name, Box<std::sync::RwLock<Symbol>>>,
+    pub symbols: std::collections::HashMap<Name, std::pin::Pin<Box<std::sync::RwLock<Symbol>>>>,
 }
 
 impl Module {
     /// Infer and check types for the whole module
     pub fn infer_and_check_types(&self, type_inference: &mut TypeInference) {
         for symbol in self.symbols.values() {
-            let mut symbol = symbol.write().unwrap();
-            symbol.value.infer_types(type_inference);
-            symbol.value.finish_and_check_types(type_inference);
-            if symbol.evaluated.is_none() {
-                symbol.evaluated = Some(type_inference.interpreter.evaluate(&symbol.value));
-            }
+            symbol::ensure_evaluated(symbol, type_inference);
         }
     }
 }
@@ -43,7 +38,7 @@ impl std::fmt::Display for Module {
             writeln!(
                 f,
                 "{}",
-                indent::indent_all_by(4, format!("{}", symbol.read().unwrap()))
+                indent::indent_all_by(4, format!("{}", symbol.try_read().unwrap()))
             )?;
         }
         write!(f, "}}")?;
@@ -67,7 +62,7 @@ macro_rules! declare_metadata {
                     Diagnostics:
                     $(
                         $(#[$diagnostic_meta:meta])*
-                        $diagnostic_handler_name:ident ($diagnostic_name:ident)
+                        $diagnostic_handler_name:ident ($diagnostic_name:ident) $($abort_compilation:ident)?;
                     )*
                 )?
             }
@@ -86,6 +81,7 @@ macro_rules! declare_metadata {
                         $(#[$diagnostic_meta])*
                         fn $diagnostic_handler_name (&self, type_inference: &mut TypeInference, diagnostic: $diagnostic_name) {
                             type_inference.reporter.report(diagnostic.into());
+                            $(type_inference.$abort_compilation = true;)?
                         }
                     )*
                 )?

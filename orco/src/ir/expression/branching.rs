@@ -11,6 +11,7 @@ pub struct IfExpression {
     /// Else branch
     pub else_branch: Option<Box<Expression>>,
     /// Span of the expression
+    #[derivative(Debug = "ignore")]
     pub span: Span,
     /// Metadata
     #[derivative(Debug = "ignore")]
@@ -150,8 +151,8 @@ declare_metadata! {
     trait IfMetadata {
         Diagnostics:
         /// Callback of if condition not bool error
-        if_condition_not_bool(IfConditionNotBool)
+        if_condition_not_bool(IfConditionNotBool) abort_compilation;
         /// Callback of else branch type mismatch
-        else_branch_type_mismatch(ElseBranchTypeMismatch)
+        else_branch_type_mismatch(ElseBranchTypeMismatch) abort_compilation;
     }
 }

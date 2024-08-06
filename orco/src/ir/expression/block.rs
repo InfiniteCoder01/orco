@@ -9,6 +9,7 @@ pub struct Block {
     /// What this block evaluates to (basically tail expression)
     pub tail_expression: Option<Box<Expression>>,
     /// Span of the expression
+    #[derivative(Debug = "ignore")]
     pub span: Span,
     /// Set to true, if the block does not form a new scope
     pub transparent: bool,
@@ -50,7 +51,7 @@ impl Block {
     /// Infer types
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
         if !self.transparent {
-            // type_inference.push_scope();
+            type_inference.push_scope();
         }
         let mut r#type = Type::unit();
         for expression in &mut self.expressions {
@@ -66,7 +67,7 @@ impl Block {
             }
         }
         if !self.transparent {
-            // type_inference.pop_scope();
+            type_inference.pop_scope();
         }
         r#type
     }
@@ -150,6 +151,6 @@ declare_metadata! {
     trait BlockMetadata {
         Diagnostics:
         /// Callback of unreachable code warning
-        unreachable_code(UnreachableCode)
+        unreachable_code(UnreachableCode);
     }
 }

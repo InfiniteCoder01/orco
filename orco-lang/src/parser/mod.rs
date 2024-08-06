@@ -24,9 +24,10 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::Module {
     while !parser.eof() {
         if let Some(symbol) = parse_symbol(parser) {
             parser.expect_operator(Operator::Semicolon);
-            module
-                .symbols
-                .insert(symbol.name.clone(), Box::new(std::sync::RwLock::new(symbol)));
+            module.symbols.insert(
+                symbol.name.clone(),
+                Box::pin(std::sync::RwLock::new(symbol)),
+            );
         } else {
             parser.expected_error("a symbol");
             parser.next();

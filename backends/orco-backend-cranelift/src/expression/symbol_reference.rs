@@ -11,7 +11,7 @@ impl crate::Object<'_> {
     ) -> Option<Value> {
         match &symbol {
             SymbolReference::Symbol(symbol) => {
-                let symbol = symbol.read().unwrap();
+                let symbol = symbol.try_read().unwrap();
                 self.build_constant_value(
                     builder,
                     symbol
@@ -21,9 +21,9 @@ impl crate::Object<'_> {
                     &symbol.value.get_type(),
                 )
             }
-            // orco::SymbolReference::Variable(variable) => {
-            //     Some(builder.use_var(Variable::new(*variable.id.lock().unwrap() as _)))
-            // }
+            SymbolReference::Variable(variable) => {
+                Some(builder.use_var(Variable::new(*variable.id.try_lock().unwrap() as _)))
+            }
             _ => {
                 panic!(
                     "Invalid/unsupported symbol: {}. Did you run type checking/inference?",

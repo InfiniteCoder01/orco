@@ -49,7 +49,7 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
         } else {
             None
         };
-        Some(Expression::VariableDeclaration(std::sync::Arc::new(
+        Some(Expression::VariableDeclaration(Box::pin(
             ir::expression::VariableDeclaration::new(
                 name,
                 mutable,
@@ -105,8 +105,7 @@ pub fn parse_signature<R: ErrorReporter + ?Sized>(
             parser.span_from(start),
             (),
         );
-        *declaration.id.lock().unwrap() = args.len() as _;
-        args.push(declaration);
+        args.push(Box::pin(declaration));
 
         if !parser.match_operator(Operator::Comma) {
             parser.expect_operator(Operator::RParen);
@@ -147,11 +146,11 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
             Expression::Error(parser.span_from(start))
         }
     } else if parser.match_keyword("fn") {
-        Expression::Function(Box::new(ir::expression::Function {
-            signature: parse_signature(parser),
-            body: expect(parser),
-            span: parser.span_from(start),
-        }))
+        Expression::Function(Box::new(ir::expression::Function::new(
+            parse_signature(parser),
+            expect(parser),
+            parser.span_from(start),
+        )))
     } else if let Some(constant) = parser.match_constant() {
         Expression::Constant(constant)
     } else if let Some(block) = block::parse(parser) {

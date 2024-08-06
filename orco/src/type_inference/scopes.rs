@@ -1,9 +1,10 @@
+use ir::expression::SymbolReference;
 use std::collections::HashMap;
 
 use super::*;
 
-// /// Scope
-// pub type Scope = HashMap<Name, SymbolReference>;
+/// Scope
+pub type Scope = HashMap<Name, SymbolReference>;
 
 impl TypeInference<'_> {
     /// Start a new scope

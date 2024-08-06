@@ -11,6 +11,7 @@ pub struct BinaryExpression {
     /// Right hand side
     pub rhs: Box<Expression>,
     /// Span of the expression
+    #[derivative(Debug = "ignore")]
     pub span: Span,
     /// Metadata
     #[derivative(Debug = "ignore")]
@@ -159,6 +160,7 @@ pub struct UnaryExpression {
     /// Expression
     pub expr: Box<Expression>,
     /// Span of the expression
+    #[derivative(Debug = "ignore")]
     pub span: Span,
     /// Metadata
     #[derivative(Debug = "ignore")]
@@ -240,6 +242,7 @@ pub struct AssignmentExpression {
     /// Value
     pub value: Box<Expression>,
     /// Span of the expression
+    #[derivative(Debug = "ignore")]
     pub span: Span,
     /// Metadata
     #[derivative(Debug = "ignore")]

@@ -72,7 +72,7 @@ pub enum Expression {
     /// Return a value
     Return(ReturnExpression),
     /// Declare a variable
-    VariableDeclaration(std::sync::Arc<VariableDeclaration>),
+    VariableDeclaration(std::pin::Pin<Box<VariableDeclaration>>),
     /// Assignment
     Assignment(AssignmentExpression),
     /// Invalid expression
@@ -121,14 +121,7 @@ impl Expression {
             Expression::Call(expr) => expr.infer_types(type_inference),
             Expression::Return(expr) => expr.infer_types(type_inference),
             Expression::VariableDeclaration(declaration) => {
-                let r#type = declaration.infer_types(type_inference);
-                // type_inference.current_scope_mut().insert(
-                //     declaration.name.clone(),
-                //     SymbolReference::Variable(symbol_reference::InternalPointer(
-                //         declaration.as_ref() as _,
-                //     )),
-                // );
-                r#type
+                declaration.as_ref().infer_types(type_inference)
             }
             Expression::Assignment(expr) => expr.infer_types(type_inference),
             Expression::Error(_) => Type::Error,
@@ -139,10 +132,7 @@ impl Expression {
     /// Finish types and check them
     pub fn finish_and_check_types(&mut self, type_inference: &mut TypeInference) -> Type {
         match self {
-            Expression::Function(function) => {
-                function.infer_and_check_types(type_inference);
-                Type::Function
-            }
+            Expression::Function(_) => Type::Function,
             Expression::ExternFunction(_) => Type::ExternFunction,
             Expression::Constant(constant) => constant
                 .inner

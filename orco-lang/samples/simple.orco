@@ -1,2 +1,6 @@
 comptime puts = extern fn puts(msg: *char) -> i32;
-comptime main = fn () -> i32 puts(c"Hello, World!");
+
+comptime main = fn () -> i32 {
+    puts(c"Hello, World!");
+    0
+};

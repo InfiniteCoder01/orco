@@ -1,7 +1,7 @@
-extern fn getchar() -> i32;
-extern fn printf(message: char*, value: i32) -> i32;
+comptime getchar = extern fn getchar() -> i32;
+comptime printf = extern fn printf(message: *char, value: i32) -> i32;
 
-fn getint() -> i32 {
+comptime getint = fn () -> i32 {
   let mut sign = 1;
   let mut c = getchar();
   if c == 0x2D {
@@ -23,16 +23,16 @@ fn getint() -> i32 {
     }
   }
   return x * sign;
-}
+};
 
-fn pow(x: i32, y: i32) -> i32 {
+comptime pow = fn (x: i32, y: i32) -> i32 {
   if y == 0 {
     return 1;
   }
   return x * pow(x, y - 1);
-}
+};
 
-fn fastPow(x: i32, y: i32) -> i32 {
+comptime fastPow = fn (x: i32, y: i32) -> i32 {
   if y == 0 {
     return 1;
   }
@@ -46,9 +46,9 @@ fn fastPow(x: i32, y: i32) -> i32 {
   else {
     return k * k;
   }
-}
+};
 
-fn main() -> i32 {
+comptime main = fn () -> i32 {
   let a = getint();
   let action = getchar();
   getchar();
@@ -69,4 +69,4 @@ fn main() -> i32 {
     printf(c"%d\n", fastPow(a, b));
   }
   return 0;
-}
+};

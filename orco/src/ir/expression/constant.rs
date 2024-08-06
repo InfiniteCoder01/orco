@@ -159,7 +159,7 @@ declare_metadata! {
 
         Diagnostics:
         /// Callback of integer literal doesn't fit error
-        integer_literal_doesnt_fit(IntegerLiteralDoesntFit)
+        integer_literal_doesnt_fit(IntegerLiteralDoesntFit) abort_compilation;
     }
 
     /// Frontend metadata for float constant

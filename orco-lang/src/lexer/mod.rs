@@ -268,7 +268,7 @@ impl<'a, R: ErrorReporter + ?Sized> Parser<'a, R> {
                     Err(err) => {
                         let mut span = Span((**self.lexer.source()).clone(), self.lexer.span());
                         let mut colors = ColorGenerator::new();
-                        let report = orco::diagnostics::Report::build(
+                        let report = orco::ariadne::Report::build(
                             orco::diagnostics::ReportKind::Error,
                             self.lexer.source().0.clone(),
                             span.1.start,
@@ -453,7 +453,7 @@ impl<'source, R: ErrorReporter + ?Sized> Parser<'source, R> {
             format!("Expected {}", what)
         };
         let mut colors = ColorGenerator::new();
-        let report = Report::build(
+        let report = orco::ariadne::Report::build(
             ReportKind::Error,
             self.lexer.source().0.clone(),
             self.span().1.start,

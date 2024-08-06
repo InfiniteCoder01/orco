@@ -3,9 +3,6 @@ pub use ariadne::{ColorGenerator, Label, ReportKind};
 pub use miette::{Diagnostic, NamedSource, SourceSpan};
 pub use thiserror::Error;
 
-/// Diagnostic report (error, warning, etc.)
-pub type Report = ariadne::Report<'static, Span>;
-
 impl ariadne::Span for Span {
     type SourceId = Src;
 
@@ -49,10 +46,10 @@ impl Span {
 /// Error reporter
 pub trait ErrorReporter {
     /// Report an error
-    fn report(&mut self, error: miette::Report);
+    fn report(&mut self, report: miette::Report);
 
     /// Report an error, old ariadne API, getting gradually transitioned to [`ErrorReporter::report`]
-    fn report_ariadne(&mut self, report: Report);
+    fn report_ariadne(&mut self, report: ariadne::Report<'static, Span>);
 
     /// Report a type error (an error with a given message, a span of the error, and maybe some
     /// labels)
@@ -64,7 +61,7 @@ pub trait ErrorReporter {
         labels: Vec<(&'static str, Span)>,
     ) {
         let mut colors = ColorGenerator::new();
-        let report = Report::build(ReportKind::Error, r#where.0.clone(), r#where.1.start)
+        let report = ariadne::Report::build(ReportKind::Error, r#where.0.clone(), r#where.1.start)
             .with_message(message)
             .with_label(
                 Label::new(r#where)
@@ -78,37 +75,26 @@ pub trait ErrorReporter {
             }));
         self.report_ariadne(report.finish());
     }
-
-    /// Check if there were any errors
-    fn has_errors(&self) -> bool;
 }
 
-impl ErrorReporter for Vec<Report> {
-    fn report(&mut self, error: miette::Report) {
-        eprintln!("{:?}", error);
-    }
-
-    fn report_ariadne(&mut self, report: Report) {
+impl ErrorReporter for Vec<miette::Report> {
+    fn report(&mut self, report: miette::Report) {
         self.push(report);
     }
 
-    fn has_errors(&self) -> bool {
-        !self.is_empty()
-    }
+    fn report_ariadne(&mut self, _report: ariadne::Report<'static, Span>) {}
 }
 
 /// Default error reporter
 #[derive(Clone, Debug, Default)]
-pub struct DefaultReporter(usize);
+pub struct DefaultReporter;
 
 impl ErrorReporter for DefaultReporter {
-    fn report(&mut self, error: miette::Report) {
-        eprintln!("{:?}", error);
-
-        self.0 += 1;
+    fn report(&mut self, report: miette::Report) {
+        eprintln!("{:?}", report);
     }
 
-    fn report_ariadne(&mut self, report: Report) {
+    fn report_ariadne(&mut self, report: ariadne::Report<'static, Span>) {
         struct Source(Src);
         impl AsRef<str> for Source {
             fn as_ref(&self) -> &str {
@@ -119,11 +105,5 @@ impl ErrorReporter for DefaultReporter {
         if let Err(err) = report.eprint(ariadne::FnCache::new(|id: &Src| Ok(Source(id.clone())))) {
             log::error!("Failed to render diagnostic report: {}", err);
         }
-
-        self.0 += 1;
-    }
-
-    fn has_errors(&self) -> bool {
-        self.0 > 0
     }
 }

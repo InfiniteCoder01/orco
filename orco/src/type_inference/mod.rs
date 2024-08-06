@@ -1,8 +1,8 @@
 use super::*;
 
-// /// Scopes & Symbol mapping
-// pub mod scopes;
-// pub use scopes::Scope;
+/// Scopes & Symbol mapping
+pub mod scopes;
+pub use scopes::Scope;
 
 /// Type variable ID, used for type inference with Hindley–Milner algorithm
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -17,7 +17,7 @@ impl std::fmt::Display for TypeVariableId {
 /// Type inference information for a function
 pub struct TypeInference<'a> {
     /// Return type of a function
-    pub return_type: Option<&'a diagnostics::Spanned<ir::Type>>,
+    pub return_type: Option<diagnostics::Spanned<ir::Type>>,
     /// Error reporter
     pub reporter: &'a mut dyn diagnostics::ErrorReporter,
     /// Interpreter context
@@ -25,15 +25,19 @@ pub struct TypeInference<'a> {
     /// Type table
     pub type_table: Vec<(Vec<TypeVariableId>, ir::Type)>,
 
-    next_type_variable_id: TypeVariableId,
-
     /// Root module
     pub root_module: &'a ir::Module,
     /// Current module
     pub current_module: &'a ir::Module,
     /// Current module path
     pub current_module_path: Path,
-    // scopes: Vec<Scope>,
+
+    /// Set this flag once a fatal error has been encountered
+    pub abort_compilation: bool,
+
+    pub(crate) scopes: Vec<Scope>,
+    next_type_variable_id: TypeVariableId,
+    next_variable_id: ir::expression::variable_declaration::VariableId,
 }
 
 impl<'a> TypeInference<'a> {
@@ -49,12 +53,15 @@ impl<'a> TypeInference<'a> {
             interpreter,
             type_table: Vec::new(),
 
-            next_type_variable_id: TypeVariableId(0),
-
             root_module,
             current_module: root_module,
             current_module_path: Path::new(),
-            // scopes: Vec::new(),
+
+            abort_compilation: false,
+
+            scopes: Vec::new(),
+            next_type_variable_id: TypeVariableId(0),
+            next_variable_id: 0,
         }
     }
 
@@ -143,6 +150,7 @@ impl<'a> TypeInference<'a> {
                 span,
                 vec![],
             );
+            self.abort_compilation = true;
         }
     }
 }

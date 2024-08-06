@@ -47,13 +47,13 @@ impl crate::Object<'_> {
                 None
             }
             Expression::VariableDeclaration(declaration) => {
-                let variable = Variable::new(*declaration.id.lock().unwrap() as _);
+                let variable = Variable::new(*declaration.id.try_lock().unwrap() as _);
                 builder.declare_var(
                     variable,
-                    self.convert_type(&declaration.r#type.lock().unwrap()),
+                    self.convert_type(&declaration.r#type.try_lock().unwrap()),
                 );
                 if let Some(value) = &declaration.value {
-                    let value = self.build_expression(builder, &value.lock().unwrap()).expect("Can't initialize a variable to a unit type, did you run type checking/inference?");
+                    let value = self.build_expression(builder, &value.try_lock().unwrap()).expect("Can't initialize a variable to a unit type, did you run type checking/inference?");
                     builder.def_var(variable, value);
                 }
                 None

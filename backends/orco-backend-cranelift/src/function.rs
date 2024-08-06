@@ -55,12 +55,13 @@ impl crate::Object<'_> {
                 &function.signature.args.inner,
                 builder.block_params(block).to_vec(),
             ) {
-                let variable = Variable::new(*arg.id.lock().unwrap() as _);
-                builder.declare_var(variable, self.convert_type(&arg.r#type.lock().unwrap()));
+                let variable = Variable::new(*arg.id.try_lock().unwrap() as _);
+                builder.declare_var(variable, self.convert_type(&arg.r#type.try_lock().unwrap()));
                 builder.def_var(variable, value);
             }
-            let return_value = self.build_expression(&mut builder, &function.body);
-            if function.body.get_type() != orco::ir::Type::Never {
+            let body = function.body.try_lock().unwrap();
+            let return_value = self.build_expression(&mut builder, &body);
+            if body.get_type() != orco::ir::Type::Never {
                 builder
                     .ins()
                     .return_(&return_value.into_iter().collect::<Vec<_>>());
@@ -80,7 +81,7 @@ impl crate::Object<'_> {
             params: signature
                 .args
                 .iter()
-                .map(|arg| AbiParam::new(self.convert_type(&arg.r#type.lock().unwrap())))
+                .map(|arg| AbiParam::new(self.convert_type(&arg.r#type.try_lock().unwrap())))
                 .collect(),
             returns: if *signature.return_type == orco::ir::Type::Unit {
                 vec![]

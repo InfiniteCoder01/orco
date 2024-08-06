@@ -18,8 +18,9 @@ impl ReturnExpression {
     /// Infer the type for this expression
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
         let r#type = self.0.infer_types(type_inference);
-        if let Some(return_type) = type_inference.return_type {
-            type_inference.equate(&r#type, return_type);
+        if let Some(return_type) = type_inference.return_type.take() {
+            type_inference.equate(&r#type, &return_type);
+            type_inference.return_type = Some(return_type);
         }
         Type::Never
     }
@@ -27,7 +28,7 @@ impl ReturnExpression {
     /// Finish and check types
     pub fn finish_and_check_types(&mut self, type_inference: &mut TypeInference) -> Type {
         let r#type = self.0.finish_and_check_types(type_inference);
-        if let Some(return_type) = type_inference.return_type {
+        if let Some(return_type) = &type_inference.return_type {
             if !r#type.morphs(return_type) {
                 self.2.return_type_mismatch(
                     type_inference,
@@ -79,6 +80,6 @@ declare_metadata! {
     trait ReturnMetadata {
         Diagnostics:
         /// Return type mismatch error callback
-        return_type_mismatch(ReturnTypeMismatch)
+        return_type_mismatch(ReturnTypeMismatch) abort_compilation;
     }
 }
