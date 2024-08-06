@@ -145,10 +145,13 @@ impl<'a> TypeInference<'a> {
             *r#type = ir::Type::Float(std::num::NonZeroU16::new(4).unwrap());
         }
         if !r#type.complete() {
-            self.reporter.report_type_error(
-                format!("Could not infer type for {}", what),
-                span,
-                vec![],
+            self.reporter.report(
+                miette::miette!(
+                    labels = vec![miette::LabeledSpan::at(span.source_span(), "here"),],
+                    "Could not infer type for {}",
+                    what,
+                )
+                .with_source_code(span.named_source()),
             );
             self.abort_compilation = true;
         }

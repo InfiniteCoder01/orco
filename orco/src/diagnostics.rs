@@ -50,31 +50,6 @@ pub trait ErrorReporter {
 
     /// Report an error, old ariadne API, getting gradually transitioned to [`ErrorReporter::report`]
     fn report_ariadne(&mut self, report: ariadne::Report<'static, Span>);
-
-    /// Report a type error (an error with a given message, a span of the error, and maybe some
-    /// labels)
-    /// Old ariadne API, getting gradually transitioned to [`ErrorReporter::report`]
-    fn report_type_error(
-        &mut self,
-        message: String,
-        r#where: Span,
-        labels: Vec<(&'static str, Span)>,
-    ) {
-        let mut colors = ColorGenerator::new();
-        let report = ariadne::Report::build(ReportKind::Error, r#where.0.clone(), r#where.1.start)
-            .with_message(message)
-            .with_label(
-                Label::new(r#where)
-                    .with_message("Here")
-                    .with_color(colors.next()),
-            )
-            .with_labels(labels.into_iter().map(|(label, span)| {
-                Label::new(span)
-                    .with_message(label)
-                    .with_color(colors.next())
-            }));
-        self.report_ariadne(report.finish());
-    }
 }
 
 impl ErrorReporter for Vec<miette::Report> {

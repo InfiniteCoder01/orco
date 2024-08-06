@@ -77,21 +77,42 @@ impl VariableDeclaration {
             let mut value = value.try_lock().unwrap();
             let value_type = value.finish_and_check_types(type_inference);
             if !value_type.morphs(&r#type) {
-                type_inference.reporter.report_type_error(
-                    format!(
-                        "Type mismatch in variable declaration: Expected '{}', got '{}'",
-                        r#type, value_type
-                    ),
-                    value.span(),
-                    vec![("Expected because of this", self.r#type.span.clone())],
+                self.metadata.variable_declaration_type_mismatch(
+                    type_inference,
+                    VariableDeclarationTypeMismatch {
+                        expected: r#type.clone(),
+                        got: value_type,
+                        src: value.span().named_source(),
+                        expression_span: value.span().source_span(),
+                        declaration_span: self.r#type.span.source_span(),
+                    },
                 );
-                type_inference.abort_compilation = true;
             }
         }
         Type::Unit
     }
 }
 
+#[derive(Error, Debug, Diagnostic)]
+#[error("Incompatible types for variable declaration: expected '{expected}', got '{got}'")]
+#[diagnostic(code(typechecking::call::variable_declaration_type_mismatch))]
+/// Variable declaration type mismatch
+pub struct VariableDeclarationTypeMismatch {
+    /// Expected type
+    pub expected: Type,
+    /// Got type
+    pub got: Type,
+
+    #[source_code]
+    /// File where the error occurred
+    pub src: NamedSource<Src>,
+    #[label("Here")]
+    /// Span of the expression
+    pub expression_span: SourceSpan,
+    #[label("Expected because of this")]
+    /// Span of the type in declaration
+    pub declaration_span: SourceSpan,
+}
 impl Clone for VariableDeclaration {
     fn clone(&self) -> Self {
         Self {
@@ -134,5 +155,8 @@ impl std::fmt::Display for VariableDeclaration {
 declare_metadata! {
     /// Frontend metadata for variable declaration
     trait VariableDeclarationMetadata {
+        Diagnostics:
+        /// Variable declaration type mismatch error callback
+        variable_declaration_type_mismatch(VariableDeclarationTypeMismatch) abort_compilation;
     }
 }

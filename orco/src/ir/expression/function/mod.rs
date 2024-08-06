@@ -5,7 +5,8 @@ pub mod signature;
 pub use signature::Signature;
 
 /// A function
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct Function {
     /// Function signature
     pub signature: Signature,
@@ -13,15 +14,24 @@ pub struct Function {
     pub body: std::sync::Mutex<Expression>,
     /// Span of the function
     pub span: Span,
+    /// Metadata
+    #[derivative(Debug = "ignore")]
+    pub metadata: Box<dyn FunctionMetadata>,
 }
 
 impl Function {
     /// Create a new function
-    pub fn new(signature: Signature, body: Expression, span: Span) -> Self {
+    pub fn new(
+        signature: Signature,
+        body: Expression,
+        span: Span,
+        metadata: impl FunctionMetadata + 'static,
+    ) -> Self {
         Self {
             signature,
             body: body.into(),
             span,
+            metadata: Box::new(metadata),
         }
     }
 
@@ -46,18 +56,16 @@ impl Function {
         }
         let return_type = body.finish_and_check_types(type_inference);
         if !return_type.morphs(&self.signature.return_type) {
-            type_inference.reporter.report_type_error(
-                format!(
-                    "Return type mismatch: expected '{}', got '{}'",
-                    self.signature.return_type.inner, return_type
-                ),
-                body.span(),
-                vec![(
-                    "Expected because of this",
-                    self.signature.return_type.span.clone(),
-                )],
+            self.metadata.return_type_mismatch(
+                type_inference,
+                control_flow::ReturnTypeMismatch {
+                    expected: self.signature.return_type.inner.clone(),
+                    got: return_type,
+                    src: body.span().named_source(),
+                    expression_span: body.span().source_span(),
+                    return_type_span: self.signature.return_type.span.source_span(),
+                },
             );
-            type_inference.abort_compilation = true;
         }
 
         type_inference.scopes = old_scopes;
@@ -71,6 +79,7 @@ impl Clone for Function {
             signature: self.signature.clone(),
             body: std::sync::Mutex::new(self.body.try_lock().unwrap().clone()),
             span: self.span.clone(),
+            metadata: self.metadata.clone(),
         }
     }
 }
@@ -78,6 +87,15 @@ impl Clone for Function {
 impl std::fmt::Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "fn {} {}", self.signature, self.body.try_lock().unwrap())
+    }
+}
+
+declare_metadata! {
+    /// Frontend metadata for a function
+    trait FunctionMetadata {
+        Diagnostics:
+        /// Return type mismatch error callback
+        return_type_mismatch(control_flow::ReturnTypeMismatch) abort_compilation;
     }
 }
 

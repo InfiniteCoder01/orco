@@ -150,6 +150,7 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
             parse_signature(parser),
             expect(parser),
             parser.span_from(start),
+            (),
         )))
     } else if let Some(constant) = parser.match_constant() {
         Expression::Constant(constant)

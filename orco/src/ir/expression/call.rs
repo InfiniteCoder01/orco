@@ -91,12 +91,8 @@ impl CallExpression {
             r#return.inner.clone()
         } else {
             if r#type != Type::Error {
-                type_inference.reporter.report_type_error(
-                    format!("Can't call {}", r#type),
-                    self.expression.span(),
-                    vec![],
-                );
-                type_inference.abort_compilation = true;
+                todo!("Can't call error");
+                // type_inference.abort_compilation = true;
             }
             Type::Error
         }

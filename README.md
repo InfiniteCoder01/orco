@@ -39,6 +39,7 @@ Roadmap for now:
 - [ ] Path as an operator
 - [ ] Comptime type hints
 - [ ] Comptimes in blocks
+- [ ] Finish the interpreter
 - [ ] Structs
 - [ ] Pointers
 - [ ] Typecasts

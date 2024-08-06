@@ -62,7 +62,7 @@ macro_rules! declare_metadata {
                     Diagnostics:
                     $(
                         $(#[$diagnostic_meta:meta])*
-                        $diagnostic_handler_name:ident ($diagnostic_name:ident) $($abort_compilation:ident)?;
+                        $diagnostic_handler_name:ident ($diagnostic_name:path) $($abort_compilation:ident)?;
                     )*
                 )?
             }
