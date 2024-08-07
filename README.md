@@ -36,8 +36,8 @@ Roadmap for now:
 - [x] Make IR first-class (a BIG refactor)
 - [x] Remove Ariadne completely (+ lexer abort compilation)
 - [ ] Move spans to frontend?
-- [ ] Path as an operator
 - [ ] Comptime type hints
+- [ ] Path as an operator
 - [ ] Comptimes in blocks
 - [ ] Finish the interpreter
 - [ ] Structs
