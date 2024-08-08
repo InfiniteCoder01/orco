@@ -167,7 +167,7 @@ impl Expression {
             Expression::Block(block) => block.span.clone(),
             Expression::If(expr) => expr.span.clone(),
             Expression::Call(expr) => expr.span.clone(),
-            Expression::Return(expr) => Some(expr.1.clone()),
+            Expression::Return(expr) => expr.span.clone(),
             Expression::VariableDeclaration(declaration) => Some(declaration.span.clone()),
             Expression::Assignment(expr) => Some(expr.span.clone()),
             Expression::Error(span) => Some(span.clone()),

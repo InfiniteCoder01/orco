@@ -3,13 +3,31 @@ use super::*;
 /// Return expression
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
-pub struct ReturnExpression(
-    pub Box<Expression>,
-    pub Span,
-    #[derivative(Debug = "ignore")] pub Box<dyn ReturnMetadata>,
-);
+pub struct ReturnExpression {
+    /// Expression to return
+    pub expression: Box<Expression>,
+    /// Span of the expression
+    #[derivative(Debug = "ignore")]
+    pub span: Option<Span>,
+    /// Metadata
+    #[derivative(Debug = "ignore")]
+    pub metadata: Box<dyn ReturnMetadata>,
+}
 
 impl ReturnExpression {
+    /// Create a new return expression
+    pub fn new(
+        expression: Box<Expression>,
+        span: Option<Span>,
+        metadata: impl ReturnMetadata + 'static,
+    ) -> Self {
+        Self {
+            expression,
+            span,
+            metadata: Box::new(metadata),
+        }
+    }
+
     /// Get the type this exprssion evaluates to
     pub fn get_type(&self) -> Type {
         Type::Never
@@ -17,7 +35,7 @@ impl ReturnExpression {
 
     /// Infer the type for this expression
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
-        let r#type = self.0.infer_types(type_inference);
+        let r#type = self.expression.infer_types(type_inference);
         if let Some(return_type) = type_inference.return_type.take() {
             type_inference.equate(&r#type, &return_type);
             type_inference.return_type = Some(return_type);
@@ -27,16 +45,16 @@ impl ReturnExpression {
 
     /// Finish and check types
     pub fn finish_and_check_types(&mut self, type_inference: &mut TypeInference) -> Type {
-        let r#type = self.0.finish_and_check_types(type_inference);
+        let r#type = self.expression.finish_and_check_types(type_inference);
         if let Some(return_type) = &type_inference.return_type {
             if !r#type.morphs(return_type) {
-                self.2.return_type_mismatch(
+                self.metadata.return_type_mismatch(
                     type_inference,
                     ReturnTypeMismatch {
                         expected: return_type.inner.clone(),
                         got: r#type,
-                        src: self.0.span().as_ref().unwrap().named_source(),
-                        expression_span: self.0.span().as_ref().unwrap().source_span(),
+                        src: self.expression.span().as_ref().unwrap().named_source(),
+                        expression_span: self.expression.span().as_ref().unwrap().source_span(),
                         return_type_span: return_type.span.as_ref().unwrap().source_span(),
                     },
                 );
@@ -71,7 +89,7 @@ pub struct ReturnTypeMismatch {
 
 impl std::fmt::Display for ReturnExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "return {}", self.0)
+        write!(f, "return {}", self.expression)
     }
 }
 

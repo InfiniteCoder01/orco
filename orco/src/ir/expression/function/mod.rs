@@ -13,6 +13,7 @@ pub struct Function {
     /// Function body
     pub body: std::sync::Mutex<Expression>,
     /// Span of the function
+    #[derivative(Debug = "ignore")]
     pub span: Option<Span>,
     /// Metadata
     #[derivative(Debug = "ignore")]
@@ -108,6 +109,7 @@ pub struct ExternFunction {
     /// Function signature
     pub signature: Signature,
     /// Span of the extern function declaration
+    #[derivative(Debug = "ignore")]
     pub span: Option<Span>,
     /// Metadata
     #[derivative(Debug = "ignore")]

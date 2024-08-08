@@ -28,10 +28,10 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
     let start = parser.span().1.start;
     let expression = if parser.match_keyword("return") {
         let value = expect(parser);
-        Some(Expression::Return(ir::expression::ReturnExpression(
+        Some(Expression::Return(ir::expression::ReturnExpression::new(
             Box::new(value),
-            parser.span_from(start),
-            Box::new(()),
+            Some(parser.span_from(start)),
+            (),
         )))
     } else if parser.match_keyword("let") {
         let mutable = {

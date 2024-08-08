@@ -1,5 +1,5 @@
 /// Span (holds both span and a file path)
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Span(pub Src, pub std::ops::Range<usize>);
 
 impl Span {
@@ -38,6 +38,12 @@ impl std::ops::Deref for Span {
 impl std::fmt::Display for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_ref())
+    }
+}
+
+impl std::fmt::Debug for Span {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<\"{}\" in {:?}>", self.as_ref(), self.0.path())
     }
 }
 
