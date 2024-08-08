@@ -44,12 +44,8 @@ impl Constant {
     /// Infer types
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
         match self {
-            Self::Integer { r#type, .. } => {
-                *r#type = type_inference.complete(r#type.clone());
-            }
-            Self::Float { r#type, .. } => {
-                *r#type = type_inference.complete(r#type.clone());
-            }
+            Self::Integer { r#type, .. } => type_inference.complete(r#type),
+            Self::Float { r#type, .. } => type_inference.complete(r#type),
             Self::CString(..) => (),
         }
         self.get_type()

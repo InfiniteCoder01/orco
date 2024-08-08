@@ -52,7 +52,7 @@ impl VariableDeclaration {
     pub fn infer_types(self: std::pin::Pin<&Self>, type_inference: &mut TypeInference) -> Type {
         *self.id.try_lock().unwrap() = type_inference.new_variable_id();
         let mut r#type = self.r#type.inner.try_lock().unwrap();
-        *r#type = type_inference.complete(r#type.clone());
+        type_inference.complete(&mut r#type);
         if let Some(value) = &self.value {
             let value_type = value.try_lock().unwrap().infer_types(type_inference);
             type_inference.equate(&r#type, &value_type);

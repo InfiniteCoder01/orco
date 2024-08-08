@@ -74,11 +74,11 @@ impl<'a> TypeInference<'a> {
     }
 
     /// If the type is not complete, make it a type variable
-    pub fn complete(&mut self, r#type: ir::Type) -> ir::Type {
-        if r#type.complete() {
-            r#type
-        } else {
-            ir::Type::TypeVariable(self.alloc_type_variable(r#type))
+    pub fn complete(&mut self, r#type: &mut ir::Type) {
+        if !r#type.complete() {
+            *r#type = ir::Type::TypeVariable(
+                self.alloc_type_variable(std::mem::replace(r#type, ir::Type::Error)),
+            );
         }
     }
 

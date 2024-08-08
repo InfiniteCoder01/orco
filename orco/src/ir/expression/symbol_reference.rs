@@ -60,7 +60,7 @@ impl SymbolReference {
             }
             SymbolReference::Variable(variable) => {
                 let mut r#type = variable.r#type.inner.try_lock().unwrap();
-                *r#type = type_inference.complete(r#type.clone());
+                type_inference.complete(&mut r#type);
                 r#type.clone()
             }
         }
