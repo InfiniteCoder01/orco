@@ -178,8 +178,8 @@ impl std::fmt::Display for Expression {
         match self {
             Expression::Function(function) => write!(f, "{}", function),
             Expression::ExternFunction(function) => write!(f, "{}", function),
-            Expression::Constant(constant) => write!(f, "{}", constant.inner),
-            Expression::Symbol(symbol, ..) => write!(f, "{}", symbol.inner),
+            Expression::Constant(constant) => write!(f, "{}", constant),
+            Expression::Symbol(symbol, ..) => write!(f, "{}", symbol),
             Expression::BinaryExpression(expr) => write!(f, "{}", expr),
             Expression::UnaryExpression(expr) => write!(f, "{}", expr),
             Expression::Block(block) => write!(f, "{}", block),

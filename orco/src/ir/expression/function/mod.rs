@@ -93,7 +93,7 @@ declare_metadata! {
         fn return_type_mismatch(&self, expected: &Spanned<Type>, got: &Type, expression_span: Option<Span>) -> Report {
             Report::build(ReportKind::Error)
                 .with_code("typechecking::return_type_mismatch")
-                .with_message(format!("Return type mismatch: expected '{}', got '{}'", expected.inner, got))
+                .with_message(format!("Return type mismatch: expected '{}', got '{}'", expected, got))
                 .opt_label(expression_span, |label| label.with_message("Here").with_color(colors::Got))
                 .opt_label(expected.span.clone(), |label| label.with_message("Expected because of this").with_color(colors::Expected))
                 .finish()

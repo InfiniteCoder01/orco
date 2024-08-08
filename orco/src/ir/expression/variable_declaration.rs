@@ -77,41 +77,16 @@ impl VariableDeclaration {
             let mut value = value.try_lock().unwrap();
             let value_type = value.finish_and_check_types(type_inference);
             if !value_type.morphs(&r#type) {
-                self.metadata.variable_declaration_type_mismatch(
-                    type_inference,
-                    VariableDeclarationTypeMismatch {
-                        expected: r#type.clone(),
-                        got: value_type,
-                        src: value.span().as_ref().unwrap().named_source(),
-                        expression_span: value.span().as_ref().unwrap().source_span(),
-                        declaration_span: self.r#type.span.as_ref().unwrap().source_span(),
-                    },
-                );
+                type_inference.report(self.metadata.variable_declaration_type_mismatch(
+                    &value_type,
+                    value.span().cloned(),
+                    &r#type,
+                    self.r#type.span.clone(),
+                ));
             }
         }
         Type::Unit
     }
-}
-
-#[derive(Error, Debug, Diagnostic)]
-#[error("Incompatible types for variable declaration: expected '{expected}', got '{got}'")]
-#[diagnostic(code(typechecking::call::variable_declaration_type_mismatch))]
-/// Variable declaration type mismatch
-pub struct VariableDeclarationTypeMismatch {
-    /// Expected type
-    pub expected: Type,
-    /// Got type
-    pub got: Type,
-
-    #[source_code]
-    /// File where the error occurred
-    pub src: NamedSource<Src>,
-    #[label("Here")]
-    /// Span of the expression
-    pub expression_span: SourceSpan,
-    #[label("Expected because of this")]
-    /// Span of the type in declaration
-    pub declaration_span: SourceSpan,
 }
 
 impl Clone for VariableDeclaration {
@@ -156,8 +131,17 @@ impl std::fmt::Display for VariableDeclaration {
 declare_metadata! {
     /// Frontend metadata for variable declaration
     trait VariableDeclarationMetadata {
-        Diagnostics:
         /// Variable declaration type mismatch error callback
-        variable_declaration_type_mismatch(VariableDeclarationTypeMismatch) abort_compilation;
+        fn variable_declaration_type_mismatch(&self, r#type: &Type, span: Option<Span>, signature_type: &Type, signature_span: Option<Span>) -> Report {
+            Report::build(ReportKind::Error)
+                .with_code("typechecking::variable_declaration_type_mismatch")
+                .with_message(format!(
+                    "Incompatible types for variable declaration: expected '{}', got '{}'",
+                    signature_type, r#type
+                ))
+                .opt_label(span, |label| label.with_message("Here").with_color(colors::Got))
+                .opt_label(signature_span, |label| label.with_message("Expected because of this").with_color(colors::Expected))
+                .finish()
+        }
     }
 }

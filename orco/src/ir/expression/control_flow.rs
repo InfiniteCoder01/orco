@@ -71,11 +71,11 @@ declare_metadata! {
     /// Frontend metadata for the return expression
     trait ReturnMetadata {
         /// Return type mismatch error callback
-        fn return_type_mismatch(&self, r#type: &Type, expression_span: Option<Span>, signature_type: &Spanned<Type>) -> Report {
+        fn return_type_mismatch(&self, r#type: &Type, span: Option<Span>, signature_type: &Spanned<Type>) -> Report {
             Report::build(ReportKind::Error)
                 .with_code("typechecking::return_type_mismatch")
-                .with_message(format!("Return type mismatch: expected '{}', got '{}'", signature_type.inner, r#type))
-                .opt_label(expression_span, |label| label.with_message("Here").with_color(colors::Got))
+                .with_message(format!("Return type mismatch: expected '{}', got '{}'", signature_type, r#type))
+                .opt_label(span, |label| label.with_message("Here").with_color(colors::Got))
                 .opt_label(signature_type.span.clone(), |label| label.with_message("Expected because of this").with_color(colors::Expected))
                 .finish()
         }
