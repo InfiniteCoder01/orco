@@ -146,7 +146,7 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
         Expression::Call(ir::expression::CallExpression::new(
             expr,
             args,
-            parser.span_from(start),
+            Some(parser.span_from(start)),
             (),
         ))
     } else {
