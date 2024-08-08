@@ -85,7 +85,7 @@ pub fn build(root: &orco::ir::Module) {
         if let Some(value) = &symbol.evaluated {
             if symbol.value.get_type() == orco::ir::Type::Function {
                 let function = value.as_ref::<orco::ir::expression::Function>();
-                object.build_function(Path::single(symbol.name.clone()), function);
+                object.build_function(&Path::single(symbol.name.clone()), function);
             }
         }
     }

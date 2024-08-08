@@ -27,7 +27,7 @@ impl crate::Object<'_> {
     /// Build a function in the object, must declare it first with [`Self::declare_function`]
     pub fn build_function(
         &mut self,
-        name: Path,
+        name: &Path,
         function: &orco::ir::expression::function::Function,
     ) {
         info!("Compiling function {}", name);

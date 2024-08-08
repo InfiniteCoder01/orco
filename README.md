@@ -38,6 +38,7 @@ Roadmap for now:
 - [ ] Move spans to frontend?
 - [ ] Comptime type hints
 - [ ] Path as an operator
+- [ ] orco::Path is borrowing names?
 - [ ] Comptimes in blocks
 - [ ] Finish the interpreter
 - [ ] Structs
