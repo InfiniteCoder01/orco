@@ -10,6 +10,8 @@ pub mod colors {
     use super::Color;
     /// A color for a regular label
     pub const Label: Color = Color::Blue;
+    /// A color for a hint
+    pub const Hint: Color = Color::Magenta;
     /// A color for expected part of "expected ..., got ..." error message
     pub const Expected: Color = Color::Red;
     /// A color for got part of "expected ..., got ..." error message

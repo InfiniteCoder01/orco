@@ -75,55 +75,40 @@ impl Block {
     /// Finish and check types
     pub fn finish_and_check_types(&mut self, type_inference: &mut TypeInference) -> Type {
         let mut r#type = Type::Unit;
-        let mut unreachable_span: Option<Span> = None;
+        let mut unreachable_code: Option<UnreachableCode> = None;
+
         for expression in &mut self.expressions {
-            if r#type == Type::Never {
-                if let Some(span) = expression.span() {
-                    unreachable_span.get_or_insert(span.clone()).1.end = span.1.end;
-                }
+            if let Some(unreachable_code) = &mut unreachable_code {
+                unreachable_code.extend(expression.span());
             }
             let expr_type = expression.finish_and_check_types(type_inference);
             if expr_type == Type::Never {
                 r#type = Type::Never;
+                unreachable_code = Some(UnreachableCode {
+                    there_is_some: false,
+                    unreachable_code: None,
+                    reason: expression.span().cloned(),
+                });
             }
         }
 
         if let Some(expression) = &mut self.tail_expression {
             let expr_type = expression.finish_and_check_types(type_inference);
-            if r#type == Type::Never {
-                if let Some(span) = expression.span() {
-                    unreachable_span.get_or_insert(span.clone()).1.end = span.1.end;
-                }
+            if let Some(unreachable_code) = &mut unreachable_code {
+                unreachable_code.extend(expression.span());
             } else {
                 r#type = expr_type;
             }
         }
 
-        if let Some(span) = unreachable_span {
-            self.metadata.unreachable_code(
-                type_inference,
-                UnreachableCode {
-                    src: span.named_source(),
-                    span: span.source_span(),
-                },
-            );
+        if let Some(unreachable_code) = unreachable_code {
+            if unreachable_code.there_is_some {
+                type_inference.report(self.metadata.unreachable_code(unreachable_code));
+            }
         }
 
         r#type
     }
-}
-
-#[derive(Error, Debug, Diagnostic)]
-#[error("Unreachable code")]
-#[diagnostic(code(potential_bugs::unreachable_code), severity(Warning))]
-/// Unreachable code
-pub struct UnreachableCode {
-    #[source_code]
-    /// File where the error occurred
-    pub src: NamedSource<Src>,
-    #[label("This code is unreachable")]
-    /// Span of the unreachable code
-    pub span: SourceSpan,
 }
 
 impl std::fmt::Display for Block {
@@ -148,11 +133,42 @@ impl std::fmt::Display for Block {
     }
 }
 
+/// Unreachable code analysis data
+pub struct UnreachableCode {
+    /// True if there is actually some unreachable code
+    pub there_is_some: bool,
+    /// The span of the unreachable code
+    pub unreachable_code: Option<Span>,
+    /// The span of the reason code being unreachable
+    pub reason: Option<Span>,
+}
+
+impl UnreachableCode {
+    fn extend(&mut self, span: Option<&Span>) {
+        self.there_is_some = true;
+        if let Some(span) = span {
+            if let Some(unreachable_span) = &mut self.unreachable_code {
+                if unreachable_span.0 == span.0 {
+                    unreachable_span.extend(span);
+                }
+            } else {
+                self.unreachable_code = Some(span.clone());
+            }
+        }
+    }
+}
+
 declare_metadata! {
     /// Frontend metadata for block expression
     trait BlockMetadata {
-        Diagnostics:
         /// Callback of unreachable code warning
-        unreachable_code(UnreachableCode);
+        fn unreachable_code(&self, unreachable_code: UnreachableCode) -> Report {
+            Report::build(ReportKind::Warning)
+                .with_code("potential_bugs::unreachable_code")
+                .with_message("Unreachable code")
+                .opt_label(unreachable_code.unreachable_code, |label| label.with_message("This code is unreachable").with_color(colors::Label))
+                .opt_label(unreachable_code.reason, |label| label.with_message("Note: Unreachable beacuse of this").with_color(colors::Hint))
+                .finish()
+        }
     }
 }

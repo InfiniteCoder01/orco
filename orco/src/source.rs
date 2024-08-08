@@ -12,12 +12,16 @@ impl Span {
     }
 
     /// Extend span up to the end of another span
-    pub fn extend(&self, span: &Span) -> Span {
-        assert_eq!(self.0, span.0);
-        Span(
-            self.0.clone(),
-            self.1.start.min(span.1.start)..self.1.end.max(span.1.end),
-        )
+    pub fn extend(&mut self, other: &Span) {
+        assert_eq!(self.0, other.0);
+        self.1 = self.1.start.min(other.1.start)..self.1.end.max(other.1.end);
+    }
+
+    /// Extend span up to the end of another span
+    pub fn extended(&self, other: &Span) -> Span {
+        let mut span = self.clone();
+        span.extend(other);
+        span
     }
 }
 
