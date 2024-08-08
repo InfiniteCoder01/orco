@@ -2,17 +2,17 @@ use super::*;
 
 /// Block expression, contains multiple expressions (something along { expr1; expr2; })
 #[derive(Derivative, Clone)]
-#[derivative(Debug)]
+#[derivative(Debug, Default)]
 pub struct Block {
     /// Block content
     pub expressions: Vec<Expression>,
     /// What this block evaluates to (basically tail expression)
     pub tail_expression: Option<Box<Expression>>,
-    /// Span of the expression
-    #[derivative(Debug = "ignore")]
-    pub span: Span,
     /// Set to true, if the block does not form a new scope
     pub transparent: bool,
+    /// Span of the expression
+    #[derivative(Debug = "ignore")]
+    pub span: Option<Span>,
     /// Metadata
     #[derivative(Debug = "ignore", Default(value = "Box::new(())"))]
     pub metadata: Box<dyn BlockMetadata>,
@@ -23,15 +23,15 @@ impl Block {
     pub fn new(
         expressions: Vec<Expression>,
         tail_expression: Option<Box<Expression>>,
-        span: Span,
         transparent: bool,
+        span: Option<Span>,
         metadata: impl BlockMetadata + 'static,
     ) -> Self {
         Self {
             expressions,
             tail_expression,
-            span,
             transparent,
+            span,
             metadata: Box::new(metadata),
         }
     }

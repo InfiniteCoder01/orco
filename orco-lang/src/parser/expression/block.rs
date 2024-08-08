@@ -32,8 +32,8 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<ir::ex
         Some(ir::expression::Block::new(
             expressions,
             tail_expression,
-            parser.span_from(start),
             false,
+            Some(parser.span_from(start)),
             (),
         ))
     } else {
