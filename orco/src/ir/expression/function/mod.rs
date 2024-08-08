@@ -59,7 +59,7 @@ impl Function {
         if !return_type.morphs(&self.signature.return_type) {
             type_inference.report(self.metadata.return_type_mismatch(
                 self.signature.return_type.clone(),
-                Spanned::opt(return_type, body.span()),
+                Spanned::opt(return_type, body.span().cloned()),
             ));
         }
 

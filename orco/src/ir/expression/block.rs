@@ -79,7 +79,7 @@ impl Block {
         for expression in &mut self.expressions {
             if r#type == Type::Never {
                 if let Some(span) = expression.span() {
-                    unreachable_span.get_or_insert(span).1.end = span.1.end;
+                    unreachable_span.get_or_insert(span.clone()).1.end = span.1.end;
                 }
             }
             let expr_type = expression.finish_and_check_types(type_inference);
@@ -92,7 +92,7 @@ impl Block {
             let expr_type = expression.finish_and_check_types(type_inference);
             if r#type == Type::Never {
                 if let Some(span) = expression.span() {
-                    unreachable_span.get_or_insert(span).1.end = span.1.end;
+                    unreachable_span.get_or_insert(span.clone()).1.end = span.1.end;
                 }
             } else {
                 r#type = expr_type;

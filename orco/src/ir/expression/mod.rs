@@ -156,21 +156,21 @@ impl Expression {
     }
 
     /// Get the span of this expression
-    pub fn span(&self) -> Option<Span> {
+    pub fn span(&self) -> Option<&Span> {
         match self {
-            Expression::Function(function) => function.span.clone(),
-            Expression::ExternFunction(function) => function.span.clone(),
-            Expression::Constant(constant) => constant.span.clone(),
-            Expression::Symbol(symbol, ..) => symbol.span.clone(),
-            Expression::BinaryExpression(expr) => expr.span.clone(),
-            Expression::UnaryExpression(expr) => expr.span.clone(),
-            Expression::Block(block) => block.span.clone(),
-            Expression::If(expr) => expr.span.clone(),
-            Expression::Call(expr) => expr.span.clone(),
-            Expression::Return(expr) => expr.span.clone(),
-            Expression::VariableDeclaration(declaration) => declaration.span.clone(),
-            Expression::Assignment(expr) => expr.span.clone(),
-            Expression::Error(span) => span.clone(),
+            Expression::Function(function) => function.span.as_ref(),
+            Expression::ExternFunction(function) => function.span.as_ref(),
+            Expression::Constant(constant) => constant.span.as_ref(),
+            Expression::Symbol(symbol, ..) => symbol.span.as_ref(),
+            Expression::BinaryExpression(expr) => expr.span.as_ref(),
+            Expression::UnaryExpression(expr) => expr.span.as_ref(),
+            Expression::Block(block) => block.span.as_ref(),
+            Expression::If(expr) => expr.span.as_ref(),
+            Expression::Call(expr) => expr.span.as_ref(),
+            Expression::Return(expr) => expr.span.as_ref(),
+            Expression::VariableDeclaration(declaration) => declaration.span.as_ref(),
+            Expression::Assignment(expr) => expr.span.as_ref(),
+            Expression::Error(span) => span.as_ref(),
         }
     }
 }
