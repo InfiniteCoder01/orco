@@ -66,7 +66,7 @@ pub fn unary<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
         if parser.match_operator(op_token) {
             let expr = Box::new(unary(parser)?);
             return Some(Expression::UnaryExpression(
-                ir::expression::UnaryExpression::new(op, expr, parser.span_from(start), ()),
+                ir::expression::UnaryExpression::new(op, expr, Some(parser.span_from(start)), ()),
             ));
         }
     }

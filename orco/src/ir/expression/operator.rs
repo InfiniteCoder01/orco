@@ -161,7 +161,7 @@ pub struct UnaryExpression {
     pub expr: Box<Expression>,
     /// Span of the expression
     #[derivative(Debug = "ignore")]
-    pub span: Span,
+    pub span: Option<Span>,
     /// Metadata
     #[derivative(Debug = "ignore")]
     pub metadata: Box<dyn UnaryMetadata>,
@@ -172,7 +172,7 @@ impl UnaryExpression {
     pub fn new(
         op: UnaryOp,
         expr: Box<Expression>,
-        span: Span,
+        span: Option<Span>,
         metadata: impl UnaryMetadata + 'static,
     ) -> Self {
         Self {

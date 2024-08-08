@@ -163,7 +163,7 @@ impl Expression {
             Expression::Constant(constant) => constant.span.clone(),
             Expression::Symbol(symbol, ..) => symbol.span.clone(),
             Expression::BinaryExpression(expr) => expr.span.clone(),
-            Expression::UnaryExpression(expr) => Some(expr.span.clone()),
+            Expression::UnaryExpression(expr) => expr.span.clone(),
             Expression::Block(block) => Some(block.span.clone()),
             Expression::If(expr) => Some(expr.span.clone()),
             Expression::Call(expr) => Some(expr.span.clone()),

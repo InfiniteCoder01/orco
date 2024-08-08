@@ -94,11 +94,12 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
     } else if parser.match_keyword("extern") {
         if parser.match_keyword("fn") {
             if let Some(name) = parser.expect_ident("external name") {
-                Expression::ExternFunction(ir::expression::ExternFunction {
+                Expression::ExternFunction(ir::expression::ExternFunction::new(
                     name,
-                    signature: function::parse_signature(parser),
-                    span: Some(parser.span_from(start)),
-                })
+                    function::parse_signature(parser),
+                    Some(parser.span_from(start)),
+                    (),
+                ))
             } else {
                 Expression::Error(parser.span_from(start))
             }

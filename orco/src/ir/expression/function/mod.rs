@@ -100,7 +100,8 @@ declare_metadata! {
 }
 
 /// An extern function
-#[derive(Clone, Debug)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 pub struct ExternFunction {
     /// Extern function name
     pub name: Name,
@@ -108,10 +109,36 @@ pub struct ExternFunction {
     pub signature: Signature,
     /// Span of the extern function declaration
     pub span: Option<Span>,
+    /// Metadata
+    #[derivative(Debug = "ignore")]
+    pub metadata: Box<dyn ExternFunctionMetadata>,
+}
+
+impl ExternFunction {
+    /// Create a new extern function
+    pub fn new(
+        name: Name,
+        signature: Signature,
+        span: Option<Span>,
+        metadata: impl ExternFunctionMetadata + 'static,
+    ) -> Self {
+        Self {
+            name,
+            signature,
+            span,
+            metadata: Box::new(metadata),
+        }
+    }
 }
 
 impl std::fmt::Display for ExternFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "extern fn {}{}", self.name, self.signature)
+    }
+}
+
+declare_metadata! {
+    /// Frontend metadata for an extern function
+    trait ExternFunctionMetadata {
     }
 }
