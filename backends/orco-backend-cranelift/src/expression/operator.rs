@@ -9,7 +9,7 @@ impl crate::Object<'_> {
     ) -> Option<Value> {
         let lhs = self.build_expression(builder, &expr.lhs)?;
         let rhs = self.build_expression(builder, &expr.rhs)?;
-        let r#type = expr.lhs.get_type() | expr.rhs.get_type();
+        let r#type = expr.lhs.get_type() | &expr.rhs.get_type();
         use orco::ir::expression::BinaryOp;
         if matches!(
             r#type,

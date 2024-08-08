@@ -45,7 +45,7 @@ impl BinaryExpression {
             | BinaryOp::Le
             | BinaryOp::Gt
             | BinaryOp::Ge => Type::Bool,
-            _ => self.lhs.get_type() | self.rhs.get_type(),
+            _ => self.lhs.get_type() | &self.rhs.get_type(),
         }
     }
 
@@ -89,7 +89,7 @@ impl BinaryExpression {
             | BinaryOp::Le
             | BinaryOp::Gt
             | BinaryOp::Ge => Type::Bool,
-            _ => lhs_type | rhs_type,
+            _ => lhs_type | &rhs_type,
         }
     }
 }

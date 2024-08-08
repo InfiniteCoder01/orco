@@ -33,7 +33,7 @@ impl crate::Object<'_> {
         info!("Compiling function {}", name);
         trace!("OrCo IR:\n{}", function);
 
-        let id = *self.functions.get(&name).expect("Function wasn't declared");
+        let id = *self.functions.get(name).expect("Function wasn't declared");
         let sig = self.convert_function_signature(&function.signature);
         let mut ctx = Context::new();
         ctx.func = Function::with_name_signature(

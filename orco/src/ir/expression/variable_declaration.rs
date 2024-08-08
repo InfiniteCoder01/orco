@@ -71,7 +71,7 @@ impl VariableDeclaration {
         type_inference.finish(
             &mut r#type,
             &format!("variable '{}'", self.name),
-            Some(self.name.clone()),
+            Some(&self.name),
         );
         if let Some(value) = &self.value {
             let mut value = value.try_lock().unwrap();
@@ -113,6 +113,7 @@ pub struct VariableDeclarationTypeMismatch {
     /// Span of the type in declaration
     pub declaration_span: SourceSpan,
 }
+
 impl Clone for VariableDeclaration {
     fn clone(&self) -> Self {
         Self {

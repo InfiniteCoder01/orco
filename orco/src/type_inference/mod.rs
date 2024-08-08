@@ -100,12 +100,12 @@ impl<'a> TypeInference<'a> {
                 match type_variables {
                     Ok([(_, (type1_ids, type1)), (type2_index, (type2_ids, type2))]) => {
                         type1_ids.append(type2_ids);
-                        type1.equate(type2.clone());
+                        type1.equate(type2);
                         let r#type = ir::Type::TypeVariable(type1_ids[0]);
                         self.type_table.remove(type2_index);
                         r#type
                     }
-                    Err(type_variables) => type_variables[0].1 .1.clone(),
+                    Err(type_variables) => ir::Type::TypeVariable(type_variables[0].1 .0[0]),
                 }
             }
             (ir::Type::TypeVariable(type_variable), r#type)
@@ -115,30 +115,28 @@ impl<'a> TypeInference<'a> {
                     .iter_mut()
                     .find(|(ids, _)| ids.contains(type_variable))
                     .expect("Invalid type variable!");
-                type_variable.equate(r#type.clone());
+                type_variable.equate(r#type);
                 ir::Type::TypeVariable(type_ids[0])
             }
-            (lhs, rhs) => lhs.clone() | rhs.clone(),
+            (lhs, rhs) => lhs.clone() | rhs,
         }
     }
 
     /// Inline the type variable if the type is a type variable (One-layer type inline)
-    pub fn inline(&self, r#type: ir::Type) -> ir::Type {
+    pub fn inline(&self, r#type: &mut ir::Type) {
         if let ir::Type::TypeVariable(type_variable) = r#type {
             let (_, type_variable) = self
                 .type_table
                 .iter()
-                .find(|(ids, _)| ids.contains(&type_variable))
+                .find(|(ids, _)| ids.contains(type_variable))
                 .expect("Invalid type variable!");
-            type_variable.clone()
-        } else {
-            r#type
+            *r#type = type_variable.clone()
         }
     }
 
     /// Finish a type, replace all type variables with concrete types
-    pub fn finish(&mut self, r#type: &mut ir::Type, what: &str, span: Option<Span>) {
-        *r#type = self.inline(r#type.clone());
+    pub fn finish(&mut self, r#type: &mut ir::Type, what: &str, span: Option<&Span>) {
+        self.inline(r#type);
         if r#type == &ir::Type::IntegerWildcard {
             *r#type = ir::Type::Int(std::num::NonZeroU16::new(4).unwrap());
         } else if r#type == &ir::Type::FloatWildcard {
@@ -149,7 +147,7 @@ impl<'a> TypeInference<'a> {
                 Report::build(ReportKind::Error)
                     .with_code("typechecking::type_not_inferred")
                     .with_message(format!("Could not infer type for {}", what))
-                    .opt_label(span, |label| {
+                    .opt_label(span.cloned(), |label| {
                         label.with_message("Here").with_color(colors::Label)
                     })
                     .finish(),

@@ -135,12 +135,10 @@ impl Expression {
             Expression::ExternFunction(_) => Type::ExternFunction,
             Expression::Constant(constant) => constant
                 .inner
-                .finish_and_check_types(constant.span.clone(), type_inference),
-            Expression::Symbol(symbol, metadata) => symbol.finish_and_check_types(
-                symbol.span.clone(),
-                type_inference,
-                metadata.as_mut(),
-            ),
+                .finish_and_check_types(&constant.span, type_inference),
+            Expression::Symbol(symbol, metadata) => {
+                symbol.finish_and_check_types(&symbol.span, type_inference, metadata.as_mut())
+            }
             Expression::BinaryExpression(expr) => expr.finish_and_check_types(type_inference),
             Expression::UnaryExpression(expr) => expr.finish_and_check_types(type_inference),
             Expression::Block(block) => block.finish_and_check_types(type_inference),

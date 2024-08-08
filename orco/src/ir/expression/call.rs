@@ -42,8 +42,9 @@ impl CallExpression {
 
     /// Infer the type of this call expression
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
-        let expr_type = self.expression.infer_types(type_inference);
-        if let Type::FunctionPointer(signature_args, r#return) = type_inference.inline(expr_type) {
+        let mut expr_type = self.expression.infer_types(type_inference);
+        type_inference.inline(&mut expr_type);
+        if let Type::FunctionPointer(signature_args, r#return) = expr_type {
             for (arg, signature_arg) in std::iter::zip(&mut self.args.inner, signature_args.inner) {
                 let arg_type = arg.infer_types(type_inference);
                 type_inference.equate(&arg_type, &signature_arg.inner);

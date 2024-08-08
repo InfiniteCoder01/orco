@@ -40,7 +40,7 @@ impl IfExpression {
     pub fn get_type(&self) -> Type {
         self.else_branch.as_ref().map_or_else(
             || Type::Unit,
-            |else_branch| self.then_branch.get_type() | else_branch.get_type(),
+            |else_branch| self.then_branch.get_type() | &else_branch.get_type(),
         )
     }
 

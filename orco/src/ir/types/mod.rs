@@ -81,23 +81,23 @@ impl Type {
     }
 
     /// Complete this type to be equal to the other type
-    pub fn equate(&mut self, other: Type) -> bool {
-        if self == &other {
+    pub fn equate(&mut self, other: &Type) -> bool {
+        if self == other {
             return true;
         }
         match (self as &Self, &other) {
             (Self::Never, _) => true,
             (Self::Wildcard | Self::Error, _) | (_, Self::Never) => {
-                *self = other;
+                *self = other.clone();
                 true
             }
             (_, Self::Wildcard | Self::Error) => true,
             (Self::IntegerWildcard, Self::Int(_) | Self::Unsigned(_)) => {
-                *self = other;
+                *self = other.clone();
                 true
             }
             (Self::FloatWildcard, Self::Float(_)) => {
-                *self = other;
+                *self = other.clone();
                 true
             }
             (Self::Int(_) | Self::Unsigned(_), Self::IntegerWildcard) => true,
@@ -147,10 +147,10 @@ impl std::fmt::Display for Type {
     }
 }
 
-impl std::ops::BitOr for Type {
+impl std::ops::BitOr<&Type> for Type {
     type Output = Type;
 
-    fn bitor(mut self, rhs: Self) -> Self::Output {
+    fn bitor(mut self, rhs: &Self) -> Self::Output {
         self.equate(rhs);
         self
     }

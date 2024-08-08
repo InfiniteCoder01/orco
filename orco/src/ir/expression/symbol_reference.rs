@@ -69,7 +69,7 @@ impl SymbolReference {
     /// Finish and check types
     pub fn finish_and_check_types(
         &self,
-        span: Option<Span>,
+        span: &Option<Span>,
         type_inference: &mut TypeInference,
         metadata: &mut dyn SymbolMetadata,
     ) -> ir::Type {

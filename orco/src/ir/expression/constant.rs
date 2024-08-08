@@ -54,7 +54,7 @@ impl Constant {
     /// Finish and check types
     pub fn finish_and_check_types(
         &mut self,
-        span: Option<Span>,
+        span: &Option<Span>,
         type_inference: &mut TypeInference,
     ) -> Type {
         match self {
@@ -63,7 +63,7 @@ impl Constant {
                 value,
                 metadata,
             } => {
-                type_inference.finish(r#type, &metadata.name(), span.clone());
+                type_inference.finish(r#type, &metadata.name(), span.as_ref());
                 let fits = match r#type {
                     Type::Unsigned(size) if size.get() == 16 => true,
                     Type::Unsigned(size) => *value < 1 << (size.get() * 8),
@@ -86,7 +86,7 @@ impl Constant {
             Self::Float {
                 r#type, metadata, ..
             } => {
-                type_inference.finish(r#type, &metadata.name(), span.clone());
+                type_inference.finish(r#type, &metadata.name(), span.as_ref());
             }
             _ => (),
         }
