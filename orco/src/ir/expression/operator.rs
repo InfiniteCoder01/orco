@@ -243,7 +243,7 @@ pub struct AssignmentExpression {
     pub value: Box<Expression>,
     /// Span of the expression
     #[derivative(Debug = "ignore")]
-    pub span: Span,
+    pub span: Option<Span>,
     /// Metadata
     #[derivative(Debug = "ignore")]
     pub metadata: Box<dyn AssignmentMetadata>,
@@ -254,7 +254,7 @@ impl AssignmentExpression {
     pub fn new(
         target: Box<Expression>,
         value: Box<Expression>,
-        span: Span,
+        span: Option<Span>,
         metadata: impl AssignmentMetadata + 'static,
     ) -> Self {
         Self {

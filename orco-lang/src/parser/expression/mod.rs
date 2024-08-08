@@ -70,7 +70,7 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
                 ir::expression::AssignmentExpression::new(
                     target,
                     value,
-                    parser.span_from(start),
+                    Some(parser.span_from(start)),
                     (),
                 ),
             ))

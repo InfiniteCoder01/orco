@@ -169,7 +169,7 @@ impl Expression {
             Expression::Call(expr) => expr.span.clone(),
             Expression::Return(expr) => expr.span.clone(),
             Expression::VariableDeclaration(declaration) => declaration.span.clone(),
-            Expression::Assignment(expr) => Some(expr.span.clone()),
+            Expression::Assignment(expr) => expr.span.clone(),
             Expression::Error(span) => Some(span.clone()),
         }
     }
