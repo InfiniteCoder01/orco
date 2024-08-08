@@ -11,8 +11,6 @@ keywords = ["orco", "compiler", "ir"]
 categories = ["compilers", "data-structures", "development-tools"]
 
 [dependencies]
-miette = "7.2.0"
-thiserror = "1.0.63"
 ariadne = { git = "https://github.com/InfiniteCoder01/ariadne" }
 
 derivative = "2.2.0"

@@ -94,38 +94,6 @@ impl SymbolReference {
     }
 }
 
-#[derive(Error, Debug, Diagnostic)]
-#[error("Symbol '{path}' was not declared in this scope")]
-#[diagnostic(code(symbol::symbol_not_found))]
-/// Symbol not found
-pub struct SymbolNotFound {
-    /// Path of the symbol
-    pub path: Path,
-
-    #[source_code]
-    /// File where the error occurred
-    pub src: NamedSource<Src>,
-    #[label("Here")]
-    /// Span of the symbol
-    pub span: SourceSpan,
-}
-
-#[derive(Error, Debug, Diagnostic)]
-#[error("Recursive use of a constexpr symbol '{name}' in it's evaluation")]
-#[diagnostic(code(symbol::recursive_evaluation))]
-/// Recursive use of a constexpr symbol in it's evaluation
-pub struct RecursiveEvaluation {
-    /// Name of the symbol
-    pub name: Name,
-
-    #[source_code]
-    /// File where the error occurred
-    pub src: NamedSource<Src>,
-    #[label("Here")]
-    /// Span of the symbol
-    pub span: SourceSpan,
-}
-
 impl std::fmt::Display for SymbolReference {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

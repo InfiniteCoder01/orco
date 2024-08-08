@@ -664,8 +664,6 @@ dependencies = [
  "dyn-clone",
  "indent",
  "log",
- "miette",
- "thiserror",
 ]
 
 [[package]]

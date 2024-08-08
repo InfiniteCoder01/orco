@@ -57,21 +57,6 @@ macro_rules! declare_metadata {
                     $(#[$fn_meta:meta])*
                     fn $fn_name:ident$(<$($lt:lifetime),*>)?($($args:tt)*) $(-> $ret:ty)? $fn_body:block
                 )*
-
-                $(
-                    Reports:
-                    $(
-                        $(#[$report_meta:meta])*
-                        $report_handler_name:ident ($report_name:path) $($report_abort_compilation:ident)?;
-                    )*
-                )?
-                $(
-                    Diagnostics:
-                    $(
-                        $(#[$diagnostic_meta:meta])*
-                        $diagnostic_handler_name:ident ($diagnostic_name:path) $($abort_compilation:ident)?;
-                    )*
-                )?
             }
         )*
     ) => {
@@ -82,26 +67,6 @@ macro_rules! declare_metadata {
                     $(#[$fn_meta])*
                     fn $fn_name $(<$($lt),*>)? ($($args)*) $(-> $ret)? $fn_body
                 )*
-
-                $(
-                    $(
-                        $(#[$report_meta])*
-                        fn $report_handler_name (&self, type_inference: &mut TypeInference, report: $report_name) {
-                            type_inference.reporter.report(report.into());
-                            $(type_inference.$report_abort_compilation = true;)?
-                        }
-                    )*
-                )?
-
-                $(
-                    $(
-                        $(#[$diagnostic_meta])*
-                        fn $diagnostic_handler_name (&self, type_inference: &mut TypeInference, diagnostic: $diagnostic_name) {
-                            type_inference.reporter.report_miette(diagnostic.into());
-                            $(type_inference.$abort_compilation = true;)?
-                        }
-                    )*
-                )?
             }
 
             impl_downcast!($trait_name);

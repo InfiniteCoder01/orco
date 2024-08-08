@@ -3,8 +3,6 @@
 
 pub use ariadne;
 pub use log;
-pub use miette;
-pub use thiserror;
 
 /// Diagnostics
 pub mod diagnostics;
