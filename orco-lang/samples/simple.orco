@@ -1,6 +1,7 @@
 comptime puts = extern fn puts(msg: *char) -> i32;
 
 comptime main = fn () -> i32 {
+    let x: u8 = 256;
     puts(c"Hello, World!");
     0
 };

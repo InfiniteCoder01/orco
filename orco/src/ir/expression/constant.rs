@@ -72,15 +72,11 @@ impl Constant {
                     r#type => unimplemented!("{}", r#type),
                 };
                 if !fits {
-                    metadata.integer_literal_doesnt_fit(
-                        type_inference,
-                        IntegerLiteralDoesntFit {
-                            value: *value,
-                            r#type: r#type.clone(),
-                            src: span.as_ref().unwrap().named_source(),
-                            span: span.as_ref().unwrap().source_span(),
-                        },
-                    )
+                    type_inference.report(metadata.integer_literal_doesnt_fit(
+                        *value,
+                        r#type,
+                        span.as_ref(),
+                    ));
                 }
             }
             Self::Float {
@@ -92,24 +88,6 @@ impl Constant {
         }
         self.get_type()
     }
-}
-
-#[derive(Error, Debug, Diagnostic)]
-#[error("Integer literal '{value}' doesn't fit in the type '{r#type}'")]
-#[diagnostic(code(typechecking::constant::integer_literal_doesnt_fit))]
-/// Integer literal doesn't fit
-pub struct IntegerLiteralDoesntFit {
-    /// Integer literal value
-    pub value: u128,
-    /// Type inferred for the integer literal
-    pub r#type: Type,
-
-    #[source_code]
-    /// Source file where the error occurred
-    pub src: NamedSource<Src>,
-    #[label("Here")]
-    /// Span of the integer literal
-    pub span: SourceSpan,
 }
 
 impl std::fmt::Display for Constant {
@@ -149,19 +127,23 @@ declare_metadata! {
     /// Frontend metadata for integer constant
     trait IntegerMetadata {
         /// Name provider for the constant
-        fn name(&self) -> std::borrow::Cow<'static, str> {
+        fn name(&self) -> std::borrow::Cow<str> {
             std::borrow::Cow::Borrowed("integer constant")
         }
 
-        Diagnostics:
         /// Callback of integer literal doesn't fit error
-        integer_literal_doesnt_fit(IntegerLiteralDoesntFit) abort_compilation;
+        fn integer_literal_doesnt_fit(&self, value: u128, r#type: &Type, span: Option<&Span>) -> Report {
+            Report::build(ReportKind::Error)
+                .with_message(format!("Integer literal '{value}' doesn't fit in the type '{type}'"))
+                .opt_label(span.cloned(), |label| label.with_message(format!("Integer literal '{value}' doesn't fit in the type '{type}'")))
+                .finish()
+        }
     }
 
     /// Frontend metadata for float constant
     trait FloatMetadata {
         /// Name provider for the constant
-        fn name(&self) -> std::borrow::Cow<'static, str> {
+        fn name(&self) -> std::borrow::Cow<str> {
             std::borrow::Cow::Borrowed("float constant")
         }
     }

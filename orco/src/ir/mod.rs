@@ -55,7 +55,7 @@ macro_rules! declare_metadata {
             trait $trait_name:ident {
                 $(
                     $(#[$fn_meta:meta])*
-                    fn $fn_name:ident ($($args:tt)*) $(-> $ret:ty)? $fn_body:block
+                    fn $fn_name:ident$(<$($lt:lifetime),*>)?($($args:tt)*) $(-> $ret:ty)? $fn_body:block
                 )*
 
                 $(
@@ -80,7 +80,7 @@ macro_rules! declare_metadata {
             pub trait $trait_name: Downcast + DynClone + Send + Sync {
                 $(
                     $(#[$fn_meta])*
-                    fn $fn_name ($($args)*) $(-> $ret)? $fn_body
+                    fn $fn_name $(<$($lt),*>)? ($($args)*) $(-> $ret)? $fn_body
                 )*
 
                 $(
