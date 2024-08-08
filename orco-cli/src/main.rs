@@ -12,7 +12,7 @@ struct Cli {
 fn main() {
     env_logger::init();
     let cli = Cli::parse();
-    let mut reporter = orco::diagnostics::DefaultReporter::default();
+    let mut reporter = orco::diagnostics::DefaultReporter;
 
     let krate = if cli.path == std::path::Path::new("-") {
         let mut source = String::new();

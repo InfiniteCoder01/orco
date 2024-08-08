@@ -19,7 +19,7 @@ pub fn expect<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Expression {
         expression
     } else {
         parser.expected_error("expression");
-        Expression::Error(parser.span())
+        Expression::Error(Some(parser.span()))
     }
 }
 
@@ -90,7 +90,7 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
         parser.expect_operator(Operator::RParen);
         expr
     } else if let Some(span) = parser.match_error() {
-        Expression::Error(span)
+        Expression::Error(Some(span))
     } else if parser.match_keyword("extern") {
         if parser.match_keyword("fn") {
             if let Some(name) = parser.expect_ident("external name") {
@@ -101,11 +101,11 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
                     (),
                 ))
             } else {
-                Expression::Error(parser.span_from(start))
+                Expression::Error(Some(parser.span_from(start)))
             }
         } else {
             parser.expected_error("valid extern symbol");
-            Expression::Error(parser.span_from(start))
+            Expression::Error(Some(parser.span_from(start)))
         }
     } else if parser.match_keyword("fn") {
         Expression::Function(Box::new(ir::expression::Function::new(

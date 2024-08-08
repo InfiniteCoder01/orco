@@ -59,7 +59,11 @@ impl crate::Object<'_> {
                 None
             }
             Expression::Assignment(expr) => self.build_assignment_expression(builder, expr),
-            Expression::Error(span) => panic!("IR contains errors at {}!", span),
+            Expression::Error(span) => panic!(
+                "IR contains errors{}!",
+                span.as_ref()
+                    .map_or(String::new(), |span| format!(" at {:?}", span))
+            ),
         }
     }
 }

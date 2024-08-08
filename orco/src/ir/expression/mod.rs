@@ -75,7 +75,7 @@ pub enum Expression {
     /// Assignment
     Assignment(AssignmentExpression),
     /// Invalid expression
-    Error(Span),
+    Error(Option<Span>),
 }
 
 impl Expression {
@@ -170,7 +170,7 @@ impl Expression {
             Expression::Return(expr) => expr.span.clone(),
             Expression::VariableDeclaration(declaration) => declaration.span.clone(),
             Expression::Assignment(expr) => expr.span.clone(),
-            Expression::Error(span) => Some(span.clone()),
+            Expression::Error(span) => span.clone(),
         }
     }
 }
