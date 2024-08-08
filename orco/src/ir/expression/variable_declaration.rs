@@ -30,7 +30,7 @@ pub type VariableId = u64;
 impl VariableDeclaration {
     /// Create a new variable declaration
     pub fn new(
-        name: Span,
+        name: Name,
         mutable: Spanned<bool>,
         r#type: Spanned<Type>,
         value: Option<Expression>,

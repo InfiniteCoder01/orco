@@ -47,6 +47,6 @@ pub fn expect<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::expressi
         block
     } else {
         parser.expected_error("a block");
-        ir::expression::Block::new(Vec::new(), None, parser.point_span(), false, ())
+        ir::expression::Block::new(Vec::new(), None, false, Some(parser.point_span()), ())
     }
 }

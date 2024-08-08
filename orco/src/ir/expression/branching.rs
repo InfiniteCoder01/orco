@@ -12,7 +12,7 @@ pub struct IfExpression {
     pub else_branch: Option<Box<Expression>>,
     /// Span of the expression
     #[derivative(Debug = "ignore")]
-    pub span: Span,
+    pub span: Option<Span>,
     /// Metadata
     #[derivative(Debug = "ignore")]
     pub metadata: Box<dyn IfMetadata>,
@@ -24,7 +24,7 @@ impl IfExpression {
         condition: Box<Expression>,
         then_branch: Box<Expression>,
         else_branch: Option<Box<Expression>>,
-        span: Span,
+        span: Option<Span>,
         metadata: impl IfMetadata + 'static,
     ) -> Self {
         Self {

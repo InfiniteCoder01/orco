@@ -1,5 +1,5 @@
 use crate::type_inference::TypeVariableId;
-use crate::{Span, Spanned};
+use crate::{Name, Spanned};
 use std::num::NonZeroU16;
 
 /// A type enum consists of all builtin types and a custom variant
@@ -21,7 +21,7 @@ pub enum Type {
     /// Function pointer
     FunctionPointer(Spanned<Vec<Spanned<Type>>>, Box<Spanned<Type>>),
     /// Custom type, f.e. a struct or a type alias
-    Custom(Span),
+    Custom(Name),
 
     /// Function
     Function,

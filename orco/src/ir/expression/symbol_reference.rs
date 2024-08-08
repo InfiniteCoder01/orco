@@ -127,7 +127,7 @@ pub struct SymbolNotFound {
 /// Recursive use of a constexpr symbol in it's evaluation
 pub struct RecursiveEvaluation {
     /// Name of the symbol
-    pub name: Span,
+    pub name: Name,
 
     #[source_code]
     /// File where the error occurred
