@@ -35,7 +35,7 @@ Roadmap for now:
 - [x] Reduce the use of `Spanned<Struct>`
 - [x] Make IR first-class (a BIG refactor)
 - [x] Remove Ariadne completely (+ lexer abort compilation)
-- [ ] Move spans to frontend?
+- [x] Move spans to frontend?
 - [ ] Comptime type hints
 - [ ] Path as an operator
 - [ ] orco::Path is borrowing names?
