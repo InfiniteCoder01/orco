@@ -75,26 +75,15 @@ impl SymbolReference {
     ) -> ir::Type {
         match self {
             SymbolReference::Unresolved(path) => {
-                metadata.symbol_not_found(
-                    type_inference,
-                    SymbolNotFound {
-                        path: path.clone(),
-                        src: span.as_ref().unwrap().named_source(),
-                        span: span.as_ref().unwrap().source_span(),
-                    },
-                );
+                type_inference.report(metadata.symbol_not_found(path, span.as_ref()));
                 ir::Type::Error
             }
             SymbolReference::Symbol(symbol) => {
                 if symbol::check_for_recursion(symbol) {
-                    metadata.recursive_evaluation(
-                        type_inference,
-                        RecursiveEvaluation {
-                            name: span.as_ref().unwrap().clone(),
-                            src: span.as_ref().unwrap().named_source(),
-                            span: span.as_ref().unwrap().source_span(),
-                        },
-                    );
+                    type_inference.report(metadata.recursive_evaluation(
+                        span.as_ref().unwrap_or(&Span::new("Unknow")),
+                        span.as_ref(),
+                    ));
                     Type::Error
                 } else {
                     self.get_type()
@@ -175,11 +164,23 @@ declare_metadata! {
             None
         }
 
-        Diagnostics:
         /// Callback of symbol not found error
-        symbol_not_found(SymbolNotFound) abort_compilation;
+        fn symbol_not_found(&self, path: &Path, span: Option<&Span>) -> Report {
+            Report::build(ReportKind::Error)
+                .with_code("symbol::symbol_not_found")
+                .with_message(format!("Symbol '{path}' was not declared in this scope"))
+                .opt_label(span.cloned(), |label| label.with_message("Here").with_color(colors::Label))
+                .finish()
+        }
+
         /// Callback of recursive evaluation error
-        recursive_evaluation(RecursiveEvaluation) abort_compilation;
+        fn recursive_evaluation(&self, name: &Name, span: Option<&Span>)  -> Report {
+            Report::build(ReportKind::Error)
+                .with_code("symbol::recursive_evaluation")
+                .with_message(format!("Recursive use of a constexpr symbol '{name}' in it's evaluation"))
+                .opt_label(span.cloned(), |label| label.with_message("Here").with_color(colors::Label))
+                .finish()
+        }
     }
 }
 
