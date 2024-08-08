@@ -60,33 +60,22 @@ impl CallExpression {
         let r#type = self.expression.finish_and_check_types(type_inference);
         if let Type::FunctionPointer(signature_args, r#return) = r#type {
             if self.args.len() != signature_args.len() {
-                self.metadata.argument_count_mismatch(
-                    type_inference,
-                    ArgumentCountMismatch {
-                        expression: self.expression.as_ref().clone(),
-                        expected: signature_args.len(),
-                        given: self.args.len(),
-                        src: self.args.span.as_ref().unwrap().named_source(),
-                        args_span: self.args.span.as_ref().unwrap().source_span(),
-                        signature_span: signature_args.span.as_ref().unwrap().source_span(),
-                    },
-                );
+                type_inference.report(self.metadata.argument_count_mismatch(
+                    self.expression.as_ref(),
+                    &self.args,
+                    &signature_args,
+                ));
             }
             for (arg, signature_arg) in std::iter::zip(&mut self.args.inner, &signature_args.inner)
             {
                 let arg_type = arg.finish_and_check_types(type_inference);
                 if !arg_type.morphs(signature_arg) {
-                    self.metadata.argument_type_mismatch(
-                        type_inference,
-                        ArgumentTypeMismatch {
-                            expression: self.expression.as_ref().clone(),
-                            expected: signature_arg.inner.clone(),
-                            got: arg_type,
-                            src: arg.span().as_ref().unwrap().named_source(),
-                            arg_span: arg.span().as_ref().unwrap().source_span(),
-                            signature_span: signature_arg.span.as_ref().unwrap().source_span(),
-                        },
-                    );
+                    type_inference.report(self.metadata.argument_type_mismatch(
+                        self.expression.as_ref(),
+                        &arg_type,
+                        arg.span().cloned(),
+                        signature_arg,
+                    ));
                 }
             }
             r#return.inner.clone()
@@ -98,54 +87,6 @@ impl CallExpression {
             Type::Error
         }
     }
-}
-
-#[derive(Error, Debug, Diagnostic)]
-#[error("Argument count mismatch: Function '{expression}' expects {expected} argument(s), but {given} were(was) given")]
-#[diagnostic(code(typechecking::call::argument_count_mismatch))]
-/// Argument count mismatch
-pub struct ArgumentCountMismatch {
-    /// Expression
-    pub expression: Expression,
-    /// Number of expected arguments
-    pub expected: usize,
-    /// Number of given arguments
-    pub given: usize,
-
-    #[source_code]
-    /// File where the error occurred
-    pub src: NamedSource<Src>,
-    #[label("Here")]
-    /// Span of the args
-    pub args_span: SourceSpan,
-    #[label("Expected because of this")]
-    /// Span of the signature
-    pub signature_span: SourceSpan,
-}
-
-#[derive(Error, Debug, Diagnostic)]
-#[error(
-    "Incompatible argument types for function '{expression}': expected '{expected}', got '{got}'"
-)]
-#[diagnostic(code(typechecking::call::argument_type_mismatch))]
-/// Argument type mismatch
-pub struct ArgumentTypeMismatch {
-    /// Expression
-    pub expression: Expression,
-    /// Expected type
-    pub expected: Type,
-    /// Got type
-    pub got: Type,
-
-    #[source_code]
-    /// File where the error occurred
-    pub src: NamedSource<Src>,
-    #[label("Here")]
-    /// Span of the argument
-    pub arg_span: SourceSpan,
-    #[label("Expected because of this")]
-    /// Span of the argument type in signature
-    pub signature_span: SourceSpan,
 }
 
 impl std::fmt::Display for CallExpression {
@@ -165,10 +106,31 @@ impl std::fmt::Display for CallExpression {
 declare_metadata! {
     /// Frontend metadata for a function call
     trait CallMetadata {
-        Diagnostics:
         /// Argument count mismatch error callback
-        argument_count_mismatch(ArgumentCountMismatch) abort_compilation;
+        fn argument_count_mismatch(&self, callee: &Expression, args: &Spanned<Vec<Expression>>, signature_args: &Spanned<Vec<Spanned<Type>>>) -> Report {
+            Report::build(ReportKind::Error)
+                .with_code("typechecking::argument_count_mismatch")
+                .with_message(format!(
+                    "Argument count mismatch: '{callee}' expects {} argument{}, but {} {} given",
+                    signature_args.inner.len(), if signature_args.inner.len() > 1 { "s" } else { "" },
+                    args.inner.len(), if args.inner.len() > 1 { "were" } else { "was" }
+                ))
+                .opt_label(args.span.clone(), |label| label.with_message("Arguments").with_color(colors::Got))
+                .opt_label(signature_args.span.clone(), |label| label.with_message("Expected because of this").with_color(colors::Expected))
+                .finish()
+        }
+
         /// Argument type mismatch error callback
-        argument_type_mismatch(ArgumentTypeMismatch) abort_compilation;
+        fn argument_type_mismatch(&self, expression: &Expression, arg: &Type, arg_span: Option<Span>, signature_arg: &Spanned<Type>) -> Report {
+            Report::build(ReportKind::Error)
+                .with_code("typechecking::argument_type_mismatch")
+                .with_message(format!(
+                    "Incompatible argument types for '{expression}': expected '{}', got '{arg}'",
+                    signature_arg.inner
+                ))
+                .opt_label(arg_span, |label| label.with_message("Argument").with_color(colors::Got))
+                .opt_label(signature_arg.span.clone(), |label| label.with_message("Expected because of this").with_color(colors::Expected))
+                .finish()
+        }
     }
 }
