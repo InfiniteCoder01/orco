@@ -75,7 +75,7 @@ impl Constant {
                     type_inference.report(metadata.integer_literal_doesnt_fit(
                         *value,
                         r#type,
-                        span.as_ref(),
+                        span.clone(),
                     ));
                 }
             }
@@ -132,11 +132,11 @@ declare_metadata! {
         }
 
         /// Callback of integer literal doesn't fit error
-        fn integer_literal_doesnt_fit(&self, value: u128, r#type: &Type, span: Option<&Span>) -> Report {
+        fn integer_literal_doesnt_fit(&self, value: u128, r#type: &Type, span: Option<Span>) -> Report {
             Report::build(ReportKind::Error)
                 .with_code("typechecking::integer_literal_doesnt_fit")
                 .with_message(format!("Integer literal '{value}' doesn't fit in the type '{type}'"))
-                .opt_label(span.cloned(), |label| label.with_message(format!("Integer literal '{value}' doesn't fit in the type '{type}'")).with_color(colors::Label))
+                .opt_label(span, |label| label.with_message(format!("Integer literal '{value}' doesn't fit in the type '{type}'")).with_color(colors::Label))
                 .finish()
         }
     }

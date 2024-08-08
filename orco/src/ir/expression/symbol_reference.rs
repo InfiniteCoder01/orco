@@ -75,14 +75,14 @@ impl SymbolReference {
     ) -> ir::Type {
         match self {
             SymbolReference::Unresolved(path) => {
-                type_inference.report(metadata.symbol_not_found(path, span.as_ref()));
+                type_inference.report(metadata.symbol_not_found(path, span.clone()));
                 ir::Type::Error
             }
             SymbolReference::Symbol(symbol) => {
                 if symbol::check_for_recursion(symbol) {
                     type_inference.report(metadata.recursive_evaluation(
                         span.as_ref().unwrap_or(&Span::new("Unknow")),
-                        span.as_ref(),
+                        span.clone(),
                     ));
                     Type::Error
                 } else {
@@ -165,20 +165,20 @@ declare_metadata! {
         }
 
         /// Callback of symbol not found error
-        fn symbol_not_found(&self, path: &Path, span: Option<&Span>) -> Report {
+        fn symbol_not_found(&self, path: &Path, span: Option<Span>) -> Report {
             Report::build(ReportKind::Error)
                 .with_code("symbol::symbol_not_found")
                 .with_message(format!("Symbol '{path}' was not declared in this scope"))
-                .opt_label(span.cloned(), |label| label.with_message("Here").with_color(colors::Label))
+                .opt_label(span, |label| label.with_message("Here").with_color(colors::Label))
                 .finish()
         }
 
         /// Callback of recursive evaluation error
-        fn recursive_evaluation(&self, name: &Name, span: Option<&Span>)  -> Report {
+        fn recursive_evaluation(&self, name: &Name, span: Option<Span>)  -> Report {
             Report::build(ReportKind::Error)
                 .with_code("symbol::recursive_evaluation")
                 .with_message(format!("Recursive use of a constexpr symbol '{name}' in it's evaluation"))
-                .opt_label(span.cloned(), |label| label.with_message("Here").with_color(colors::Label))
+                .opt_label(span, |label| label.with_message("Here").with_color(colors::Label))
                 .finish()
         }
     }

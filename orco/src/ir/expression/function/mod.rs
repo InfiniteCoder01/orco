@@ -60,7 +60,7 @@ impl Function {
             type_inference.report(self.metadata.return_type_mismatch(
                 &self.signature.return_type,
                 &return_type,
-                body.span(),
+                body.span().cloned(),
             ));
         }
 
@@ -90,11 +90,11 @@ declare_metadata! {
     /// Frontend metadata for a function
     trait FunctionMetadata {
         /// Return type mismatch error callback
-        fn return_type_mismatch(&self, expected: &Spanned<Type>, got: &Type, expression_span: Option<&Span>) -> Report {
+        fn return_type_mismatch(&self, expected: &Spanned<Type>, got: &Type, expression_span: Option<Span>) -> Report {
             Report::build(ReportKind::Error)
                 .with_code("typechecking::return_type_mismatch")
                 .with_message(format!("Return type mismatch: expected '{}', got '{}'", expected.inner, got))
-                .opt_label(expression_span.cloned(), |label| label.with_message("Here").with_color(colors::Got))
+                .opt_label(expression_span, |label| label.with_message("Here").with_color(colors::Got))
                 .opt_label(expected.span.clone(), |label| label.with_message("Expected because of this").with_color(colors::Expected))
                 .finish()
         }
