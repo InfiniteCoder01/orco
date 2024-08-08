@@ -23,11 +23,11 @@ impl Signature {
     /// Returns a function pointer type
     pub fn get_type(&self) -> Type {
         Type::FunctionPointer(
-            Spanned::new(
+            Spanned::opt(
                 self.args
                     .iter()
                     .map(|arg| {
-                        Spanned::new(
+                        Spanned::opt(
                             arg.r#type.try_lock().unwrap().clone(),
                             arg.r#type.span.clone(),
                         )

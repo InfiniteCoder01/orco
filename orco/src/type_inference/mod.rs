@@ -137,7 +137,7 @@ impl<'a> TypeInference<'a> {
     }
 
     /// Finish a type, replace all type variables with concrete types
-    pub fn finish(&mut self, r#type: &mut ir::Type, what: &str, span: diagnostics::Span) {
+    pub fn finish(&mut self, r#type: &mut ir::Type, what: &str, span: Option<Span>) {
         *r#type = self.inline(r#type.clone());
         if r#type == &ir::Type::IntegerWildcard {
             *r#type = ir::Type::Int(std::num::NonZeroU16::new(4).unwrap());
@@ -145,15 +145,23 @@ impl<'a> TypeInference<'a> {
             *r#type = ir::Type::Float(std::num::NonZeroU16::new(4).unwrap());
         }
         if !r#type.complete() {
-            self.reporter.report(
-                miette::miette!(
-                    labels = vec![miette::LabeledSpan::at(span.source_span(), "Here"),],
-                    "Could not infer type for {}",
-                    what,
-                )
-                .with_source_code(span.named_source()),
+            self.report(
+                Report::build(ReportKind::Error)
+                    .with_code("typechecking::type_not_inferred")
+                    .with_message(format!("Could not infer type for {}", what))
+                    .opt_label(span, |label| {
+                        label.with_message("Here").with_color(colors::Label)
+                    })
+                    .finish(),
             );
+        }
+    }
+
+    /// Report an error
+    pub fn report(&mut self, report: Report) {
+        if report.kind == ReportKind::Error {
             self.abort_compilation = true;
         }
+        self.reporter.report(report);
     }
 }

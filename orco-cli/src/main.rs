@@ -19,7 +19,7 @@ fn main() {
         std::io::stdin().read_to_string(&mut source).unwrap();
         orco_lang::Crate {
             root: orco_lang::parser::parse(&mut orco_lang::lexer::Parser::new(
-                &orco_lang::lexer::Source(orco::Src::new(source, "<buffer>".into())),
+                &orco::Src::new(source, "<buffer>".into()),
                 &mut reporter,
             )),
         }

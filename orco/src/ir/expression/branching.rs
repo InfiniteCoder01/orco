@@ -71,8 +71,8 @@ impl IfExpression {
                 IfConditionNotBool {
                     condition_type,
 
-                    src: self.condition.span().named_source(),
-                    condition_span: self.condition.span().source_span(),
+                    src: self.condition.span().as_ref().unwrap().named_source(),
+                    condition_span: self.condition.span().as_ref().unwrap().source_span(),
                 },
             );
         }
@@ -86,9 +86,9 @@ impl IfExpression {
                         then_type: then_type.clone(),
                         else_type,
 
-                        src: else_branch.span().named_source(),
-                        else_span: else_branch.span().source_span(),
-                        then_span: self.then_branch.span().source_span(),
+                        src: else_branch.span().as_ref().unwrap().named_source(),
+                        else_span: else_branch.span().as_ref().unwrap().source_span(),
+                        then_span: self.then_branch.span().as_ref().unwrap().source_span(),
                     },
                 );
             }

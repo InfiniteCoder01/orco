@@ -1,5 +1,4 @@
 use super::*;
-use diagnostics::*;
 use ir::Type;
 use type_inference::TypeInference;
 
@@ -157,21 +156,21 @@ impl Expression {
     }
 
     /// Get the span of this expression
-    pub fn span(&self) -> Span {
+    pub fn span(&self) -> Option<Span> {
         match self {
             Expression::Function(function) => function.span.clone(),
             Expression::ExternFunction(function) => function.span.clone(),
             Expression::Constant(constant) => constant.span.clone(),
             Expression::Symbol(symbol, ..) => symbol.span.clone(),
             Expression::BinaryExpression(expr) => expr.span.clone(),
-            Expression::UnaryExpression(expr) => expr.span.clone(),
-            Expression::Block(block) => block.span.clone(),
-            Expression::If(expr) => expr.span.clone(),
-            Expression::Call(expr) => expr.span.clone(),
-            Expression::Return(expr) => expr.1.clone(),
-            Expression::VariableDeclaration(declaration) => declaration.span.clone(),
-            Expression::Assignment(expr) => expr.span.clone(),
-            Expression::Error(span) => span.clone(),
+            Expression::UnaryExpression(expr) => Some(expr.span.clone()),
+            Expression::Block(block) => Some(block.span.clone()),
+            Expression::If(expr) => Some(expr.span.clone()),
+            Expression::Call(expr) => Some(expr.span.clone()),
+            Expression::Return(expr) => Some(expr.1.clone()),
+            Expression::VariableDeclaration(declaration) => Some(declaration.span.clone()),
+            Expression::Assignment(expr) => Some(expr.span.clone()),
+            Expression::Error(span) => Some(span.clone()),
         }
     }
 }

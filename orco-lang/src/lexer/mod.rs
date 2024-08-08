@@ -4,75 +4,17 @@ use orco::ir::expression::Constant;
 
 pub mod unescape;
 
-/// Wrapper for [`orco::Src`], that implements [`logos::Source`]
-pub struct Source(pub orco::Src);
-
-impl std::ops::Deref for Source {
-    type Target = orco::Src;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl logos::Source for Source {
-    type Slice<'a> = &'a str;
-
-    #[inline]
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    #[inline]
-    fn read<'a, Chunk>(&'a self, offset: usize) -> Option<Chunk>
-    where
-        Chunk: logos::source::Chunk<'a>,
-    {
-        self.0.read(offset)
-    }
-
-    #[inline]
-    unsafe fn read_unchecked<'a, Chunk>(&'a self, offset: usize) -> Chunk
-    where
-        Chunk: logos::source::Chunk<'a>,
-    {
-        self.0.read_unchecked(offset)
-    }
-
-    #[inline]
-    fn slice(&self, range: std::ops::Range<usize>) -> Option<Self::Slice<'_>> {
-        self.0.slice(range)
-    }
-
-    #[inline]
-    unsafe fn slice_unchecked(&self, range: std::ops::Range<usize>) -> Self::Slice<'_> {
-        debug_assert!(
-            range.start <= self.len() && range.end <= self.len(),
-            "Reading out of bounds {:?} for {}!",
-            range,
-            self.len()
-        );
-
-        self.0.get_unchecked(range)
-    }
-
-    #[inline]
-    fn is_boundary(&self, index: usize) -> bool {
-        self.0.is_boundary(index)
-    }
-}
-
 /// Token (number, word, operator, comment, etc.)
 #[derive(Logos, Clone, Debug, PartialEq)]
-#[logos(source = Source, error = Error)]
+#[logos(source = orco::Src, error = Error)]
 #[logos(skip r"[ \t\n\f]+")]
 #[logos(skip r"//.*")]
 #[logos(skip r"/[*]([^*]|([*][^/]))*[*]+/")]
 pub enum Token {
     // TODO: XID
     /// Identifier
-    #[regex("[_a-zA-Z][_0-9a-zA-Z]*", |lex| Span(lex.source().0.clone(), lex.span()))]
-    #[regex("r#[_a-zA-Z][_0-9a-zA-Z]*", |lex| Span(lex.source().0.clone(), lex.span().start + 2..lex.span().end))]
+    #[regex("[_a-zA-Z][_0-9a-zA-Z]*", |lex| Span(lex.source().clone(), lex.span()))]
+    #[regex("r#[_a-zA-Z][_0-9a-zA-Z]*", |lex| Span(lex.source().clone(), lex.span().start + 2..lex.span().end))]
     Ident(Span),
     /// Operator
     #[token("(", |_| Operator::LParen)]
@@ -106,7 +48,7 @@ pub enum Token {
     #[regex(r"[0-9]*[.][0-9]+", |lex| parse_float(lex.slice()))]
     #[regex("c\"([^\"]|\\\\.)*\"", |lex| parse_cstring(lex.slice()))]
     #[regex("c#\"([^\"]|\"[^#])*\"#", |lex| Constant::CString(lex.slice().as_bytes().to_vec(), Box::new(())))]
-    Constant(Constant),
+    Literal(Constant),
     /// Error
     Error,
 }
@@ -142,7 +84,7 @@ impl std::fmt::Display for Token {
         match self {
             Token::Ident(ident) => write!(f, "word '{}'", ident),
             Token::Operator(operator) => write!(f, "operator '{}'", operator),
-            Token::Constant(value) => write!(f, "literal '{}'", value),
+            Token::Literal(value) => write!(f, "literal '{}'", value),
             Token::Error => write!(f, "<error>"),
         }
     }
@@ -252,7 +194,7 @@ pub struct Parser<'a, R: ErrorReporter + ?Sized> {
 
 impl<'a, R: ErrorReporter + ?Sized> Parser<'a, R> {
     /// Create new parser from a source string
-    pub fn new(source: &'a Source, reporter: &'a mut R) -> Self {
+    pub fn new(source: &'a Src, reporter: &'a mut R) -> Self {
         Self {
             reporter,
             lexer: Token::lexer(source),
@@ -266,7 +208,7 @@ impl<'a, R: ErrorReporter + ?Sized> Parser<'a, R> {
                 self.peek = Some(match token {
                     Ok(token) => token,
                     Err(err) => {
-                        let mut span = Span((**self.lexer.source()).clone(), self.lexer.span());
+                        let mut span = Span(self.lexer.source().clone(), self.lexer.span());
                         let message = match err {
                             Error::InvalidToken => "Invalid token".to_owned(),
                             Error::IntegerOutOfBounds => {
@@ -283,13 +225,14 @@ impl<'a, R: ErrorReporter + ?Sized> Parser<'a, R> {
                             }
                         };
                         self.reporter.report(
-                            orco::miette::miette!(
-                                labels =
-                                    vec![orco::miette::LabeledSpan::at(span.source_span(), "Here")],
-                                "{}",
-                                message
-                            )
-                            .with_source_code(span.named_source()),
+                            Report::build(ReportKind::Error)
+                                .with_message(message)
+                                .with_label(
+                                    Label::new(span)
+                                        .with_message("Here")
+                                        .with_color(colors::Label),
+                                )
+                                .finish(),
                         );
                         Token::Error
                     }
@@ -307,7 +250,7 @@ impl<'a, R: ErrorReporter + ?Sized> Parser<'a, R> {
     /// Get the span for the current token
     pub fn span(&mut self) -> Span {
         self.fill();
-        Span((**self.lexer.source()).clone(), self.lexer.span())
+        Span(self.lexer.source().clone(), self.lexer.span())
     }
 
     /// Check if the current token is EOF
@@ -318,18 +261,12 @@ impl<'a, R: ErrorReporter + ?Sized> Parser<'a, R> {
 
     /// Get the span from the start to the end of the current token
     pub fn span_from(&mut self, start: usize) -> Span {
-        Span(
-            (**self.lexer.source()).clone(),
-            start..self.lexer.span().end,
-        )
+        Span(self.lexer.source().clone(), start..self.lexer.span().end)
     }
 
     /// Wrap an object in [`orco::Spanned`], starting at start, ending at the current position
     pub fn wrap_span<T>(&mut self, object: T, start: usize) -> Spanned<T> {
-        Spanned {
-            inner: object,
-            span: self.span_from(start),
-        }
+        Spanned::new(object, self.span_from(start))
     }
 
     /// Get a zero-length span at the current position
@@ -395,13 +332,13 @@ impl<'source, R: ErrorReporter + ?Sized> Parser<'source, R> {
         }
     }
 
-    /// Match a constant, consume if matched
-    pub fn match_constant(&mut self) -> Option<Spanned<Constant>> {
+    /// Match a literal, consume if matched
+    pub fn match_literal(&mut self) -> Option<Spanned<Constant>> {
         self.fill();
         let span = self.span();
         let peek = self.peek.take();
-        if let Some(Token::Constant(value)) = peek {
-            Some(Spanned { inner: value, span })
+        if let Some(Token::Literal(value)) = peek {
+            Some(Spanned::new(value, span))
         } else {
             self.peek = peek;
             None
@@ -429,12 +366,14 @@ impl<'source, R: ErrorReporter + ?Sized> Parser<'source, R> {
         };
         let span = self.span();
         self.reporter.report(
-            orco::miette::miette!(
-                labels = vec![orco::miette::LabeledSpan::at(span.source_span(), "Here")],
-                "{}",
-                message
-            )
-            .with_source_code(span.named_source()),
+            Report::build(ReportKind::Error)
+                .with_message(message)
+                .with_label(
+                    Label::new(span)
+                        .with_message("Here")
+                        .with_color(Color::Blue),
+                )
+                .finish(),
         );
     }
 

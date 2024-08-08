@@ -30,7 +30,7 @@ fn number() {
     parse("42", |mut parser| {
         check!(
             parser.next()
-                == Some(Token::Constant(orco::ir::expression::Constant::Integer {
+                == Some(Token::Literal(orco::ir::expression::Constant::Integer {
                     value: 42,
                     r#type: orco::ir::Type::IntegerWildcard,
                     metadata: Box::new(()),
@@ -45,7 +45,7 @@ fn number() {
     parse("123_456_789", |mut parser| {
         check!(
             parser.next()
-                == Some(Token::Constant(orco::ir::expression::Constant::Integer {
+                == Some(Token::Literal(orco::ir::expression::Constant::Integer {
                     value: 123_456_789,
                     r#type: orco::ir::Type::IntegerWildcard,
                     metadata: Box::new(()),
@@ -56,7 +56,7 @@ fn number() {
     parse("0b00101010", |mut parser| {
         check!(
             parser.next()
-                == Some(Token::Constant(orco::ir::expression::Constant::Integer {
+                == Some(Token::Literal(orco::ir::expression::Constant::Integer {
                     value: 0b00101010,
                     r#type: orco::ir::Type::IntegerWildcard,
                     metadata: Box::new(()),
@@ -67,7 +67,7 @@ fn number() {
     parse("0o1741", |mut parser| {
         check!(
             parser.next()
-                == Some(Token::Constant(orco::ir::expression::Constant::Integer {
+                == Some(Token::Literal(orco::ir::expression::Constant::Integer {
                     value: 0o1741,
                     r#type: orco::ir::Type::IntegerWildcard,
                     metadata: Box::new(()),

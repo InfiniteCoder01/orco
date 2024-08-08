@@ -71,7 +71,7 @@ impl VariableDeclaration {
         type_inference.finish(
             &mut r#type,
             &format!("variable '{}'", self.name),
-            self.name.clone(),
+            Some(self.name.clone()),
         );
         if let Some(value) = &self.value {
             let mut value = value.try_lock().unwrap();
@@ -82,9 +82,9 @@ impl VariableDeclaration {
                     VariableDeclarationTypeMismatch {
                         expected: r#type.clone(),
                         got: value_type,
-                        src: value.span().named_source(),
-                        expression_span: value.span().source_span(),
-                        declaration_span: self.r#type.span.source_span(),
+                        src: value.span().as_ref().unwrap().named_source(),
+                        expression_span: value.span().as_ref().unwrap().source_span(),
+                        declaration_span: self.r#type.span.as_ref().unwrap().source_span(),
                     },
                 );
             }
@@ -119,7 +119,7 @@ impl Clone for VariableDeclaration {
             name: self.name.clone(),
             id: Mutex::new(*self.id.try_lock().unwrap()),
             mutable: self.mutable.clone(),
-            r#type: Spanned::new(
+            r#type: Spanned::opt(
                 Mutex::new(self.r#type.try_lock().unwrap().clone()),
                 self.r#type.span.clone(),
             ),

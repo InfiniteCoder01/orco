@@ -37,7 +37,9 @@ pub fn binary<R: ErrorReporter + ?Sized>(
             if parser.match_operator(op_token) {
                 let lhs = Box::new(expression);
                 let rhs = Box::new(binary(parser, level + 1)?);
-                let span = lhs.span().extend(&rhs.span());
+                let span = lhs
+                    .span()
+                    .and_then(|lhs| rhs.span().map(|rhs| lhs.extend(&rhs)));
                 expression = Expression::BinaryExpression(ir::expression::BinaryExpression::new(
                     lhs,
                     op,

@@ -36,10 +36,7 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
     } else if parser.match_keyword("let") {
         let mutable = {
             let span = parser.span();
-            Spanned {
-                inner: parser.match_keyword("mut"),
-                span,
-            }
+            Spanned::new(parser.match_keyword("mut"), span)
         };
         let name = parser.expect_ident("variable name")?;
         let r#type = if parser.match_operator(Operator::Colon) {
@@ -100,7 +97,7 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
                 Expression::ExternFunction(ir::expression::ExternFunction {
                     name,
                     signature: function::parse_signature(parser),
-                    span: parser.span_from(start),
+                    span: Some(parser.span_from(start)),
                 })
             } else {
                 Expression::Error(parser.span_from(start))
@@ -113,10 +110,10 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
         Expression::Function(Box::new(ir::expression::Function::new(
             function::parse_signature(parser),
             expect(parser),
-            parser.span_from(start),
+            Some(parser.span_from(start)),
             (),
         )))
-    } else if let Some(constant) = parser.match_constant() {
+    } else if let Some(constant) = parser.match_literal() {
         Expression::Constant(constant)
     } else if let Some(block) = block::parse(parser) {
         Expression::Block(block)

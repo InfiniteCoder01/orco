@@ -69,7 +69,7 @@ impl SymbolReference {
     /// Finish and check types
     pub fn finish_and_check_types(
         &self,
-        span: Span,
+        span: Option<Span>,
         type_inference: &mut TypeInference,
         metadata: &mut dyn SymbolMetadata,
     ) -> ir::Type {
@@ -79,8 +79,8 @@ impl SymbolReference {
                     type_inference,
                     SymbolNotFound {
                         path: path.clone(),
-                        src: span.named_source(),
-                        span: span.source_span(),
+                        src: span.as_ref().unwrap().named_source(),
+                        span: span.as_ref().unwrap().source_span(),
                     },
                 );
                 ir::Type::Error
@@ -90,9 +90,9 @@ impl SymbolReference {
                     metadata.recursive_evaluation(
                         type_inference,
                         RecursiveEvaluation {
-                            name: span.clone(),
-                            src: span.named_source(),
-                            span: span.source_span(),
+                            name: span.as_ref().unwrap().clone(),
+                            src: span.as_ref().unwrap().named_source(),
+                            span: span.as_ref().unwrap().source_span(),
                         },
                     );
                     Type::Error

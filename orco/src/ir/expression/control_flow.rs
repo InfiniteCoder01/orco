@@ -35,9 +35,9 @@ impl ReturnExpression {
                     ReturnTypeMismatch {
                         expected: return_type.inner.clone(),
                         got: r#type,
-                        src: self.0.span().named_source(),
-                        expression_span: self.0.span().source_span(),
-                        return_type_span: return_type.span.source_span(),
+                        src: self.0.span().as_ref().unwrap().named_source(),
+                        expression_span: self.0.span().as_ref().unwrap().source_span(),
+                        return_type_span: return_type.span.as_ref().unwrap().source_span(),
                     },
                 );
             }

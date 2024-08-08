@@ -58,7 +58,7 @@ impl Constant {
     /// Finish and check types
     pub fn finish_and_check_types(
         &mut self,
-        span: Span,
+        span: Option<Span>,
         type_inference: &mut TypeInference,
     ) -> Type {
         match self {
@@ -81,8 +81,8 @@ impl Constant {
                         IntegerLiteralDoesntFit {
                             value: *value,
                             r#type: r#type.clone(),
-                            src: span.named_source(),
-                            span: span.source_span(),
+                            src: span.as_ref().unwrap().named_source(),
+                            span: span.as_ref().unwrap().source_span(),
                         },
                     )
                 }

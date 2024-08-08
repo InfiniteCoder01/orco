@@ -12,7 +12,7 @@ pub struct BinaryExpression {
     pub rhs: Box<Expression>,
     /// Span of the expression
     #[derivative(Debug = "ignore")]
-    pub span: Span,
+    pub span: Option<Span>,
     /// Metadata
     #[derivative(Debug = "ignore")]
     pub metadata: Box<dyn BinaryMetadata>,
@@ -24,7 +24,7 @@ impl BinaryExpression {
         lhs: Box<Expression>,
         op: BinaryOp,
         rhs: Box<Expression>,
-        span: Span,
+        span: Option<Span>,
         metadata: impl BinaryMetadata + 'static,
     ) -> Self {
         Self {

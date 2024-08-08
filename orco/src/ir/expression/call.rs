@@ -65,9 +65,9 @@ impl CallExpression {
                         expression: self.expression.as_ref().clone(),
                         expected: signature_args.len(),
                         given: self.args.len(),
-                        src: self.args.span.named_source(),
-                        args_span: self.args.span.source_span(),
-                        signature_span: signature_args.span.source_span(),
+                        src: self.args.span.as_ref().unwrap().named_source(),
+                        args_span: self.args.span.as_ref().unwrap().source_span(),
+                        signature_span: signature_args.span.as_ref().unwrap().source_span(),
                     },
                 );
             }
@@ -81,9 +81,9 @@ impl CallExpression {
                             expression: self.expression.as_ref().clone(),
                             expected: signature_arg.inner.clone(),
                             got: arg_type,
-                            src: arg.span().named_source(),
-                            arg_span: arg.span().source_span(),
-                            signature_span: signature_arg.span.source_span(),
+                            src: arg.span().as_ref().unwrap().named_source(),
+                            arg_span: arg.span().as_ref().unwrap().source_span(),
+                            signature_span: signature_arg.span.as_ref().unwrap().source_span(),
                         },
                     );
                 }

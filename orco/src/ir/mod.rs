@@ -59,6 +59,13 @@ macro_rules! declare_metadata {
                 )*
 
                 $(
+                    Reports:
+                    $(
+                        $(#[$report_meta:meta])*
+                        $report_handler_name:ident ($report_name:path) $($report_abort_compilation:ident)?;
+                    )*
+                )?
+                $(
                     Diagnostics:
                     $(
                         $(#[$diagnostic_meta:meta])*
@@ -78,9 +85,19 @@ macro_rules! declare_metadata {
 
                 $(
                     $(
+                        $(#[$report_meta])*
+                        fn $report_handler_name (&self, type_inference: &mut TypeInference, report: $report_name) {
+                            type_inference.reporter.report(report.into());
+                            $(type_inference.$report_abort_compilation = true;)?
+                        }
+                    )*
+                )?
+
+                $(
+                    $(
                         $(#[$diagnostic_meta])*
                         fn $diagnostic_handler_name (&self, type_inference: &mut TypeInference, diagnostic: $diagnostic_name) {
-                            type_inference.reporter.report(diagnostic.into());
+                            type_inference.reporter.report_miette(diagnostic.into());
                             $(type_inference.$abort_compilation = true;)?
                         }
                     )*

@@ -78,8 +78,9 @@ impl Block {
         let mut unreachable_span: Option<Span> = None;
         for expression in &mut self.expressions {
             if r#type == Type::Never {
-                let span = expression.span();
-                unreachable_span.get_or_insert(span).1.end = span.1.end;
+                if let Some(span) = expression.span() {
+                    unreachable_span.get_or_insert(span).1.end = span.1.end;
+                }
             }
             let expr_type = expression.finish_and_check_types(type_inference);
             if expr_type == Type::Never {
@@ -90,8 +91,9 @@ impl Block {
         if let Some(expression) = &mut self.tail_expression {
             let expr_type = expression.finish_and_check_types(type_inference);
             if r#type == Type::Never {
-                let span = expression.span();
-                unreachable_span.get_or_insert(span).1.end = span.1.end;
+                if let Some(span) = expression.span() {
+                    unreachable_span.get_or_insert(span).1.end = span.1.end;
+                }
             } else {
                 r#type = expr_type;
             }
