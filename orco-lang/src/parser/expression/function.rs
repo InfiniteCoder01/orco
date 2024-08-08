@@ -20,7 +20,7 @@ pub fn parse_signature<R: ErrorReporter + ?Sized>(
             parser.wrap_point(false),
             r#type,
             None,
-            parser.span_from(start),
+            Some(parser.span_from(start)),
             (),
         );
         args.push(Box::pin(declaration));

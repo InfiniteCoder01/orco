@@ -18,7 +18,7 @@ pub struct VariableDeclaration {
     pub value: Option<Mutex<Expression>>,
     /// Span of the declaration
     #[derivative(Debug = "ignore")]
-    pub span: Span,
+    pub span: Option<Span>,
     /// Metadata
     #[derivative(Debug = "ignore")]
     pub metadata: Box<dyn VariableDeclarationMetadata>,
@@ -34,7 +34,7 @@ impl VariableDeclaration {
         mutable: Spanned<bool>,
         r#type: Spanned<Type>,
         value: Option<Expression>,
-        span: Span,
+        span: Option<Span>,
         metadata: impl VariableDeclarationMetadata + 'static,
     ) -> Self {
         Self {

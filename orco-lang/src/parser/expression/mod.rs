@@ -55,7 +55,7 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
                 mutable,
                 r#type,
                 value,
-                parser.span_from(start),
+                Some(parser.span_from(start)),
                 (),
             ),
         )))
