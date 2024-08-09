@@ -66,7 +66,8 @@ impl BinaryExpression {
             _ => {
                 let lhs_type = self.lhs.infer_types(type_inference);
                 let rhs_type = self.rhs.infer_types(type_inference);
-                type_inference.equate(&lhs_type, &rhs_type)
+                type_inference.equate(&lhs_type, &rhs_type);
+                lhs_type
             }
         }
     }

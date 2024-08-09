@@ -46,16 +46,19 @@ impl IfExpression {
 
     /// Infer the type for this expression
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
+        type_inference.push_scope();
         let condition_type = self.condition.infer_types(type_inference);
+        type_inference.pop_scope();
         type_inference.equate(&condition_type, &Type::Bool);
-        // type_inference.push_scope();
+        type_inference.push_scope();
         let then_type = self.then_branch.infer_types(type_inference);
-        // type_inference.pop_scope();
+        type_inference.pop_scope();
         if let Some(else_branch) = &mut self.else_branch {
-            // type_inference.push_scope();
+            type_inference.push_scope();
             let else_type = else_branch.infer_types(type_inference);
-            // type_inference.pop_scope();
-            type_inference.equate(&then_type, &else_type)
+            type_inference.pop_scope();
+            type_inference.equate(&then_type, &else_type);
+            then_type
         } else {
             type_inference.equate(&then_type, &Type::Unit);
             Type::unit()

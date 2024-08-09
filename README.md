@@ -41,12 +41,13 @@ Roadmap for now:
 - [ ] orco::Path is borrowing names?
 - [ ] Comptimes in blocks
 - [ ] Finish the interpreter
+- [ ] Unwinding?
+- [ ] Effect system?!
+- [ ] Operator Overloading & Traits
 - [ ] Structs
 - [ ] Pointers
 - [ ] Typecasts
 - [ ] Arrays
-- [ ] Effect system?!
-- [ ] Operator Overloading & Traits
 - [ ] While loop
 - [ ] C Frontend (and a blog post on it hopefully)
 - [ ] Post-typechecking frontend-side checks

@@ -7,6 +7,8 @@ use super::*;
 pub struct Symbol {
     /// Symbol name
     pub name: Name,
+    /// Symbol type
+    pub r#type: Spanned<Type>,
     /// Symbol value
     pub value: Expression,
     /// Evaluated
@@ -17,9 +19,10 @@ pub struct Symbol {
 
 impl Symbol {
     /// Create a new symbol
-    pub fn new(name: Name, value: Expression) -> Self {
+    pub fn new(name: Name, r#type: Spanned<Type>, value: Expression) -> Self {
         Self {
             name,
+            r#type,
             value,
             evaluated: None,
             evaluation_failed: false,
@@ -41,8 +44,19 @@ pub fn ensure_evaluated(symbol: &RwLock<Symbol>, type_inference: &mut TypeInfere
         let abort_compilation = type_inference.abort_compilation;
         type_inference.abort_compilation = false;
 
-        checked_symbol.value.infer_types(type_inference);
+        let r#type = checked_symbol.value.infer_types(type_inference);
+        type_inference.complete(&mut checked_symbol.r#type);
+        type_inference.equate(&r#type, &checked_symbol.r#type);
+
         let r#type = checked_symbol.value.finish_and_check_types(type_inference);
+        {
+            let symbol: &mut Symbol = &mut checked_symbol;
+            type_inference.finish(
+                &mut symbol.r#type,
+                &format!("symbol '{}'", symbol.name),
+                Some(&symbol.name),
+            );
+        }
         if type_inference.abort_compilation {
             checked_symbol.evaluation_failed = true;
             return;
@@ -78,6 +92,7 @@ impl Clone for Symbol {
     fn clone(&self) -> Self {
         Self {
             name: self.name.clone(),
+            r#type: self.r#type.clone(),
             value: self.value.clone(),
             evaluated: None,
             evaluation_failed: false,
@@ -93,6 +108,6 @@ impl std::fmt::Display for Symbol {
             }
             _ => format!("{}", self.value),
         };
-        write!(f, "comptime {} = {};", self.name, value)
+        write!(f, "comptime {}: {} = {};", self.name, self.r#type, value)
     }
 }

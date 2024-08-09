@@ -13,9 +13,14 @@ pub fn parse_symbol<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option
         return None;
     }
     let name = parser.expect_ident("symbol name")?;
+    let r#type = if parser.match_operator(Operator::Colon) {
+        r#type::parse(parser)
+    } else {
+        parser.wrap_point(ir::Type::Wildcard)
+    };
     parser.expect_operator(Operator::Equal);
     let value = expression::expect(parser);
-    Some(ir::Symbol::new(name, value))
+    Some(ir::Symbol::new(name, r#type, value))
 }
 
 /// Parse the whole file

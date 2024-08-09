@@ -80,10 +80,22 @@ impl<'a> TypeInference<'a> {
                 self.alloc_type_variable(std::mem::replace(r#type, ir::Type::Error)),
             );
         }
+        match r#type {
+            ir::Type::Pointer(r#type, _) => self.complete(r#type),
+            ir::Type::FunctionPointer(args, return_type) => {
+                for arg in args.iter_mut() {
+                    self.complete(arg);
+                }
+                self.complete(return_type);
+            }
+            _ => (),
+        }
     }
 
     /// Make two types equal
-    pub fn equate(&mut self, lhs: &ir::Type, rhs: &ir::Type) -> ir::Type {
+    pub fn equate(&mut self, lhs: &ir::Type, rhs: &ir::Type) {
+        assert!(lhs.complete());
+        assert!(rhs.complete());
         match (lhs, rhs) {
             (ir::Type::TypeVariable(lhs), ir::Type::TypeVariable(rhs)) => {
                 let type_variables = self
@@ -101,24 +113,21 @@ impl<'a> TypeInference<'a> {
                     Ok([(_, (type1_ids, type1)), (type2_index, (type2_ids, type2))]) => {
                         type1_ids.append(type2_ids);
                         type1.equate(type2);
-                        let r#type = ir::Type::TypeVariable(type1_ids[0]);
                         self.type_table.remove(type2_index);
-                        r#type
                     }
-                    Err(type_variables) => ir::Type::TypeVariable(type_variables[0].1 .0[0]),
+                    Err(_) => (),
                 }
             }
             (ir::Type::TypeVariable(type_variable), r#type)
             | (r#type, ir::Type::TypeVariable(type_variable)) => {
-                let (type_ids, type_variable) = self
+                let (_, type_variable) = self
                     .type_table
                     .iter_mut()
                     .find(|(ids, _)| ids.contains(type_variable))
                     .expect("Invalid type variable!");
                 type_variable.equate(r#type);
-                ir::Type::TypeVariable(type_ids[0])
             }
-            (lhs, rhs) => lhs.clone() | rhs,
+            _ => (),
         }
     }
 

@@ -58,7 +58,9 @@ pub trait ErrorReporter {
 }
 
 impl ErrorReporter for Vec<Report> {
-    fn report(&mut self, report: Report) { self.push(report) }
+    fn report(&mut self, report: Report) {
+        self.push(report)
+    }
 }
 
 /// Default error reporter

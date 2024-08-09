@@ -22,14 +22,16 @@ impl SymbolReference {
                 }
 
                 let symbol = symbol.try_read().unwrap();
-                let r#type = symbol.value.get_type();
-                let Some(value) = symbol.evaluated.as_ref() else {
-                    return Type::Error;
-                };
-                match r#type {
-                    Type::Function => value.as_ref::<Function>().signature.get_type(),
-                    Type::ExternFunction => value.as_ref::<ExternFunction>().signature.get_type(),
-                    r#type => r#type,
+                let value = symbol.evaluated.as_ref();
+                match (&symbol.r#type.inner, value) {
+                    (Type::Function, Some(value)) => {
+                        value.as_ref::<Function>().signature.get_type()
+                    }
+                    (Type::ExternFunction, Some(value)) => {
+                        value.as_ref::<ExternFunction>().signature.get_type()
+                    }
+                    (Type::Function | Type::ExternFunction, None) => Type::Error,
+                    (r#type, _) => r#type.clone(),
                 }
             }
             SymbolReference::Variable(variable) => variable.r#type.try_lock().unwrap().clone(),

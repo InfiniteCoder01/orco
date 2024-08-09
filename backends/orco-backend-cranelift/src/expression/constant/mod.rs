@@ -14,14 +14,15 @@ impl crate::Object<'_> {
         use orco::ir::Type;
         match value {
             Constant::Integer { value, r#type, ..} => {
-                if let Type::Int(size) = r#type {
-                    if size.get() > 8 {
-                        todo!("Cranelift integer constants bigger than 64 bits");
-                    } else if !size.get().is_power_of_two(){
-                        panic!("Invalid or unsupported integer constant type {}! Did you run type checking/inference?", r#type);
+                match r#type {
+                    Type::Int(size) | Type::Unsigned(size) => {
+                        if size.get() > 8 {
+                            todo!("Cranelift integer constants bigger than 64 bits");
+                        } else if !size.get().is_power_of_two(){
+		                    panic!("Invalid or unsupported integer constant type {}! Did you run type checking/inference?", r#type);
+                        }
                     }
-                } else {
-                    panic!("Invalid or unsupported integer constant type {}! Did you run type checking/inference?", r#type);
+                    _ => panic!("Invalid or unsupported integer constant type {}! Did you run type checking/inference?", r#type),
                 }
                 Some(
                     builder
