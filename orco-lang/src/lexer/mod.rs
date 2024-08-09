@@ -13,9 +13,9 @@ pub mod unescape;
 pub enum Token {
     // TODO: XID
     /// Identifier
-    #[regex("[_a-zA-Z][_0-9a-zA-Z]*", |lex| Span(lex.source().clone(), lex.span()))]
-    #[regex("r#[_a-zA-Z][_0-9a-zA-Z]*", |lex| Span(lex.source().clone(), lex.span().start + 2..lex.span().end))]
-    Ident(Span),
+    #[regex("[_a-zA-Z][_0-9a-zA-Z]*", |lex| ParsedIdent::new(Span(lex.source().clone(), lex.span()), false))]
+    #[regex("r#[_a-zA-Z][_0-9a-zA-Z]*", |lex| ParsedIdent::new(Span(lex.source().clone(), lex.span().start + 2..lex.span().end), true))]
+    Ident(ParsedIdent),
     /// Operator
     #[token("(", |_| Operator::LParen)]
     #[token(")", |_| Operator::RParen)]
@@ -86,6 +86,32 @@ impl std::fmt::Display for Token {
             Token::Operator(operator) => write!(f, "operator '{}'", operator),
             Token::Literal(value) => write!(f, "literal '{}'", value),
             Token::Error => write!(f, "<error>"),
+        }
+    }
+}
+
+/// Parsed identifier
+#[derive(Clone, Debug, PartialEq)]
+pub struct ParsedIdent {
+	/// The identifier itself
+    pub ident: Span,
+	/// Was this identifier raw?
+    pub raw: bool,
+}
+
+impl ParsedIdent {
+	/// Create a new parsed identifier
+    pub fn new(ident: Span, raw: bool) -> Self {
+        Self { ident, raw }
+    }
+}
+
+impl std::fmt::Display for ParsedIdent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.raw {
+        	write!(f, "r#{}", self.ident)
+        } else {
+             write!(f, "{}", self.ident)
         }
     }
 }
@@ -298,7 +324,7 @@ impl<'source, R: ErrorReporter + ?Sized> Parser<'source, R> {
     pub fn match_keyword(&mut self, keyword: &str) -> bool {
         self.fill();
         if let Some(Token::Ident(ident)) = self.peek() {
-            if ident.as_ref() == keyword {
+            if !ident.raw && ident.ident.as_ref() == keyword {
                 self.peek.take();
                 true
             } else {
@@ -325,7 +351,7 @@ impl<'source, R: ErrorReporter + ?Sized> Parser<'source, R> {
         self.fill();
         let peek = self.peek.take();
         if let Some(Token::Ident(ident)) = peek {
-            Some(ident)
+            Some(ident.ident)
         } else {
             self.peek = peek;
             None
@@ -383,7 +409,7 @@ impl<'source, R: ErrorReporter + ?Sized> Parser<'source, R> {
         self.fill();
         let peek = self.peek.take();
         if let Some(Token::Ident(ident)) = peek {
-            Some(ident)
+            Some(ident.ident)
         } else {
             self.peek = peek;
             self.expected_error(what);

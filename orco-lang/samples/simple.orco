@@ -1,8 +1,8 @@
-comptime puts = extern fn puts(msg: *char) -> i32;
-
-comptime var: u64 = 0;
+comptime libc = module {
+	comptime puts = extern fn puts(msg: *char) -> i32;
+};
 
 comptime main = fn () -> i32 {
-    puts(c"Hello, World!");
+    // libc::puts(c"Hello, World!");
     0
 };

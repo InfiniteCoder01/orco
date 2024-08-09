@@ -23,7 +23,7 @@ impl Crate {
             root: parser::parse(&mut lexer::Parser::new(
                 &orco::Src::load(path.as_ref().to_path_buf()).unwrap(),
                 reporter,
-            )),
+            ), false),
         }
     }
 }

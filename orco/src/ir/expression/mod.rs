@@ -51,6 +51,8 @@ pub enum Expression {
     Function(Box<Function>),
     /// Extern function literal
     ExternFunction(ExternFunction),
+    /// Module literal
+    Module(Spanned<Module>),
     /// A constant value
     Constant(Spanned<Constant>),
     /// Symbol
@@ -89,6 +91,7 @@ impl Expression {
         match self {
             Expression::Function(_) => Type::Function,
             Expression::ExternFunction(_) => Type::ExternFunction,
+            Expression::Module(_) => Type::Module,
             Expression::Constant(constant) => constant.get_type(),
             Expression::Symbol(symbol, ..) => symbol.get_type(),
             Expression::BinaryExpression(expr) => expr.get_type(),
@@ -109,6 +112,7 @@ impl Expression {
         let r#type = match self {
             Expression::Function(_) => Type::Function,
             Expression::ExternFunction(_) => Type::ExternFunction,
+            Expression::Module(_) => Type::Module,
             Expression::Constant(constant) => constant.inner.infer_types(type_inference),
             Expression::Symbol(symbol, metadata) => {
                 symbol.infer_types(type_inference, metadata.as_mut())
@@ -133,6 +137,7 @@ impl Expression {
         match self {
             Expression::Function(_) => Type::Function,
             Expression::ExternFunction(_) => Type::ExternFunction,
+            Expression::Module(_) => Type::Module,
             Expression::Constant(constant) => constant
                 .inner
                 .finish_and_check_types(&constant.span, type_inference),
@@ -158,6 +163,7 @@ impl Expression {
         match self {
             Expression::Function(function) => function.span.as_ref(),
             Expression::ExternFunction(function) => function.span.as_ref(),
+            Expression::Module(module) => module.span.as_ref(),
             Expression::Constant(constant) => constant.span.as_ref(),
             Expression::Symbol(symbol, ..) => symbol.span.as_ref(),
             Expression::BinaryExpression(expr) => expr.span.as_ref(),
@@ -178,6 +184,7 @@ impl std::fmt::Display for Expression {
         match self {
             Expression::Function(function) => write!(f, "{}", function),
             Expression::ExternFunction(function) => write!(f, "{}", function),
+            Expression::Module(module) => write!(f, "{}", module),
             Expression::Constant(constant) => write!(f, "{}", constant),
             Expression::Symbol(symbol, ..) => write!(f, "{}", symbol),
             Expression::BinaryExpression(expr) => write!(f, "{}", expr),

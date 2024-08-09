@@ -27,6 +27,8 @@ pub enum Type {
     Function,
     /// External function
     ExternFunction,
+    /// Module
+    Module,
 
     /// Never type, can't hold any value
     Never,
@@ -134,6 +136,7 @@ impl std::fmt::Display for Type {
 
             Self::Function => write!(f, "Function"),
             Self::ExternFunction => write!(f, "ExternFunction"),
+            Self::Module => write!(f, "Module"),
 
             Self::Never => write!(f, "!"),
             Self::Unit => write!(f, "()"),

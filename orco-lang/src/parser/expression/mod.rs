@@ -114,6 +114,9 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
             Some(parser.span_from(start)),
             (),
         )))
+    } else if parser.match_keyword("module") {
+	    let module = super::parse(parser, true);
+        Expression::Module(parser.wrap_span(module, start))
     } else if let Some(constant) = parser.match_literal() {
         Expression::Constant(constant)
     } else if let Some(block) = block::parse(parser) {

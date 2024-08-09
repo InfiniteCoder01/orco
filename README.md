@@ -36,7 +36,7 @@ Roadmap for now:
 - [x] Make IR first-class (a BIG refactor)
 - [x] Remove Ariadne completely (+ lexer abort compilation)
 - [x] Move spans to frontend?
-- [ ] Comptime type hints
+- [x] Comptime type hints
 - [ ] Path as an operator
 - [ ] orco::Path is borrowing names?
 - [ ] Comptimes in blocks

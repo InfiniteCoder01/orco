@@ -1,7 +1,7 @@
 use super::*;
 
 /// Symbol reference
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum SymbolReference {
     /// Unresolved symbol, should be resolved during type inference pass
     Unresolved(Path),
@@ -92,6 +92,15 @@ impl SymbolReference {
                 }
             }
             _ => self.get_type(),
+        }
+    }
+}
+
+impl Clone for SymbolReference {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Unresolved(path) => Self::Unresolved(path.clone()),
+            _ => unimplemented!("Cloning resolved symbols is not yet implemented"),
         }
     }
 }

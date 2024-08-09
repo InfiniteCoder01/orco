@@ -23,10 +23,25 @@ pub fn parse_symbol<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option
     Some(ir::Symbol::new(name, r#type, value))
 }
 
-/// Parse the whole file
-pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::Module {
+/// Parse the whole file (or a module)
+pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>, braces: bool) -> ir::Module {
     let mut module = ir::Module::default();
-    while !parser.eof() {
+    if braces {
+		parser.expect_operator(Operator::LBrace);
+	}
+    loop {
+    	if braces {
+    		if parser.match_operator(Operator::RBrace) {
+    			break;
+	    	} else if parser.eof() {
+	    		parser.expect_operator(Operator::RBrace);
+				break;
+			}
+	    } else {
+			if parser.eof() {
+				break;
+			}
+	    }
         if let Some(symbol) = parse_symbol(parser) {
             parser.expect_operator(Operator::Semicolon);
             module.symbols.insert(

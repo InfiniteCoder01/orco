@@ -31,6 +31,23 @@ impl Module {
     }
 }
 
+impl Clone for Module {
+    fn clone(&self) -> Self {
+        Self {
+            symbols: self
+                .symbols
+                .iter()
+                .map(|(name, symbol)| {
+                    (
+                        name.clone(),
+                        Box::pin(std::sync::RwLock::new(symbol.try_read().unwrap().clone())),
+                    )
+                })
+                .collect(),
+        }
+    }
+}
+
 impl std::fmt::Display for Module {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "module {{")?;

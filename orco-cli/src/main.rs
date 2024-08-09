@@ -21,7 +21,7 @@ fn main() {
             root: orco_lang::parser::parse(&mut orco_lang::lexer::Parser::new(
                 &orco::Src::new(source, "<buffer>".into()),
                 &mut reporter,
-            )),
+            ), false),
         }
     } else {
         orco_lang::Crate::parse(cli.path, &mut reporter)

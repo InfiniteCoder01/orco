@@ -19,6 +19,7 @@ impl crate::Object<'_> {
 
             orco::ir::Type::Function => unimplemented!("Function type at runtime"),
             orco::ir::Type::ExternFunction => unimplemented!("ExternFunction type at runtime"),
+            orco::ir::Type::Module => unimplemented!("Module type at runtime"),
 
             orco::ir::Type::Never => panic!("Can't convert a never type"),
             orco::ir::Type::Unit => panic!("Can't convert a unit type"),
