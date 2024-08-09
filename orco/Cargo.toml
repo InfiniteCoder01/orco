@@ -8,21 +8,17 @@ readme = "README.md"
 repository = "https://github.com/InfiniteCoder01/orco"
 license = "MIT OR Apache-2.0"
 keywords = ["orco", "compiler", "ir"]
-categories = [
-    "compilers",
-    "data-structures",
-    "development-tools",
-]
+categories = ["compilers", "data-structures", "development-tools"]
 
 [dependencies]
+ariadne = { git = "https://github.com/InfiniteCoder01/ariadne" }
+
 derivative = "2.2.0"
 downcast-rs = "1.2.1"
 dyn-clone = "1.0.17"
+
 indent = "0.1.1"
-log = "0.4.21"
-miette = "7.2.0"
-thiserror = "1.0.61"
+log = "0.4.22"
 
 [dev-dependencies]
 assert2 = "0.3.14"
-

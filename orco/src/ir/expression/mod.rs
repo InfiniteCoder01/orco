@@ -1,5 +1,4 @@
 use super::*;
-use diagnostics::*;
 use ir::Type;
 use type_inference::TypeInference;
 
@@ -76,7 +75,7 @@ pub enum Expression {
     /// Assignment
     Assignment(AssignmentExpression),
     /// Invalid expression
-    Error(Span),
+    Error(Option<Span>),
 }
 
 impl Expression {
@@ -136,12 +135,10 @@ impl Expression {
             Expression::ExternFunction(_) => Type::ExternFunction,
             Expression::Constant(constant) => constant
                 .inner
-                .finish_and_check_types(constant.span.clone(), type_inference),
-            Expression::Symbol(symbol, metadata) => symbol.finish_and_check_types(
-                symbol.span.clone(),
-                type_inference,
-                metadata.as_mut(),
-            ),
+                .finish_and_check_types(&constant.span, type_inference),
+            Expression::Symbol(symbol, metadata) => {
+                symbol.finish_and_check_types(&symbol.span, type_inference, metadata.as_mut())
+            }
             Expression::BinaryExpression(expr) => expr.finish_and_check_types(type_inference),
             Expression::UnaryExpression(expr) => expr.finish_and_check_types(type_inference),
             Expression::Block(block) => block.finish_and_check_types(type_inference),
@@ -157,21 +154,21 @@ impl Expression {
     }
 
     /// Get the span of this expression
-    pub fn span(&self) -> Span {
+    pub fn span(&self) -> Option<&Span> {
         match self {
-            Expression::Function(function) => function.span.clone(),
-            Expression::ExternFunction(function) => function.span.clone(),
-            Expression::Constant(constant) => constant.span.clone(),
-            Expression::Symbol(symbol, ..) => symbol.span.clone(),
-            Expression::BinaryExpression(expr) => expr.span.clone(),
-            Expression::UnaryExpression(expr) => expr.span.clone(),
-            Expression::Block(block) => block.span.clone(),
-            Expression::If(expr) => expr.span.clone(),
-            Expression::Call(expr) => expr.span.clone(),
-            Expression::Return(expr) => expr.1.clone(),
-            Expression::VariableDeclaration(declaration) => declaration.span.clone(),
-            Expression::Assignment(expr) => expr.span.clone(),
-            Expression::Error(span) => span.clone(),
+            Expression::Function(function) => function.span.as_ref(),
+            Expression::ExternFunction(function) => function.span.as_ref(),
+            Expression::Constant(constant) => constant.span.as_ref(),
+            Expression::Symbol(symbol, ..) => symbol.span.as_ref(),
+            Expression::BinaryExpression(expr) => expr.span.as_ref(),
+            Expression::UnaryExpression(expr) => expr.span.as_ref(),
+            Expression::Block(block) => block.span.as_ref(),
+            Expression::If(expr) => expr.span.as_ref(),
+            Expression::Call(expr) => expr.span.as_ref(),
+            Expression::Return(expr) => expr.span.as_ref(),
+            Expression::VariableDeclaration(declaration) => declaration.span.as_ref(),
+            Expression::Assignment(expr) => expr.span.as_ref(),
+            Expression::Error(span) => span.as_ref(),
         }
     }
 }
@@ -181,8 +178,8 @@ impl std::fmt::Display for Expression {
         match self {
             Expression::Function(function) => write!(f, "{}", function),
             Expression::ExternFunction(function) => write!(f, "{}", function),
-            Expression::Constant(constant) => write!(f, "{}", constant.inner),
-            Expression::Symbol(symbol, ..) => write!(f, "{}", symbol.inner),
+            Expression::Constant(constant) => write!(f, "{}", constant),
+            Expression::Symbol(symbol, ..) => write!(f, "{}", symbol),
             Expression::BinaryExpression(expr) => write!(f, "{}", expr),
             Expression::UnaryExpression(expr) => write!(f, "{}", expr),
             Expression::Block(block) => write!(f, "{}", block),

@@ -37,7 +37,9 @@ pub fn binary<R: ErrorReporter + ?Sized>(
             if parser.match_operator(op_token) {
                 let lhs = Box::new(expression);
                 let rhs = Box::new(binary(parser, level + 1)?);
-                let span = lhs.span().extend(&rhs.span());
+                let span = lhs
+                    .span()
+                    .and_then(|lhs| rhs.span().map(|rhs| lhs.extended(rhs)));
                 expression = Expression::BinaryExpression(ir::expression::BinaryExpression::new(
                     lhs,
                     op,
@@ -64,7 +66,7 @@ pub fn unary<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<Expres
         if parser.match_operator(op_token) {
             let expr = Box::new(unary(parser)?);
             return Some(Expression::UnaryExpression(
-                ir::expression::UnaryExpression::new(op, expr, parser.span_from(start), ()),
+                ir::expression::UnaryExpression::new(op, expr, Some(parser.span_from(start)), ()),
             ));
         }
     }

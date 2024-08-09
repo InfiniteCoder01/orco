@@ -12,14 +12,14 @@ struct Cli {
 fn main() {
     env_logger::init();
     let cli = Cli::parse();
-    let mut reporter = orco::diagnostics::DefaultReporter::default();
+    let mut reporter = orco::diagnostics::DefaultReporter;
 
     let krate = if cli.path == std::path::Path::new("-") {
         let mut source = String::new();
         std::io::stdin().read_to_string(&mut source).unwrap();
         orco_lang::Crate {
             root: orco_lang::parser::parse(&mut orco_lang::lexer::Parser::new(
-                &orco_lang::lexer::Source(orco::Src::new(source, "<buffer>".into())),
+                &orco::Src::new(source, "<buffer>".into()),
                 &mut reporter,
             )),
         }

@@ -44,12 +44,8 @@ impl Constant {
     /// Infer types
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
         match self {
-            Self::Integer { r#type, .. } => {
-                *r#type = type_inference.complete(r#type.clone());
-            }
-            Self::Float { r#type, .. } => {
-                *r#type = type_inference.complete(r#type.clone());
-            }
+            Self::Integer { r#type, .. } => type_inference.complete(r#type),
+            Self::Float { r#type, .. } => type_inference.complete(r#type),
             Self::CString(..) => (),
         }
         self.get_type()
@@ -58,7 +54,7 @@ impl Constant {
     /// Finish and check types
     pub fn finish_and_check_types(
         &mut self,
-        span: Span,
+        span: &Option<Span>,
         type_inference: &mut TypeInference,
     ) -> Type {
         match self {
@@ -67,7 +63,7 @@ impl Constant {
                 value,
                 metadata,
             } => {
-                type_inference.finish(r#type, &metadata.name(), span.clone());
+                type_inference.finish(r#type, &metadata.name(), span.as_ref());
                 let fits = match r#type {
                     Type::Unsigned(size) if size.get() == 16 => true,
                     Type::Unsigned(size) => *value < 1 << (size.get() * 8),
@@ -76,44 +72,22 @@ impl Constant {
                     r#type => unimplemented!("{}", r#type),
                 };
                 if !fits {
-                    metadata.integer_literal_doesnt_fit(
-                        type_inference,
-                        IntegerLiteralDoesntFit {
-                            value: *value,
-                            r#type: r#type.clone(),
-                            src: span.named_source(),
-                            span: span.source_span(),
-                        },
-                    )
+                    type_inference.report(metadata.integer_literal_doesnt_fit(
+                        *value,
+                        r#type,
+                        span.clone(),
+                    ));
                 }
             }
             Self::Float {
                 r#type, metadata, ..
             } => {
-                type_inference.finish(r#type, &metadata.name(), span.clone());
+                type_inference.finish(r#type, &metadata.name(), span.as_ref());
             }
             _ => (),
         }
         self.get_type()
     }
-}
-
-#[derive(Error, Debug, Diagnostic)]
-#[error("Integer literal '{value}' doesn't fit in the type '{r#type}'")]
-#[diagnostic(code(typechecking::constant::integer_literal_doesnt_fit))]
-/// Integer literal doesn't fit
-pub struct IntegerLiteralDoesntFit {
-    /// Integer literal value
-    pub value: u128,
-    /// Type inferred for the integer literal
-    pub r#type: Type,
-
-    #[source_code]
-    /// Source file where the error occurred
-    pub src: NamedSource<Src>,
-    #[label("Here")]
-    /// Span of the integer literal
-    pub span: SourceSpan,
 }
 
 impl std::fmt::Display for Constant {
@@ -153,19 +127,24 @@ declare_metadata! {
     /// Frontend metadata for integer constant
     trait IntegerMetadata {
         /// Name provider for the constant
-        fn name(&self) -> std::borrow::Cow<'static, str> {
+        fn name(&self) -> std::borrow::Cow<str> {
             std::borrow::Cow::Borrowed("integer constant")
         }
 
-        Diagnostics:
         /// Callback of integer literal doesn't fit error
-        integer_literal_doesnt_fit(IntegerLiteralDoesntFit) abort_compilation;
+        fn integer_literal_doesnt_fit(&self, value: u128, r#type: &Type, span: Option<Span>) -> Report {
+            Report::build(ReportKind::Error)
+                .with_code("typechecking::integer_literal_doesnt_fit")
+                .with_message(format!("Integer literal '{value}' doesn't fit in the type '{type}'"))
+                .opt_label(span, |label| label.with_message(format!("Integer literal '{value}' doesn't fit in the type '{type}'")).with_color(colors::Label))
+                .finish()
+        }
     }
 
     /// Frontend metadata for float constant
     trait FloatMetadata {
         /// Name provider for the constant
-        fn name(&self) -> std::borrow::Cow<'static, str> {
+        fn name(&self) -> std::borrow::Cow<str> {
             std::borrow::Cow::Borrowed("float constant")
         }
     }

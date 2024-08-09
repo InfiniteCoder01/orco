@@ -21,7 +21,7 @@ impl Crate {
     ) -> Self {
         Self {
             root: parser::parse(&mut lexer::Parser::new(
-                &lexer::Source(orco::Src::load(path.as_ref().to_path_buf()).unwrap()),
+                &orco::Src::load(path.as_ref().to_path_buf()).unwrap(),
                 reporter,
             )),
         }

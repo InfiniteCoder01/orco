@@ -42,7 +42,7 @@ impl crate::Object<'_> {
             Expression::If(expr) => self.build_if_expression(builder, expr),
             Expression::Call(expr) => self.build_call_expression(builder, expr),
             Expression::Return(value) => {
-                let ret = self.build_expression(builder, &value.0);
+                let ret = self.build_expression(builder, &value.expression);
                 builder.ins().return_(&ret.into_iter().collect::<Vec<_>>());
                 None
             }
@@ -59,7 +59,11 @@ impl crate::Object<'_> {
                 None
             }
             Expression::Assignment(expr) => self.build_assignment_expression(builder, expr),
-            Expression::Error(span) => panic!("IR contains errors at {}!", span),
+            Expression::Error(span) => panic!(
+                "IR contains errors{}!",
+                span.as_ref()
+                    .map_or(String::new(), |span| format!(" at {:?}", span))
+            ),
         }
     }
 }

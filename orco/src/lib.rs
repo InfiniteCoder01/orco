@@ -1,12 +1,12 @@
 #![doc = include_str!("../README.md")]
 #![warn(missing_docs)]
 
+pub use ariadne;
 pub use log;
-pub use miette;
-pub use thiserror;
 
 /// Diagnostics
 pub mod diagnostics;
+use diagnostics::*;
 
 /// OrCo Intermediate Representation lives here
 pub mod ir;

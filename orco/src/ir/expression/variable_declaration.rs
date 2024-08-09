@@ -18,7 +18,7 @@ pub struct VariableDeclaration {
     pub value: Option<Mutex<Expression>>,
     /// Span of the declaration
     #[derivative(Debug = "ignore")]
-    pub span: Span,
+    pub span: Option<Span>,
     /// Metadata
     #[derivative(Debug = "ignore")]
     pub metadata: Box<dyn VariableDeclarationMetadata>,
@@ -30,11 +30,11 @@ pub type VariableId = u64;
 impl VariableDeclaration {
     /// Create a new variable declaration
     pub fn new(
-        name: Span,
+        name: Name,
         mutable: Spanned<bool>,
         r#type: Spanned<Type>,
         value: Option<Expression>,
-        span: Span,
+        span: Option<Span>,
         metadata: impl VariableDeclarationMetadata + 'static,
     ) -> Self {
         Self {
@@ -52,7 +52,7 @@ impl VariableDeclaration {
     pub fn infer_types(self: std::pin::Pin<&Self>, type_inference: &mut TypeInference) -> Type {
         *self.id.try_lock().unwrap() = type_inference.new_variable_id();
         let mut r#type = self.r#type.inner.try_lock().unwrap();
-        *r#type = type_inference.complete(r#type.clone());
+        type_inference.complete(&mut r#type);
         if let Some(value) = &self.value {
             let value_type = value.try_lock().unwrap().infer_types(type_inference);
             type_inference.equate(&r#type, &value_type);
@@ -71,55 +71,31 @@ impl VariableDeclaration {
         type_inference.finish(
             &mut r#type,
             &format!("variable '{}'", self.name),
-            self.name.clone(),
+            Some(&self.name),
         );
         if let Some(value) = &self.value {
             let mut value = value.try_lock().unwrap();
             let value_type = value.finish_and_check_types(type_inference);
             if !value_type.morphs(&r#type) {
-                self.metadata.variable_declaration_type_mismatch(
-                    type_inference,
-                    VariableDeclarationTypeMismatch {
-                        expected: r#type.clone(),
-                        got: value_type,
-                        src: value.span().named_source(),
-                        expression_span: value.span().source_span(),
-                        declaration_span: self.r#type.span.source_span(),
-                    },
-                );
+                type_inference.report(self.metadata.variable_declaration_type_mismatch(
+                    &value_type,
+                    value.span().cloned(),
+                    &r#type,
+                    self.r#type.span.clone(),
+                ));
             }
         }
         Type::Unit
     }
 }
 
-#[derive(Error, Debug, Diagnostic)]
-#[error("Incompatible types for variable declaration: expected '{expected}', got '{got}'")]
-#[diagnostic(code(typechecking::call::variable_declaration_type_mismatch))]
-/// Variable declaration type mismatch
-pub struct VariableDeclarationTypeMismatch {
-    /// Expected type
-    pub expected: Type,
-    /// Got type
-    pub got: Type,
-
-    #[source_code]
-    /// File where the error occurred
-    pub src: NamedSource<Src>,
-    #[label("Here")]
-    /// Span of the expression
-    pub expression_span: SourceSpan,
-    #[label("Expected because of this")]
-    /// Span of the type in declaration
-    pub declaration_span: SourceSpan,
-}
 impl Clone for VariableDeclaration {
     fn clone(&self) -> Self {
         Self {
             name: self.name.clone(),
             id: Mutex::new(*self.id.try_lock().unwrap()),
             mutable: self.mutable.clone(),
-            r#type: Spanned::new(
+            r#type: Spanned::opt(
                 Mutex::new(self.r#type.try_lock().unwrap().clone()),
                 self.r#type.span.clone(),
             ),
@@ -155,8 +131,17 @@ impl std::fmt::Display for VariableDeclaration {
 declare_metadata! {
     /// Frontend metadata for variable declaration
     trait VariableDeclarationMetadata {
-        Diagnostics:
         /// Variable declaration type mismatch error callback
-        variable_declaration_type_mismatch(VariableDeclarationTypeMismatch) abort_compilation;
+        fn variable_declaration_type_mismatch(&self, r#type: &Type, span: Option<Span>, signature_type: &Type, signature_span: Option<Span>) -> Report {
+            Report::build(ReportKind::Error)
+                .with_code("typechecking::variable_declaration_type_mismatch")
+                .with_message(format!(
+                    "Incompatible types for variable declaration: expected '{}', got '{}'",
+                    signature_type, r#type
+                ))
+                .opt_label(span, |label| label.with_message("Here").with_color(colors::Got))
+                .opt_label(signature_span, |label| label.with_message("Expected because of this").with_color(colors::Expected))
+                .finish()
+        }
     }
 }

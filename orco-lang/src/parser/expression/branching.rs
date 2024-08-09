@@ -13,7 +13,7 @@ pub fn expect_if<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>, start: usize
         condition,
         then_branch,
         else_branch,
-        parser.span_from(start),
+        Some(parser.span_from(start)),
         (),
     ))
 }

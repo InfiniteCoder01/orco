@@ -3,13 +3,31 @@ use super::*;
 /// Return expression
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
-pub struct ReturnExpression(
-    pub Box<Expression>,
-    pub Span,
-    #[derivative(Debug = "ignore")] pub Box<dyn ReturnMetadata>,
-);
+pub struct ReturnExpression {
+    /// Expression to return
+    pub expression: Box<Expression>,
+    /// Span of the expression
+    #[derivative(Debug = "ignore")]
+    pub span: Option<Span>,
+    /// Metadata
+    #[derivative(Debug = "ignore")]
+    pub metadata: Box<dyn ReturnMetadata>,
+}
 
 impl ReturnExpression {
+    /// Create a new return expression
+    pub fn new(
+        expression: Box<Expression>,
+        span: Option<Span>,
+        metadata: impl ReturnMetadata + 'static,
+    ) -> Self {
+        Self {
+            expression,
+            span,
+            metadata: Box::new(metadata),
+        }
+    }
+
     /// Get the type this exprssion evaluates to
     pub fn get_type(&self) -> Type {
         Type::Never
@@ -17,7 +35,7 @@ impl ReturnExpression {
 
     /// Infer the type for this expression
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
-        let r#type = self.0.infer_types(type_inference);
+        let r#type = self.expression.infer_types(type_inference);
         if let Some(return_type) = type_inference.return_type.take() {
             type_inference.equate(&r#type, &return_type);
             type_inference.return_type = Some(return_type);
@@ -27,19 +45,14 @@ impl ReturnExpression {
 
     /// Finish and check types
     pub fn finish_and_check_types(&mut self, type_inference: &mut TypeInference) -> Type {
-        let r#type = self.0.finish_and_check_types(type_inference);
+        let r#type = self.expression.finish_and_check_types(type_inference);
         if let Some(return_type) = &type_inference.return_type {
             if !r#type.morphs(return_type) {
-                self.2.return_type_mismatch(
-                    type_inference,
-                    ReturnTypeMismatch {
-                        expected: return_type.inner.clone(),
-                        got: r#type,
-                        src: self.0.span().named_source(),
-                        expression_span: self.0.span().source_span(),
-                        return_type_span: return_type.span.source_span(),
-                    },
-                );
+                type_inference.report(self.metadata.return_type_mismatch(
+                    &r#type,
+                    self.expression.span().cloned(),
+                    return_type,
+                ));
             }
         } else {
             todo!("return without a function error message")
@@ -48,38 +61,23 @@ impl ReturnExpression {
     }
 }
 
-#[derive(Error, Debug, Diagnostic)]
-#[error("Return type mismatch: expected '{expected}', got '{got}'")]
-#[diagnostic(code(typechecking::return_type_mismatch))]
-/// Return type mismatch
-pub struct ReturnTypeMismatch {
-    /// Expected return type
-    pub expected: Type,
-    /// Got type
-    pub got: Type,
-
-    #[source_code]
-    /// File where the error occurred
-    pub src: NamedSource<Src>,
-    #[label("Here")]
-    /// Span of the expression returned
-    pub expression_span: SourceSpan,
-    #[label("Expected because of this")]
-    /// Span of the return type
-    pub return_type_span: SourceSpan,
-}
-
 impl std::fmt::Display for ReturnExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "return {}", self.0)
+        write!(f, "return {}", self.expression)
     }
 }
 
 declare_metadata! {
     /// Frontend metadata for the return expression
     trait ReturnMetadata {
-        Diagnostics:
         /// Return type mismatch error callback
-        return_type_mismatch(ReturnTypeMismatch) abort_compilation;
+        fn return_type_mismatch(&self, r#type: &Type, span: Option<Span>, signature_type: &Spanned<Type>) -> Report {
+            Report::build(ReportKind::Error)
+                .with_code("typechecking::return_type_mismatch")
+                .with_message(format!("Return type mismatch: expected '{}', got '{}'", signature_type, r#type))
+                .opt_label(span, |label| label.with_message("Here").with_color(colors::Got))
+                .opt_label(signature_type.span.clone(), |label| label.with_message("Expected because of this").with_color(colors::Expected))
+                .finish()
+        }
     }
 }

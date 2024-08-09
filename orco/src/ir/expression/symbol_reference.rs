@@ -60,7 +60,7 @@ impl SymbolReference {
             }
             SymbolReference::Variable(variable) => {
                 let mut r#type = variable.r#type.inner.try_lock().unwrap();
-                *r#type = type_inference.complete(r#type.clone());
+                type_inference.complete(&mut r#type);
                 r#type.clone()
             }
         }
@@ -69,32 +69,21 @@ impl SymbolReference {
     /// Finish and check types
     pub fn finish_and_check_types(
         &self,
-        span: Span,
+        span: &Option<Span>,
         type_inference: &mut TypeInference,
         metadata: &mut dyn SymbolMetadata,
     ) -> ir::Type {
         match self {
             SymbolReference::Unresolved(path) => {
-                metadata.symbol_not_found(
-                    type_inference,
-                    SymbolNotFound {
-                        path: path.clone(),
-                        src: span.named_source(),
-                        span: span.source_span(),
-                    },
-                );
+                type_inference.report(metadata.symbol_not_found(path, span.clone()));
                 ir::Type::Error
             }
             SymbolReference::Symbol(symbol) => {
                 if symbol::check_for_recursion(symbol) {
-                    metadata.recursive_evaluation(
-                        type_inference,
-                        RecursiveEvaluation {
-                            name: span.clone(),
-                            src: span.named_source(),
-                            span: span.source_span(),
-                        },
-                    );
+                    type_inference.report(metadata.recursive_evaluation(
+                        span.as_ref().unwrap_or(&Span::new("Unknow")),
+                        span.clone(),
+                    ));
                     Type::Error
                 } else {
                     self.get_type()
@@ -103,38 +92,6 @@ impl SymbolReference {
             _ => self.get_type(),
         }
     }
-}
-
-#[derive(Error, Debug, Diagnostic)]
-#[error("Symbol '{path}' was not declared in this scope")]
-#[diagnostic(code(symbol::symbol_not_found))]
-/// Symbol not found
-pub struct SymbolNotFound {
-    /// Path of the symbol
-    pub path: Path,
-
-    #[source_code]
-    /// File where the error occurred
-    pub src: NamedSource<Src>,
-    #[label("Here")]
-    /// Span of the symbol
-    pub span: SourceSpan,
-}
-
-#[derive(Error, Debug, Diagnostic)]
-#[error("Recursive use of a constexpr symbol '{name}' in it's evaluation")]
-#[diagnostic(code(symbol::recursive_evaluation))]
-/// Recursive use of a constexpr symbol in it's evaluation
-pub struct RecursiveEvaluation {
-    /// Name of the symbol
-    pub name: Span,
-
-    #[source_code]
-    /// File where the error occurred
-    pub src: NamedSource<Src>,
-    #[label("Here")]
-    /// Span of the symbol
-    pub span: SourceSpan,
 }
 
 impl std::fmt::Display for SymbolReference {
@@ -175,11 +132,23 @@ declare_metadata! {
             None
         }
 
-        Diagnostics:
         /// Callback of symbol not found error
-        symbol_not_found(SymbolNotFound) abort_compilation;
+        fn symbol_not_found(&self, path: &Path, span: Option<Span>) -> Report {
+            Report::build(ReportKind::Error)
+                .with_code("symbol::symbol_not_found")
+                .with_message(format!("Symbol '{path}' was not declared in this scope"))
+                .opt_label(span, |label| label.with_message("Here").with_color(colors::Label))
+                .finish()
+        }
+
         /// Callback of recursive evaluation error
-        recursive_evaluation(RecursiveEvaluation) abort_compilation;
+        fn recursive_evaluation(&self, name: &Name, span: Option<Span>)  -> Report {
+            Report::build(ReportKind::Error)
+                .with_code("symbol::recursive_evaluation")
+                .with_message(format!("Recursive use of a constexpr symbol '{name}' in it's evaluation"))
+                .opt_label(span, |label| label.with_message("Here").with_color(colors::Label))
+                .finish()
+        }
     }
 }
 

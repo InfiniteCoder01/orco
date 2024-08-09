@@ -13,7 +13,8 @@ pub struct Function {
     /// Function body
     pub body: std::sync::Mutex<Expression>,
     /// Span of the function
-    pub span: Span,
+    #[derivative(Debug = "ignore")]
+    pub span: Option<Span>,
     /// Metadata
     #[derivative(Debug = "ignore")]
     pub metadata: Box<dyn FunctionMetadata>,
@@ -24,7 +25,7 @@ impl Function {
     pub fn new(
         signature: Signature,
         body: Expression,
-        span: Span,
+        span: Option<Span>,
         metadata: impl FunctionMetadata + 'static,
     ) -> Self {
         Self {
@@ -40,7 +41,7 @@ impl Function {
         let old_return_type = type_inference
             .return_type
             .replace(self.signature.return_type.clone());
-        let old_scopes = std::mem::replace(&mut type_inference.scopes, Vec::new());
+        let old_scopes = std::mem::take(&mut type_inference.scopes);
 
         type_inference.push_scope();
         for arg in self.signature.args.iter() {
@@ -56,16 +57,11 @@ impl Function {
         }
         let return_type = body.finish_and_check_types(type_inference);
         if !return_type.morphs(&self.signature.return_type) {
-            self.metadata.return_type_mismatch(
-                type_inference,
-                control_flow::ReturnTypeMismatch {
-                    expected: self.signature.return_type.inner.clone(),
-                    got: return_type,
-                    src: body.span().named_source(),
-                    expression_span: body.span().source_span(),
-                    return_type_span: self.signature.return_type.span.source_span(),
-                },
-            );
+            type_inference.report(self.metadata.return_type_mismatch(
+                &self.signature.return_type,
+                &return_type,
+                body.span().cloned(),
+            ));
         }
 
         type_inference.scopes = old_scopes;
@@ -93,25 +89,59 @@ impl std::fmt::Display for Function {
 declare_metadata! {
     /// Frontend metadata for a function
     trait FunctionMetadata {
-        Diagnostics:
         /// Return type mismatch error callback
-        return_type_mismatch(control_flow::ReturnTypeMismatch) abort_compilation;
+        fn return_type_mismatch(&self, expected: &Spanned<Type>, got: &Type, expression_span: Option<Span>) -> Report {
+            Report::build(ReportKind::Error)
+                .with_code("typechecking::return_type_mismatch")
+                .with_message(format!("Return type mismatch: expected '{}', got '{}'", expected, got))
+                .opt_label(expression_span, |label| label.with_message("Here").with_color(colors::Got))
+                .opt_label(expected.span.clone(), |label| label.with_message("Expected because of this").with_color(colors::Expected))
+                .finish()
+        }
     }
 }
 
 /// An extern function
-#[derive(Clone, Debug)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 pub struct ExternFunction {
     /// Extern function name
     pub name: Name,
     /// Function signature
     pub signature: Signature,
     /// Span of the extern function declaration
-    pub span: Span,
+    #[derivative(Debug = "ignore")]
+    pub span: Option<Span>,
+    /// Metadata
+    #[derivative(Debug = "ignore")]
+    pub metadata: Box<dyn ExternFunctionMetadata>,
+}
+
+impl ExternFunction {
+    /// Create a new extern function
+    pub fn new(
+        name: Name,
+        signature: Signature,
+        span: Option<Span>,
+        metadata: impl ExternFunctionMetadata + 'static,
+    ) -> Self {
+        Self {
+            name,
+            signature,
+            span,
+            metadata: Box::new(metadata),
+        }
+    }
 }
 
 impl std::fmt::Display for ExternFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "extern fn {}{}", self.name, self.signature)
+    }
+}
+
+declare_metadata! {
+    /// Frontend metadata for an extern function
+    trait ExternFunctionMetadata {
     }
 }

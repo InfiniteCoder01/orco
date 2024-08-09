@@ -1,5 +1,5 @@
 /// Span (holds both span and a file path)
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Span(pub Src, pub std::ops::Range<usize>);
 
 impl Span {
@@ -12,12 +12,16 @@ impl Span {
     }
 
     /// Extend span up to the end of another span
-    pub fn extend(&self, span: &Span) -> Span {
-        assert_eq!(self.0, span.0);
-        Span(
-            self.0.clone(),
-            self.1.start.min(span.1.start)..self.1.end.max(span.1.end),
-        )
+    pub fn extend(&mut self, other: &Span) {
+        assert_eq!(self.0, other.0);
+        self.1 = self.1.start.min(other.1.start)..self.1.end.max(other.1.end);
+    }
+
+    /// Extend span up to the end of another span
+    pub fn extended(&self, other: &Span) -> Span {
+        let mut span = self.clone();
+        span.extend(other);
+        span
     }
 }
 
@@ -38,6 +42,12 @@ impl std::ops::Deref for Span {
 impl std::fmt::Display for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_ref())
+    }
+}
+
+impl std::fmt::Debug for Span {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<\"{}\" in {:?}>", self.as_ref(), self.0.path())
     }
 }
 
@@ -69,24 +79,36 @@ impl std::hash::Hash for Span {
 
 /// Spanned value (uses [Span])
 #[derive(derivative::Derivative, Clone)]
-#[derivative(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derivative(PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Spanned<T> {
     /// Inner value
     pub inner: T,
     /// Span
     #[derivative(
-        Debug = "ignore",
         PartialEq = "ignore",
         PartialOrd = "ignore",
         Ord = "ignore",
         Hash = "ignore"
     )]
-    pub span: Span,
+    pub span: Option<Span>,
 }
 
 impl<T> Spanned<T> {
-    /// Create a new spanned value
+    /// create a new spanned value
     pub fn new(inner: T, span: Span) -> Self {
+        Self {
+            inner,
+            span: Some(span),
+        }
+    }
+
+    /// Create a new spanned value
+    pub fn none(inner: T) -> Self {
+        Self { inner, span: None }
+    }
+
+    /// Create a new spanned value
+    pub fn opt(inner: T, span: Option<Span>) -> Self {
         Self { inner, span }
     }
 
@@ -109,6 +131,18 @@ impl<T> std::ops::Deref for Spanned<T> {
 impl<T> std::ops::DerefMut for Spanned<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
+    }
+}
+
+impl<T: std::fmt::Debug> std::fmt::Debug for Spanned<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.inner.fmt(f)
+    }
+}
+
+impl<T: std::fmt::Display> std::fmt::Display for Spanned<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.inner.fmt(f)
     }
 }
 

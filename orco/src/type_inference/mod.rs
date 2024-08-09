@@ -74,11 +74,11 @@ impl<'a> TypeInference<'a> {
     }
 
     /// If the type is not complete, make it a type variable
-    pub fn complete(&mut self, r#type: ir::Type) -> ir::Type {
-        if r#type.complete() {
-            r#type
-        } else {
-            ir::Type::TypeVariable(self.alloc_type_variable(r#type))
+    pub fn complete(&mut self, r#type: &mut ir::Type) {
+        if !r#type.complete() {
+            *r#type = ir::Type::TypeVariable(
+                self.alloc_type_variable(std::mem::replace(r#type, ir::Type::Error)),
+            );
         }
     }
 
@@ -100,12 +100,12 @@ impl<'a> TypeInference<'a> {
                 match type_variables {
                     Ok([(_, (type1_ids, type1)), (type2_index, (type2_ids, type2))]) => {
                         type1_ids.append(type2_ids);
-                        type1.equate(type2.clone());
+                        type1.equate(type2);
                         let r#type = ir::Type::TypeVariable(type1_ids[0]);
                         self.type_table.remove(type2_index);
                         r#type
                     }
-                    Err(type_variables) => type_variables[0].1 .1.clone(),
+                    Err(type_variables) => ir::Type::TypeVariable(type_variables[0].1 .0[0]),
                 }
             }
             (ir::Type::TypeVariable(type_variable), r#type)
@@ -115,45 +115,51 @@ impl<'a> TypeInference<'a> {
                     .iter_mut()
                     .find(|(ids, _)| ids.contains(type_variable))
                     .expect("Invalid type variable!");
-                type_variable.equate(r#type.clone());
+                type_variable.equate(r#type);
                 ir::Type::TypeVariable(type_ids[0])
             }
-            (lhs, rhs) => lhs.clone() | rhs.clone(),
+            (lhs, rhs) => lhs.clone() | rhs,
         }
     }
 
     /// Inline the type variable if the type is a type variable (One-layer type inline)
-    pub fn inline(&self, r#type: ir::Type) -> ir::Type {
+    pub fn inline(&self, r#type: &mut ir::Type) {
         if let ir::Type::TypeVariable(type_variable) = r#type {
             let (_, type_variable) = self
                 .type_table
                 .iter()
-                .find(|(ids, _)| ids.contains(&type_variable))
+                .find(|(ids, _)| ids.contains(type_variable))
                 .expect("Invalid type variable!");
-            type_variable.clone()
-        } else {
-            r#type
+            *r#type = type_variable.clone()
         }
     }
 
     /// Finish a type, replace all type variables with concrete types
-    pub fn finish(&mut self, r#type: &mut ir::Type, what: &str, span: diagnostics::Span) {
-        *r#type = self.inline(r#type.clone());
+    pub fn finish(&mut self, r#type: &mut ir::Type, what: &str, span: Option<&Span>) {
+        self.inline(r#type);
         if r#type == &ir::Type::IntegerWildcard {
             *r#type = ir::Type::Int(std::num::NonZeroU16::new(4).unwrap());
         } else if r#type == &ir::Type::FloatWildcard {
             *r#type = ir::Type::Float(std::num::NonZeroU16::new(4).unwrap());
         }
         if !r#type.complete() {
-            self.reporter.report(
-                miette::miette!(
-                    labels = vec![miette::LabeledSpan::at(span.source_span(), "Here"),],
-                    "Could not infer type for {}",
-                    what,
-                )
-                .with_source_code(span.named_source()),
+            self.report(
+                Report::build(ReportKind::Error)
+                    .with_code("typechecking::type_not_inferred")
+                    .with_message(format!("Could not infer type for {}", what))
+                    .opt_label(span.cloned(), |label| {
+                        label.with_message("Here").with_color(colors::Label)
+                    })
+                    .finish(),
             );
+        }
+    }
+
+    /// Report an error
+    pub fn report(&mut self, report: Report) {
+        if report.kind == ReportKind::Error {
             self.abort_compilation = true;
         }
+        self.reporter.report(report);
     }
 }

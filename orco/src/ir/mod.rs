@@ -55,16 +55,8 @@ macro_rules! declare_metadata {
             trait $trait_name:ident {
                 $(
                     $(#[$fn_meta:meta])*
-                    fn $fn_name:ident ($($args:tt)*) $(-> $ret:ty)? $fn_body:block
+                    fn $fn_name:ident$(<$($lt:lifetime),*>)?($($args:tt)*) $(-> $ret:ty)? $fn_body:block
                 )*
-
-                $(
-                    Diagnostics:
-                    $(
-                        $(#[$diagnostic_meta:meta])*
-                        $diagnostic_handler_name:ident ($diagnostic_name:path) $($abort_compilation:ident)?;
-                    )*
-                )?
             }
         )*
     ) => {
@@ -73,18 +65,8 @@ macro_rules! declare_metadata {
             pub trait $trait_name: Downcast + DynClone + Send + Sync {
                 $(
                     $(#[$fn_meta])*
-                    fn $fn_name ($($args)*) $(-> $ret)? $fn_body
+                    fn $fn_name $(<$($lt),*>)? ($($args)*) $(-> $ret)? $fn_body
                 )*
-
-                $(
-                    $(
-                        $(#[$diagnostic_meta])*
-                        fn $diagnostic_handler_name (&self, type_inference: &mut TypeInference, diagnostic: $diagnostic_name) {
-                            type_inference.reporter.report(diagnostic.into());
-                            $(type_inference.$abort_compilation = true;)?
-                        }
-                    )*
-                )?
             }
 
             impl_downcast!($trait_name);

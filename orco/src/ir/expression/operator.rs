@@ -12,7 +12,7 @@ pub struct BinaryExpression {
     pub rhs: Box<Expression>,
     /// Span of the expression
     #[derivative(Debug = "ignore")]
-    pub span: Span,
+    pub span: Option<Span>,
     /// Metadata
     #[derivative(Debug = "ignore")]
     pub metadata: Box<dyn BinaryMetadata>,
@@ -24,7 +24,7 @@ impl BinaryExpression {
         lhs: Box<Expression>,
         op: BinaryOp,
         rhs: Box<Expression>,
-        span: Span,
+        span: Option<Span>,
         metadata: impl BinaryMetadata + 'static,
     ) -> Self {
         Self {
@@ -45,7 +45,7 @@ impl BinaryExpression {
             | BinaryOp::Le
             | BinaryOp::Gt
             | BinaryOp::Ge => Type::Bool,
-            _ => self.lhs.get_type() | self.rhs.get_type(),
+            _ => self.lhs.get_type() | &self.rhs.get_type(),
         }
     }
 
@@ -89,7 +89,7 @@ impl BinaryExpression {
             | BinaryOp::Le
             | BinaryOp::Gt
             | BinaryOp::Ge => Type::Bool,
-            _ => lhs_type | rhs_type,
+            _ => lhs_type | &rhs_type,
         }
     }
 }
@@ -161,7 +161,7 @@ pub struct UnaryExpression {
     pub expr: Box<Expression>,
     /// Span of the expression
     #[derivative(Debug = "ignore")]
-    pub span: Span,
+    pub span: Option<Span>,
     /// Metadata
     #[derivative(Debug = "ignore")]
     pub metadata: Box<dyn UnaryMetadata>,
@@ -172,7 +172,7 @@ impl UnaryExpression {
     pub fn new(
         op: UnaryOp,
         expr: Box<Expression>,
-        span: Span,
+        span: Option<Span>,
         metadata: impl UnaryMetadata + 'static,
     ) -> Self {
         Self {
@@ -243,7 +243,7 @@ pub struct AssignmentExpression {
     pub value: Box<Expression>,
     /// Span of the expression
     #[derivative(Debug = "ignore")]
-    pub span: Span,
+    pub span: Option<Span>,
     /// Metadata
     #[derivative(Debug = "ignore")]
     pub metadata: Box<dyn AssignmentMetadata>,
@@ -254,7 +254,7 @@ impl AssignmentExpression {
     pub fn new(
         target: Box<Expression>,
         value: Box<Expression>,
-        span: Span,
+        span: Option<Span>,
         metadata: impl AssignmentMetadata + 'static,
     ) -> Self {
         Self {
@@ -278,22 +278,22 @@ impl AssignmentExpression {
         let value_type = self.value.finish_and_check_types(type_inference);
         let target_type = self.target.finish_and_check_types(type_inference);
         let can_assign = true;
-        // match self.target.as_ref() {
-        //     Expression::Symbol(symbol, ..) => {
-        //         if let SymbolReference::Variable(variable) = symbol.inner {
-        //             if !variable.mutable.inner {
-        //                 todo!(
-        //                     "Cannot assign to an immutable variable error: '{}'",
-        //                     variable.name
-        //                 );
-        //             }
-        //             true
-        //         } else {
-        //             false
-        //         }
-        //     }
-        //     _ => false,
-        // };
+        match self.target.as_ref() {
+            Expression::Symbol(symbol, ..) => {
+                if let SymbolReference::Variable(variable) = symbol.inner {
+                    if !variable.mutable.inner {
+                        todo!(
+                            "Cannot assign to an immutable variable error: '{}'",
+                            variable.name
+                        );
+                    }
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        };
         if !can_assign {
             todo!("Cannot assign to error: '{}'", self.target);
         }
