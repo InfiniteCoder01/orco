@@ -123,32 +123,41 @@ impl std::fmt::Display for Constant {
     }
 }
 
-declare_metadata! {
-    /// Frontend metadata for integer constant
-    trait IntegerMetadata {
-        /// Name provider for the constant
-        fn name(&self) -> std::borrow::Cow<str> {
-            std::borrow::Cow::Borrowed("integer constant")
-        }
-
-        /// Callback of integer literal doesn't fit error
-        fn integer_literal_doesnt_fit(&self, value: u128, r#type: &Type, span: Option<Span>) -> Report {
-            Report::build(ReportKind::Error)
-                .with_code("typechecking::integer_literal_doesnt_fit")
-                .with_message(format!("Integer literal '{value}' doesn't fit in the type '{type}'"))
-                .opt_label(span, |label| label.with_message(format!("Integer literal '{value}' doesn't fit in the type '{type}'")).with_color(colors::Label))
-                .finish()
-        }
+/// Frontend metadata for integer constant
+pub trait IntegerMetadata: Metadata {
+    /// Name provider for the constant
+    fn name(&self) -> std::borrow::Cow<str> {
+        std::borrow::Cow::Borrowed("integer constant")
     }
 
-    /// Frontend metadata for float constant
-    trait FloatMetadata {
-        /// Name provider for the constant
-        fn name(&self) -> std::borrow::Cow<str> {
-            std::borrow::Cow::Borrowed("float constant")
-        }
+    /// Callback of integer literal doesn't fit error
+    fn integer_literal_doesnt_fit(&self, value: u128, r#type: &Type, span: Option<Span>) -> Report {
+        Report::build(ReportKind::Error)
+            .with_code("typechecking::integer_literal_doesnt_fit")
+            .with_message(format!(
+                "Integer literal '{value}' doesn't fit in the type '{type}'"
+            ))
+            .opt_label(span, |label| {
+                label
+                    .with_message(format!(
+                        "Integer literal '{value}' doesn't fit in the type '{type}'"
+                    ))
+                    .with_color(colors::Label)
+            })
+            .finish()
     }
-
-    /// Frontend metadata for C String
-    trait CStringMetadata {}
 }
+impl_metadata!(IntegerMetadata);
+
+/// Frontend metadata for float constant
+pub trait FloatMetadata: Metadata {
+    /// Name provider for the constant
+    fn name(&self) -> std::borrow::Cow<str> {
+        std::borrow::Cow::Borrowed("float constant")
+    }
+}
+impl_metadata!(FloatMetadata);
+
+/// Frontend metadata for C String
+pub trait CStringMetadata: Metadata {}
+impl_metadata!(CStringMetadata);

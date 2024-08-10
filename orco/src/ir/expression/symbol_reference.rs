@@ -139,67 +139,94 @@ impl std::fmt::Display for SymbolReference {
     }
 }
 
-declare_metadata! {
-    /// Frontend metadata for symbols
-    trait SymbolMetadata {
-        /// Resolve symbol
-        fn resolve_global_symbol(&self, type_inference: &mut TypeInference, name: &Name) -> Option<SymbolReference> {
-            if let Some(symbol) = type_inference.get_symbol(name) {
-                return Some(symbol);
-            }
-            if let Some(symbol) = type_inference.current_module.symbols.get(name) {
-                return Some(SymbolReference::Symbol(InternalPointer::new(symbol.as_ref())));
-            }
-            None
+/// Frontend metadata for symbols
+pub trait SymbolMetadata: Metadata {
+    /// Resolve symbol
+    fn resolve_global_symbol(
+        &self,
+        type_inference: &mut TypeInference,
+        name: &Name,
+    ) -> Option<SymbolReference> {
+        if let Some(symbol) = type_inference.get_symbol(name) {
+            return Some(symbol);
         }
+        if let Some(symbol) = type_inference.current_module.symbols.get(name) {
+            return Some(SymbolReference::Symbol(InternalPointer::new(
+                symbol.as_ref(),
+            )));
+        }
+        None
+    }
 
-        /// Resolve symbol inside of a scope
-        fn resolve_scoped_symbol(&self, type_inference: &mut TypeInference, scope: &Spanned<SymbolReference>, name: &Name) -> Option<SymbolReference> {
-                let _ = type_inference;
-                match scope.inner {
-                    SymbolReference::Symbol(symbol) => {
-                        let symbol = symbol.try_read().unwrap();
-                        let Some(value) = &symbol.evaluated else { return None; };
-                        match symbol.r#type.inner {
-                            Type::Module => {
-                                let module = value.as_ref::<Module>();
-                                module.symbols.get(name).map(|symbol| SymbolReference::Symbol(InternalPointer::new(symbol.as_ref())))
-                            }
-                            _ => None,
-                        }
+    /// Resolve symbol inside of a scope
+    fn resolve_scoped_symbol(
+        &self,
+        type_inference: &mut TypeInference,
+        scope: &Spanned<SymbolReference>,
+        name: &Name,
+    ) -> Option<SymbolReference> {
+        let _ = type_inference;
+        match scope.inner {
+            SymbolReference::Symbol(symbol) => {
+                let symbol = symbol.try_read().unwrap();
+                let Some(value) = &symbol.evaluated else {
+                    return None;
+                };
+                match symbol.r#type.inner {
+                    Type::Module => {
+                        let module = value.as_ref::<Module>();
+                        module.symbols.get(name).map(|symbol| {
+                            SymbolReference::Symbol(InternalPointer::new(symbol.as_ref()))
+                        })
                     }
                     _ => None,
                 }
             }
-
-        /// Callback of global symbol not found error
-        fn global_symbol_not_found(&self, name: &Name, span: Option<Span>) -> Report {
-            Report::build(ReportKind::Error)
-                .with_code("symbol::symbol_not_found")
-                .with_message(format!("Symbol '{name}' was not declared in this scope"))
-                .opt_label(span, |label| label.with_message("Here").with_color(colors::Label))
-                .finish()
-        }
-
-        /// Callback of global symbol not found error
-        fn scoped_symbol_not_found(&self, scope: &Spanned<SymbolReference>, name: &Name, span: Option<Span>) -> Report {
-            Report::build(ReportKind::Error)
-                .with_code("symbol::symbol_not_found")
-                .with_message(format!("Symbol '{name}' could not be found in '{scope}'"))
-                .opt_label(span, |label| label.with_message("Here").with_color(colors::Label))
-                .finish()
-        }
-
-        /// Callback of recursive evaluation error
-        fn recursive_evaluation(&self, name: &Name, span: Option<Span>)  -> Report {
-            Report::build(ReportKind::Error)
-                .with_code("symbol::recursive_evaluation")
-                .with_message(format!("Recursive use of a constexpr symbol '{name}' in it's evaluation"))
-                .opt_label(span, |label| label.with_message("Here").with_color(colors::Label))
-                .finish()
+            _ => None,
         }
     }
+
+    /// Callback of global symbol not found error
+    fn global_symbol_not_found(&self, name: &Name, span: Option<Span>) -> Report {
+        Report::build(ReportKind::Error)
+            .with_code("symbol::symbol_not_found")
+            .with_message(format!("Symbol '{name}' was not declared in this scope"))
+            .opt_label(span, |label| {
+                label.with_message("Here").with_color(colors::Label)
+            })
+            .finish()
+    }
+
+    /// Callback of global symbol not found error
+    fn scoped_symbol_not_found(
+        &self,
+        scope: &Spanned<SymbolReference>,
+        name: &Name,
+        span: Option<Span>,
+    ) -> Report {
+        Report::build(ReportKind::Error)
+            .with_code("symbol::symbol_not_found")
+            .with_message(format!("Symbol '{name}' could not be found in '{scope}'"))
+            .opt_label(span, |label| {
+                label.with_message("Here").with_color(colors::Label)
+            })
+            .finish()
+    }
+
+    /// Callback of recursive evaluation error
+    fn recursive_evaluation(&self, name: &Name, span: Option<Span>) -> Report {
+        Report::build(ReportKind::Error)
+            .with_code("symbol::recursive_evaluation")
+            .with_message(format!(
+                "Recursive use of a constexpr symbol '{name}' in it's evaluation"
+            ))
+            .opt_label(span, |label| {
+                label.with_message("Here").with_color(colors::Label)
+            })
+            .finish()
+    }
 }
+impl_metadata!(SymbolMetadata);
 
 /// Pointer to interanl IR data, use with care!
 #[derive(Derivative)]

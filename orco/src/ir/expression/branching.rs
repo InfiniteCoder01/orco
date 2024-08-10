@@ -102,26 +102,43 @@ impl std::fmt::Display for IfExpression {
     }
 }
 
-declare_metadata! {
-    /// Frontend metadata for if expression
-    trait IfMetadata {
-        /// Callback of if condition not bool error
-        fn if_condition_not_bool(&self, condition_type: &Type, span: Option<Span>) -> Report {
-            Report::build(ReportKind::Error)
-                .with_code("typechecking::if_condition_not_bool")
-                .with_message(format!("If condition should be of type 'bool', but it is of type '{condition_type}'"))
-                .opt_label(span, |label| label.with_message("Here").with_color(colors::Label))
-                .finish()
-        }
+/// Frontend metadata for if expression
+pub trait IfMetadata: Metadata {
+    /// Callback of if condition not bool error
+    fn if_condition_not_bool(&self, condition_type: &Type, span: Option<Span>) -> Report {
+        Report::build(ReportKind::Error)
+            .with_code("typechecking::if_condition_not_bool")
+            .with_message(format!(
+                "If condition should be of type 'bool', but it is of type '{condition_type}'"
+            ))
+            .opt_label(span, |label| {
+                label.with_message("Here").with_color(colors::Label)
+            })
+            .finish()
+    }
 
-        /// Callback of else branch type mismatch
-        fn else_branch_type_mismatch(&self, then_type: &Type, else_type: &Type, then_span: Option<Span>, else_span: Option<Span>) -> Report {
-            Report::build(ReportKind::Error)
-                .with_code("typechecking::if_else_branch_type_mismatch")
-                .with_message(format!("If-Else branch type mismatch: Expected '{then_type}', got '{else_type}'"))
-                .opt_label(else_span, |label| label.with_message("Here").with_color(colors::Got))
-                .opt_label(then_span, |label| label.with_message("Expected because of this").with_color(colors::Expected))
-                .finish()
-        }
+    /// Callback of else branch type mismatch
+    fn else_branch_type_mismatch(
+        &self,
+        then_type: &Type,
+        else_type: &Type,
+        then_span: Option<Span>,
+        else_span: Option<Span>,
+    ) -> Report {
+        Report::build(ReportKind::Error)
+            .with_code("typechecking::if_else_branch_type_mismatch")
+            .with_message(format!(
+                "If-Else branch type mismatch: Expected '{then_type}', got '{else_type}'"
+            ))
+            .opt_label(else_span, |label| {
+                label.with_message("Here").with_color(colors::Got)
+            })
+            .opt_label(then_span, |label| {
+                label
+                    .with_message("Expected because of this")
+                    .with_color(colors::Expected)
+            })
+            .finish()
     }
 }
+impl_metadata!(IfMetadata);

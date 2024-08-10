@@ -158,17 +158,24 @@ impl UnreachableCode {
     }
 }
 
-declare_metadata! {
-    /// Frontend metadata for block expression
-    trait BlockMetadata {
-        /// Callback of unreachable code warning
-        fn unreachable_code(&self, unreachable_code: UnreachableCode) -> Report {
-            Report::build(ReportKind::Warning)
-                .with_code("potential_bugs::unreachable_code")
-                .with_message("Unreachable code")
-                .opt_label(unreachable_code.unreachable_code, |label| label.with_message("This code is unreachable").with_color(colors::Label))
-                .opt_label(unreachable_code.reason, |label| label.with_message("Note: Unreachable beacuse of this").with_color(colors::Hint))
-                .finish()
-        }
+/// Frontend metadata for block expression
+pub trait BlockMetadata: Metadata {
+    /// Callback of unreachable code warning
+    fn unreachable_code(&self, unreachable_code: UnreachableCode) -> Report {
+        Report::build(ReportKind::Warning)
+            .with_code("potential_bugs::unreachable_code")
+            .with_message("Unreachable code")
+            .opt_label(unreachable_code.unreachable_code, |label| {
+                label
+                    .with_message("This code is unreachable")
+                    .with_color(colors::Label)
+            })
+            .opt_label(unreachable_code.reason, |label| {
+                label
+                    .with_message("Note: Unreachable beacuse of this")
+                    .with_color(colors::Hint)
+            })
+            .finish()
     }
 }
+impl_metadata!(BlockMetadata);

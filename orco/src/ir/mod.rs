@@ -16,13 +16,25 @@ pub mod expression;
 pub use expression::Expression;
 
 /// A module (namespace). Can be a file, some small section of it or the whole codebase
-#[derive(Debug, Default)]
+#[derive(Derivative)]
+#[derivative(Debug, Default)]
 pub struct Module {
     /// Module content
     pub symbols: std::collections::HashMap<Name, std::pin::Pin<Box<std::sync::RwLock<Symbol>>>>,
+    /// Metadata
+    #[derivative(Debug = "ignore", Default(value = "Box::new(())"))]
+    pub metadata: Box<dyn ModuleMetadata>,
 }
 
 impl Module {
+    /// Create a new module
+    pub fn new(metadata: impl ModuleMetadata + 'static) -> Self {
+        Self {
+            symbols: std::collections::HashMap::new(),
+            metadata: Box::new(metadata),
+        }
+    }
+
     /// Infer and check types for the whole module
     pub fn infer_and_check_types(&self, type_inference: &mut TypeInference) {
         for symbol in self.symbols.values() {
@@ -44,6 +56,7 @@ impl Clone for Module {
                     )
                 })
                 .collect(),
+            metadata: self.metadata.clone(),
         }
     }
 }
@@ -63,32 +76,20 @@ impl std::fmt::Display for Module {
     }
 }
 
+/// Frontend metadata for a module
+pub trait ModuleMetadata: Metadata {}
+impl_metadata!(ModuleMetadata);
+
+/// Any metadata implements this trait
+pub trait Metadata: Downcast + DynClone + Send + Sync {}
+impl Metadata for () {}
+
 #[macro_export]
 /// Create a new metadata trait
-macro_rules! declare_metadata {
-    (
-        $(
-            $(#[$meta:meta])*
-            trait $trait_name:ident {
-                $(
-                    $(#[$fn_meta:meta])*
-                    fn $fn_name:ident$(<$($lt:lifetime),*>)?($($args:tt)*) $(-> $ret:ty)? $fn_body:block
-                )*
-            }
-        )*
-    ) => {
-        $(
-            $(#[$meta])*
-            pub trait $trait_name: Downcast + DynClone + Send + Sync {
-                $(
-                    $(#[$fn_meta])*
-                    fn $fn_name $(<$($lt),*>)? ($($args)*) $(-> $ret)? $fn_body
-                )*
-            }
-
-            impl_downcast!($trait_name);
-            clone_trait_object!($trait_name);
-            impl $trait_name for () {}
-        )*
+macro_rules! impl_metadata {
+    ($trait:ident) => {
+        impl_downcast!($trait);
+        clone_trait_object!($trait);
+        impl $trait for () {}
     };
 }

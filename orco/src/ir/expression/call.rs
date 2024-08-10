@@ -103,34 +103,62 @@ impl std::fmt::Display for CallExpression {
     }
 }
 
-declare_metadata! {
-    /// Frontend metadata for a function call
-    trait CallMetadata {
-        /// Argument count mismatch error callback
-        fn argument_count_mismatch(&self, callee: &Expression, args: &Spanned<Vec<Expression>>, signature_args: &Spanned<Vec<Spanned<Type>>>) -> Report {
-            Report::build(ReportKind::Error)
-                .with_code("typechecking::argument_count_mismatch")
-                .with_message(format!(
-                    "Argument count mismatch: '{callee}' expects {} argument{}, but {} {} given",
-                    signature_args.inner.len(), if signature_args.inner.len() > 1 { "s" } else { "" },
-                    args.inner.len(), if args.inner.len() > 1 { "were" } else { "was" }
-                ))
-                .opt_label(args.span.clone(), |label| label.with_message("Arguments").with_color(colors::Got))
-                .opt_label(signature_args.span.clone(), |label| label.with_message("Expected because of this").with_color(colors::Expected))
-                .finish()
-        }
+/// Frontend metadata for a function call
+pub trait CallMetadata: Metadata {
+    /// Argument count mismatch error callback
+    fn argument_count_mismatch(
+        &self,
+        callee: &Expression,
+        args: &Spanned<Vec<Expression>>,
+        signature_args: &Spanned<Vec<Spanned<Type>>>,
+    ) -> Report {
+        Report::build(ReportKind::Error)
+            .with_code("typechecking::argument_count_mismatch")
+            .with_message(format!(
+                "Argument count mismatch: '{callee}' expects {} argument{}, but {} {} given",
+                signature_args.inner.len(),
+                if signature_args.inner.len() > 1 {
+                    "s"
+                } else {
+                    ""
+                },
+                args.inner.len(),
+                if args.inner.len() > 1 { "were" } else { "was" }
+            ))
+            .opt_label(args.span.clone(), |label| {
+                label.with_message("Arguments").with_color(colors::Got)
+            })
+            .opt_label(signature_args.span.clone(), |label| {
+                label
+                    .with_message("Expected because of this")
+                    .with_color(colors::Expected)
+            })
+            .finish()
+    }
 
-        /// Argument type mismatch error callback
-        fn argument_type_mismatch(&self, expression: &Expression, arg: &Type, arg_span: Option<Span>, signature_arg: &Spanned<Type>) -> Report {
-            Report::build(ReportKind::Error)
-                .with_code("typechecking::argument_type_mismatch")
-                .with_message(format!(
-                    "Incompatible argument types for '{expression}': expected '{}', got '{arg}'",
-                    signature_arg.inner
-                ))
-                .opt_label(arg_span, |label| label.with_message("Argument").with_color(colors::Got))
-                .opt_label(signature_arg.span.clone(), |label| label.with_message("Expected because of this").with_color(colors::Expected))
-                .finish()
-        }
+    /// Argument type mismatch error callback
+    fn argument_type_mismatch(
+        &self,
+        expression: &Expression,
+        arg: &Type,
+        arg_span: Option<Span>,
+        signature_arg: &Spanned<Type>,
+    ) -> Report {
+        Report::build(ReportKind::Error)
+            .with_code("typechecking::argument_type_mismatch")
+            .with_message(format!(
+                "Incompatible argument types for '{expression}': expected '{}', got '{arg}'",
+                signature_arg.inner
+            ))
+            .opt_label(arg_span, |label| {
+                label.with_message("Argument").with_color(colors::Got)
+            })
+            .opt_label(signature_arg.span.clone(), |label| {
+                label
+                    .with_message("Expected because of this")
+                    .with_color(colors::Expected)
+            })
+            .finish()
     }
 }
+impl_metadata!(CallMetadata);

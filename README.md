@@ -38,7 +38,7 @@ Roadmap for now:
 - [x] Move spans to frontend?
 - [x] Comptime type hints
 - [x] Path as an operator \[cancelled\]
-- [ ] orco::Path is borrowing names?
+- [x] `orco::Path` borrowing names? \[cancelled\]
 - [ ] Get metadata traits out of macros
 - [ ] Parent modules (`super::`)
 - [ ] Comptimes in blocks

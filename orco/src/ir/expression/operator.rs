@@ -146,11 +146,9 @@ impl std::fmt::Display for BinaryOp {
     }
 }
 
-declare_metadata! {
-    /// Frontend metadata for binary expression
-    trait BinaryMetadata {
-    }
-}
+/// Frontend metadata for binary expression
+pub trait BinaryMetadata: Metadata {}
+impl_metadata!(BinaryMetadata);
 
 /// Unary expression
 #[derive(Derivative, Clone)]
@@ -228,11 +226,9 @@ impl std::fmt::Display for UnaryOp {
     }
 }
 
-declare_metadata! {
-    /// Frontend metadata for unary expression
-    trait UnaryMetadata {
-    }
-}
+/// Frontend metadata for unary expression
+pub trait UnaryMetadata: Metadata {}
+impl_metadata!(UnaryMetadata);
 
 /// Assignment expression
 #[derive(Derivative, Clone)]
@@ -311,8 +307,6 @@ impl std::fmt::Display for AssignmentExpression {
     }
 }
 
-declare_metadata! {
-    /// Frontend metadata for assignment expression
-    trait AssignmentMetadata {
-    }
-}
+/// Frontend metadata for assignment expression
+pub trait AssignmentMetadata: Metadata {}
+impl_metadata!(AssignmentMetadata);

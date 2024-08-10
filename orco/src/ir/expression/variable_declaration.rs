@@ -128,20 +128,31 @@ impl std::fmt::Display for VariableDeclaration {
     }
 }
 
-declare_metadata! {
-    /// Frontend metadata for variable declaration
-    trait VariableDeclarationMetadata {
-        /// Variable declaration type mismatch error callback
-        fn variable_declaration_type_mismatch(&self, r#type: &Type, span: Option<Span>, signature_type: &Type, signature_span: Option<Span>) -> Report {
-            Report::build(ReportKind::Error)
-                .with_code("typechecking::variable_declaration_type_mismatch")
-                .with_message(format!(
-                    "Incompatible types for variable declaration: expected '{}', got '{}'",
-                    signature_type, r#type
-                ))
-                .opt_label(span, |label| label.with_message("Here").with_color(colors::Got))
-                .opt_label(signature_span, |label| label.with_message("Expected because of this").with_color(colors::Expected))
-                .finish()
-        }
+/// Frontend metadata for variable declaration
+pub trait VariableDeclarationMetadata: Metadata {
+    /// Variable declaration type mismatch error callback
+    fn variable_declaration_type_mismatch(
+        &self,
+        r#type: &Type,
+        span: Option<Span>,
+        signature_type: &Type,
+        signature_span: Option<Span>,
+    ) -> Report {
+        Report::build(ReportKind::Error)
+            .with_code("typechecking::variable_declaration_type_mismatch")
+            .with_message(format!(
+                "Incompatible types for variable declaration: expected '{}', got '{}'",
+                signature_type, r#type
+            ))
+            .opt_label(span, |label| {
+                label.with_message("Here").with_color(colors::Got)
+            })
+            .opt_label(signature_span, |label| {
+                label
+                    .with_message("Expected because of this")
+                    .with_color(colors::Expected)
+            })
+            .finish()
     }
 }
+impl_metadata!(VariableDeclarationMetadata);
