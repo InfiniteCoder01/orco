@@ -15,10 +15,13 @@ impl std::fmt::Display for TypeVariableId {
 }
 
 /// Type inference information for a function
+#[derive(derivative::Derivative)]
+#[derivative(Debug)]
 pub struct TypeInference<'a> {
     /// Return type of a function
     pub return_type: Option<diagnostics::Spanned<ir::Type>>,
     /// Error reporter
+    #[derivative(Debug = "ignore")]
     pub reporter: &'a mut dyn diagnostics::ErrorReporter,
     /// Interpreter context
     pub interpreter: Interpreter,

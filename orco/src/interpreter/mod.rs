@@ -9,7 +9,7 @@ pub use value::Value;
 pub mod operator;
 
 /// Context for an interpreter
-#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, Default)]
 pub struct Interpreter {}
 
 impl Interpreter {

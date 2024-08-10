@@ -39,6 +39,7 @@ pub enum Token {
     #[token("<=", |_| Operator::LtEq)]
     #[token(">", |_| Operator::Gt)]
     #[token(">=", |_| Operator::GtEq)]
+    #[token("::", |_| Operator::ColonColon)]
     Operator(Operator),
     /// Constant
     #[regex("[0-9][0-9_]*", |lex| parse_unsigned(lex.slice(), "", 10))]
@@ -179,6 +180,8 @@ pub enum Operator {
     Gt,
     /// >=
     GtEq,
+    /// ::
+    ColonColon,
 }
 
 impl std::fmt::Display for Operator {
@@ -206,6 +209,7 @@ impl std::fmt::Display for Operator {
             Operator::LtEq => write!(f, "<="),
             Operator::Gt => write!(f, ">"),
             Operator::GtEq => write!(f, ">="),
+            Operator::ColonColon => write!(f, "::"),
         }
     }
 }

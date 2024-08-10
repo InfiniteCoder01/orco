@@ -39,18 +39,18 @@ pub fn ensure_evaluated(symbol: &RwLock<Symbol>, type_inference: &mut TypeInfere
     if !should_evaluate {
         return;
     }
-    let mut checked_symbol = symbol.try_write().unwrap();
-    if checked_symbol.evaluated.is_none() {
+    let mut symbol_locked = symbol.try_write().unwrap();
+    if symbol_locked.evaluated.is_none() {
         let abort_compilation = type_inference.abort_compilation;
         type_inference.abort_compilation = false;
 
-        let r#type = checked_symbol.value.infer_types(type_inference);
-        type_inference.complete(&mut checked_symbol.r#type);
-        type_inference.equate(&r#type, &checked_symbol.r#type);
+        let r#type = symbol_locked.value.infer_types(type_inference);
+        type_inference.complete(&mut symbol_locked.r#type);
+        type_inference.equate(&r#type, &symbol_locked.r#type);
 
-        let r#type = checked_symbol.value.finish_and_check_types(type_inference);
+        symbol_locked.value.finish_and_check_types(type_inference);
         {
-            let symbol: &mut Symbol = &mut checked_symbol;
+            let symbol: &mut Symbol = &mut symbol_locked;
             type_inference.finish(
                 &mut symbol.r#type,
                 &format!("symbol '{}'", symbol.name),
@@ -58,23 +58,29 @@ pub fn ensure_evaluated(symbol: &RwLock<Symbol>, type_inference: &mut TypeInfere
             );
         }
         if type_inference.abort_compilation {
-            checked_symbol.evaluation_failed = true;
+            symbol_locked.evaluation_failed = true;
             return;
         }
 
         type_inference.abort_compilation = abort_compilation;
+        symbol_locked.evaluated = Some(type_inference.interpreter.evaluate(&symbol_locked.value));
+        drop(symbol_locked);
 
-        checked_symbol.evaluated = Some(type_inference.interpreter.evaluate(&checked_symbol.value));
-        drop(checked_symbol);
-
-        if r#type == Type::Function {
-            let symbol = symbol.try_read().unwrap();
-            let function = symbol
-                .evaluated
-                .as_ref()
-                .unwrap()
-                .as_ref::<expression::Function>();
-            function.infer_and_check_types(type_inference);
+        let symbol_locked = symbol.try_read().unwrap();
+        match symbol_locked.r#type.inner {
+            Type::Function => {
+                let function = symbol_locked
+                    .evaluated
+                    .as_ref()
+                    .unwrap()
+                    .as_ref::<expression::Function>();
+                function.infer_and_check_types(type_inference);
+            }
+            Type::Module => {
+                let module = symbol_locked.evaluated.as_ref().unwrap().as_ref::<Module>();
+                module.infer_and_check_types(type_inference);
+            }
+            _ => (),
         }
     }
 }
@@ -103,8 +109,11 @@ impl Clone for Symbol {
 impl std::fmt::Display for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let value = match self.evaluated.as_ref() {
-            Some(evaluated) if self.value.get_type() == Type::Function => {
+            Some(evaluated) if self.r#type.inner == Type::Function => {
                 format!("{}", evaluated.as_ref::<expression::Function>())
+            }
+            Some(evaluated) if self.r#type.inner == Type::Module => {
+                format!("{}", evaluated.as_ref::<Module>())
             }
             _ => format!("{}", self.value),
         };
