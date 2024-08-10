@@ -16,8 +16,8 @@ impl crate::Object {
                         self.object.declare_func_in_func(
 	                        *self
 	                            .functions
-	                            .get(&Path::single(symbol.name.clone()))
-	                            .unwrap_or_else(|| panic!("Function {} is not defined", symbol.name)),
+	                            .get(&symbol.path)
+	                            .unwrap_or_else(|| panic!("Function {} is not defined", symbol.path)),
 	                        builder.func,
                         )
                     },

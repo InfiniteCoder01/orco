@@ -4,6 +4,6 @@ comptime libc = module {
 };
 
 comptime main = fn () -> i32 {
-    // libc::puts(c"Hello, World!");
+    libc::puts(c"Hello, World!");
     0
 };

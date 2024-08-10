@@ -115,7 +115,7 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
             (),
         )))
     } else if parser.match_keyword("module") {
-	    let module = super::parse(parser, true);
+        let module = super::parse(parser, true);
         Expression::Module(parser.wrap_span(module, start))
     } else if let Some(constant) = parser.match_literal() {
         Expression::Constant(constant)
@@ -124,13 +124,20 @@ pub fn unit_expression<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Opt
     } else if parser.match_keyword("if") {
         branching::expect_if(parser, start)
     } else if let Some(name) = parser.match_ident() {
-        Expression::Symbol(
-            parser.wrap_span(
-                orco::ir::expression::SymbolReference::Unresolved(orco::Path::single(name)),
+        let mut reference = parser.wrap_span(
+            orco::ir::expression::SymbolReference::Unresolved(name),
+            start,
+        );
+        while parser.match_operator(Operator::ColonColon) {
+            let Some(name) = parser.expect_ident("symbol") else {
+                break;
+            };
+            reference = parser.wrap_span(
+                ir::expression::SymbolReference::ScopeAccess(Box::new(reference), name),
                 start,
-            ),
-            Box::new(()),
-        )
+            );
+        }
+        Expression::Symbol(reference, Box::new(()))
     } else {
         return None;
     };

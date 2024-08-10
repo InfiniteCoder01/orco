@@ -37,13 +37,15 @@ Roadmap for now:
 - [x] Remove Ariadne completely (+ lexer abort compilation)
 - [x] Move spans to frontend?
 - [x] Comptime type hints
-- [ ] Path as an operator
+- [x] Path as an operator \[cancelled\]
 - [ ] orco::Path is borrowing names?
+- [ ] Get metadata traits out of macros
+- [ ] Parent modules (`super::`)
 - [ ] Comptimes in blocks
+- [ ] Operator Overloading & Traits
 - [ ] Finish the interpreter
 - [ ] Unwinding?
 - [ ] Effect system?!
-- [ ] Operator Overloading & Traits
 - [ ] Structs
 - [ ] Pointers
 - [ ] Typecasts

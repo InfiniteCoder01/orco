@@ -1,4 +1,3 @@
-use super::*;
 use cranelift_codegen::entity::EntityRef;
 use cranelift_codegen::ir::{InstBuilder, Value};
 use cranelift_frontend::{FunctionBuilder, Variable};

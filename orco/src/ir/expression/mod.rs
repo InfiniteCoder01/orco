@@ -184,13 +184,17 @@ impl Clone for Expression {
             Self::ExternFunction(function) => Self::ExternFunction(function.clone()),
             Self::Module(module) => Self::Module(module.clone()),
             Self::Constant(constant) => Self::Constant(constant.clone()),
-            Self::Symbol(symbol, _) if !matches!(symbol.inner, SymbolReference::Unresolved(_)) => {
-                unimplemented!(
-                    "Cloning resolved symbols is not yet implemented, symbol: {}",
-                    self
-                )
-            }
-            Self::Symbol(symbol, meta) => Self::Symbol(symbol.clone(), meta.clone()),
+            Self::Symbol(symbol, meta) => match symbol.inner {
+                SymbolReference::Unresolved(..) | SymbolReference::ScopeAccess(..) => {
+                    Self::Symbol(symbol.clone(), meta.clone())
+                }
+                _ => {
+                    unimplemented!(
+                        "Cloning resolved symbols is not yet implemented, symbol: {}",
+                        self
+                    )
+                }
+            },
             Self::BinaryExpression(expr) => Self::BinaryExpression(expr.clone()),
             Self::UnaryExpression(expr) => Self::UnaryExpression(expr.clone()),
             Self::Block(block) => Self::Block(block.clone()),

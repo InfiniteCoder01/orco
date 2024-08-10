@@ -10,17 +10,18 @@ impl crate::Object {
     /// Declare a function in the object
     pub fn declare_function(
         &mut self,
-        name: Path,
+        path: Path,
+        import_as_name: Option<&str>,
         linkage: cranelift_module::Linkage,
         signature: &orco::ir::expression::function::Signature,
     ) -> cranelift_module::FuncId {
-        trace!("Declaring function {}", name);
+        trace!("Declaring function {}", path);
         let sig = self.convert_function_signature(signature);
         let id = self
             .object
-            .declare_function(&name.to_string(), linkage, &sig)
+            .declare_function(import_as_name.unwrap_or(&path.to_string()), linkage, &sig)
             .unwrap();
-        self.functions.insert(name, id);
+        self.functions.insert(path, id);
         id
     }
 
@@ -33,7 +34,10 @@ impl crate::Object {
         info!("Compiling function {}", name);
         trace!("OrCo IR:\n{}", function);
 
-        let id = *self.functions.get(name).expect("Function wasn't declared");
+        let id = *self
+            .functions
+            .get(name)
+            .expect("Compiling function that wasn't declared");
         let sig = self.convert_function_signature(&function.signature);
         let mut ctx = Context::new();
         ctx.func = Function::with_name_signature(

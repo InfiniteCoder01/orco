@@ -29,9 +29,9 @@ pub struct TypeInference<'a> {
     pub type_table: Vec<(Vec<TypeVariableId>, ir::Type)>,
 
     /// Root module
-    pub root_module: &'a ir::Module,
+    pub root_module: std::pin::Pin<&'a ir::Module>,
     /// Current module
-    pub current_module: &'a ir::Module,
+    pub current_module: ir::expression::symbol_reference::InternalPointer<ir::Module>,
     /// Current module path
     pub current_module_path: Path,
 
@@ -50,6 +50,7 @@ impl<'a> TypeInference<'a> {
         interpreter: Interpreter,
         root_module: &'a ir::Module,
     ) -> Self {
+        let root_module = std::pin::Pin::new(root_module);
         Self {
             return_type: None,
             reporter,
@@ -57,7 +58,7 @@ impl<'a> TypeInference<'a> {
             type_table: Vec::new(),
 
             root_module,
-            current_module: root_module,
+            current_module: ir::expression::symbol_reference::InternalPointer::new(root_module),
             current_module_path: Path::new(),
 
             abort_compilation: false,

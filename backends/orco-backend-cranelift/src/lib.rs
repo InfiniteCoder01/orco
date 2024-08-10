@@ -53,6 +53,7 @@ impl Object {
 pub fn build(root: &orco::ir::Module) {
     debug!("Compiling module:\n{}", root);
     let mut object = Object::new("x86_64-unknown-linux-gnu");
+    object.declare_module(root, &Path::new());
     object.build_module(root, &Path::new());
 
     if let Some((id, data)) = object.constant_data {

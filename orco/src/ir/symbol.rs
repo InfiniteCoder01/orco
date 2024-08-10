@@ -7,6 +7,8 @@ use super::*;
 pub struct Symbol {
     /// Symbol name
     pub name: Name,
+    /// Symbol path, gets completed at type-inferece stage
+    pub path: Path,
     /// Symbol type
     pub r#type: Spanned<Type>,
     /// Symbol value
@@ -22,6 +24,7 @@ impl Symbol {
     pub fn new(name: Name, r#type: Spanned<Type>, value: Expression) -> Self {
         Self {
             name,
+            path: Path::new(),
             r#type,
             value,
             evaluated: None,
@@ -40,6 +43,9 @@ pub fn ensure_evaluated(symbol: &RwLock<Symbol>, type_inference: &mut TypeInfere
         return;
     }
     let mut symbol_locked = symbol.try_write().unwrap();
+    symbol_locked.path = type_inference
+        .current_module_path
+        .extend(symbol_locked.name.clone());
     if symbol_locked.evaluated.is_none() {
         let abort_compilation = type_inference.abort_compilation;
         type_inference.abort_compilation = false;
@@ -78,7 +84,20 @@ pub fn ensure_evaluated(symbol: &RwLock<Symbol>, type_inference: &mut TypeInfere
             }
             Type::Module => {
                 let module = symbol_locked.evaluated.as_ref().unwrap().as_ref::<Module>();
+                let module = std::pin::Pin::new(module);
+
+                let current_module = std::mem::replace(
+                    &mut type_inference.current_module,
+                    expression::symbol_reference::InternalPointer::new(module),
+                );
+                type_inference
+                    .current_module_path
+                    .push(symbol_locked.name.clone());
+
                 module.infer_and_check_types(type_inference);
+
+                type_inference.current_module_path.0.pop();
+                type_inference.current_module = current_module;
             }
             _ => (),
         }
@@ -98,6 +117,7 @@ impl Clone for Symbol {
     fn clone(&self) -> Self {
         Self {
             name: self.name.clone(),
+            path: self.path.clone(),
             r#type: self.r#type.clone(),
             value: self.value.clone(),
             evaluated: None,
