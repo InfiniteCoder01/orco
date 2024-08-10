@@ -6,14 +6,13 @@ pub use log;
 
 /// Diagnostics
 pub mod diagnostics;
-use diagnostics::*;
+pub use diagnostics::*;
 
 /// OrCo Intermediate Representation lives here
 pub mod ir;
 
 /// Source and span
 pub mod source;
-pub use source::*;
 
 /// Type inference structs and functions
 pub mod type_inference;

@@ -4,23 +4,35 @@ use parser_utils::*;
 #[test]
 fn ident() {
     parse("ident", |mut parser| {
-        check!(parser.next() == Some(Token::Ident(Span::new("ident"))));
+        check!(parser.next() == Some(Token::Ident(ParsedIdent::new(Span::new("ident"), false))));
         check!(parser.reporter.len() == 0);
     });
     parse("digits2", |mut parser| {
-        check!(parser.next() == Some(Token::Ident(Span::new("digits2"))));
+        check!(parser.next() == Some(Token::Ident(ParsedIdent::new(Span::new("digits2"), false))));
         check!(parser.reporter.len() == 0);
     });
     parse("underscore_2_4_abc", |mut parser| {
-        check!(parser.next() == Some(Token::Ident(Span::new("underscore_2_4_abc"))));
+        check!(
+            parser.next()
+                == Some(Token::Ident(ParsedIdent::new(
+                    Span::new("underscore_2_4_abc"),
+                    false
+                )))
+        );
         check!(parser.reporter.len() == 0);
     });
     parse("_privateCapital", |mut parser| {
-        check!(parser.next() == Some(Token::Ident(Span::new("_privateCapital"))));
+        check!(
+            parser.next()
+                == Some(Token::Ident(ParsedIdent::new(
+                    Span::new("_privateCapital"),
+                    false
+                )))
+        );
         check!(parser.reporter.len() == 0);
     });
     parse("r#return", |mut parser| {
-        check!(parser.next() == Some(Token::Ident(Span::new("return"))));
+        check!(parser.next() == Some(Token::Ident(ParsedIdent::new(Span::new("return"), true))));
         check!(parser.reporter.len() == 0);
     });
 }

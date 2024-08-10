@@ -27,21 +27,19 @@ pub fn parse_symbol<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option
 pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>, braces: bool) -> ir::Module {
     let mut module = ir::Module::default();
     if braces {
-		parser.expect_operator(Operator::LBrace);
-	}
+        parser.expect_operator(Operator::LBrace);
+    }
     loop {
-    	if braces {
-    		if parser.match_operator(Operator::RBrace) {
-    			break;
-	    	} else if parser.eof() {
-	    		parser.expect_operator(Operator::RBrace);
-				break;
-			}
-	    } else {
-			if parser.eof() {
-				break;
-			}
-	    }
+        if braces {
+            if parser.match_operator(Operator::RBrace) {
+                break;
+            } else if parser.eof() {
+                parser.expect_operator(Operator::RBrace);
+                break;
+            }
+        } else if parser.eof() {
+            break;
+        }
         if let Some(symbol) = parse_symbol(parser) {
             parser.expect_operator(Operator::Semicolon);
             module.symbols.insert(

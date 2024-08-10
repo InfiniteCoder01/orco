@@ -113,13 +113,12 @@ impl<'a> TypeInference<'a> {
                     [(usize, &'a mut (Vec<TypeVariableId>, ir::Type)); 2];
                 let type_variables: Result<TwoTypeVariables, _> = type_variables.try_into();
 
-                match type_variables {
-                    Ok([(_, (type1_ids, type1)), (type2_index, (type2_ids, type2))]) => {
-                        type1_ids.append(type2_ids);
-                        type1.equate(type2);
-                        self.type_table.remove(type2_index);
-                    }
-                    Err(_) => (),
+                if let Ok([(_, (type1_ids, type1)), (type2_index, (type2_ids, type2))]) =
+                    type_variables
+                {
+                    type1_ids.append(type2_ids);
+                    type1.equate(type2);
+                    self.type_table.remove(type2_index);
                 }
             }
             (ir::Type::TypeVariable(type_variable), r#type)

@@ -39,7 +39,7 @@ Roadmap for now:
 - [x] Comptime type hints
 - [x] Path as an operator \[cancelled\]
 - [x] `orco::Path` borrowing names? \[cancelled\]
-- [ ] Get metadata traits out of macros
+- [x] Get metadata traits out of macros
 - [ ] Parent modules (`super::`)
 - [ ] Comptimes in blocks
 - [ ] Operator Overloading & Traits
