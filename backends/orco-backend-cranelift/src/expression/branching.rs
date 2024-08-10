@@ -1,6 +1,6 @@
 use super::*;
 
-impl crate::Object<'_> {
+impl crate::Object {
     /// Build an if expression
     pub fn build_if_expression(
         &mut self,

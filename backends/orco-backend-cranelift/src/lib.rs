@@ -9,13 +9,13 @@ use orco::Path;
 pub mod expression;
 /// Declare and build functions
 pub mod function;
+/// Declare and build modules
+pub mod module;
 /// Declare and convert types
 pub mod types;
 
 /// Object, translation unit, a wrapper around `cranelift_object::ObjectModule`
-pub struct Object<'a> {
-    /// The root module of the OrCo IR
-    pub root: &'a orco::ir::Module,
+pub struct Object {
     /// Cranelift object
     pub object: cranelift_object::ObjectModule,
     /// Functions table
@@ -24,9 +24,9 @@ pub struct Object<'a> {
     pub constant_data: Option<(cranelift_module::DataId, Vec<u8>)>,
 }
 
-impl<'a> Object<'a> {
+impl Object {
     /// Create a new object from an OrCo IR and an ISA name
-    pub fn new(root: &'a orco::ir::Module, isa: &str) -> Self {
+    pub fn new(isa: &str) -> Self {
         let flag_builder = cranelift_codegen::settings::builder();
         let isa_builder = cranelift_codegen::isa::lookup_by_name(isa).unwrap();
         let isa = isa_builder
@@ -42,7 +42,6 @@ impl<'a> Object<'a> {
         );
 
         Self {
-            root,
             object,
             functions: std::collections::HashMap::new(),
             constant_data: None,
@@ -53,42 +52,8 @@ impl<'a> Object<'a> {
 /// Build the OrCo IR module
 pub fn build(root: &orco::ir::Module) {
     debug!("Compiling module:\n{}", root);
-    let mut object = Object::new(root, "x86_64-unknown-linux-gnu");
-
-    for symbol in root.symbols.values() {
-        let symbol = symbol.try_read().unwrap();
-        if let Some(value) = &symbol.evaluated {
-            match symbol.value.get_type() {
-                orco::ir::Type::Function => {
-                    let function = value.as_ref::<orco::ir::expression::Function>();
-                    object.declare_function(
-                        Path::single(symbol.name.clone()),
-                        cranelift_module::Linkage::Export,
-                        &function.signature,
-                    );
-                }
-                orco::ir::Type::ExternFunction => {
-                    let function = value.as_ref::<orco::ir::expression::ExternFunction>();
-                    object.declare_function(
-                        Path::single(function.name.clone()),
-                        cranelift_module::Linkage::Import,
-                        &function.signature,
-                    );
-                }
-                _ => (),
-            }
-        }
-    }
-
-    for symbol in root.symbols.values() {
-        let symbol = symbol.try_read().unwrap();
-        if let Some(value) = &symbol.evaluated {
-            if symbol.value.get_type() == orco::ir::Type::Function {
-                let function = value.as_ref::<orco::ir::expression::Function>();
-                object.build_function(&Path::single(symbol.name.clone()), function);
-            }
-        }
-    }
+    let mut object = Object::new("x86_64-unknown-linux-gnu");
+    object.build_module(root, &Path::new());
 
     if let Some((id, data)) = object.constant_data {
         object

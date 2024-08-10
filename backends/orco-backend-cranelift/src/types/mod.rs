@@ -1,6 +1,6 @@
 use cranelift_module::Module;
 
-impl crate::Object<'_> {
+impl crate::Object {
     /// Convert OrCo type to a cranelift type
     pub fn convert_type(&self, r#type: &orco::ir::Type) -> cranelift_codegen::ir::Type {
         match r#type {

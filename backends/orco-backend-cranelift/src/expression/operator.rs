@@ -1,6 +1,6 @@
 use super::*;
 
-impl crate::Object<'_> {
+impl crate::Object {
     /// Build a binary expression
     pub fn build_binary_expression(
         &mut self,

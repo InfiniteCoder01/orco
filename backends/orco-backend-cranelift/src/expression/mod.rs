@@ -21,7 +21,7 @@ pub mod branching;
 /// Build function calls
 pub mod call;
 
-impl crate::Object<'_> {
+impl crate::Object {
     /// Build an expression
     pub fn build_expression(
         &mut self,

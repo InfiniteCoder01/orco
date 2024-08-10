@@ -1,7 +1,7 @@
 use super::*;
 use cranelift_module::Module;
 
-impl crate::Object<'_> {
+impl crate::Object {
     /// Build a call expression
     pub fn build_call_expression(
         &mut self,

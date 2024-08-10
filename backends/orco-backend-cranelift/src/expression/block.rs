@@ -1,6 +1,6 @@
 use super::*;
 
-impl crate::Object<'_> {
+impl crate::Object {
     /// Build a code block
     pub fn build_block(
         &mut self,

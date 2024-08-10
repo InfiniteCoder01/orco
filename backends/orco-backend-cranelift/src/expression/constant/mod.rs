@@ -3,7 +3,7 @@ use super::*;
 /// Constant pool
 pub mod pool;
 
-impl crate::Object<'_> {
+impl crate::Object {
     /// Build a constant expression
     pub fn build_constant(
         &mut self,

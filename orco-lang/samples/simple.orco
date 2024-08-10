@@ -1,5 +1,6 @@
 comptime libc = module {
 	comptime puts = extern fn puts(msg: *char) -> i32;
+	comptime test = fn () {};
 };
 
 comptime main = fn () -> i32 {

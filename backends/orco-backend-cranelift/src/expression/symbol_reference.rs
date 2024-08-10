@@ -2,7 +2,7 @@ use orco::ir::expression::SymbolReference;
 
 use super::*;
 
-impl crate::Object<'_> {
+impl crate::Object {
     /// Build a constant expression
     pub fn build_symbol_reference(
         &mut self,
