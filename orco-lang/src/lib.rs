@@ -10,7 +10,7 @@ pub mod parser;
 /// A compilation unit
 pub struct Crate {
     /// The root module
-    pub root: orco::ir::Module,
+    pub root: std::pin::Pin<Box<orco::ir::Module>>,
 }
 
 impl Crate {
@@ -19,11 +19,19 @@ impl Crate {
         path: impl AsRef<std::path::Path>,
         reporter: &mut dyn orco::diagnostics::ErrorReporter,
     ) -> Self {
+        Self::parse_src(
+            &orco::Src::load(path.as_ref().to_path_buf()).unwrap(),
+            reporter,
+        )
+    }
+
+    /// Parse the crate from [`orco::Src`]
+    pub fn parse_src(src: &orco::Src, reporter: &mut dyn orco::diagnostics::ErrorReporter) -> Self {
         Self {
-            root: parser::parse(&mut lexer::Parser::new(
-                &orco::Src::load(path.as_ref().to_path_buf()).unwrap(),
-                reporter,
-            ), false),
+            root: Box::pin(parser::parse(
+                &mut lexer::Parser::new(&src, reporter),
+                false,
+            )),
         }
     }
 }

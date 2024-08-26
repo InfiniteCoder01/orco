@@ -48,9 +48,8 @@ impl<'a> TypeInference<'a> {
     pub fn new(
         reporter: &'a mut dyn diagnostics::ErrorReporter,
         interpreter: Interpreter,
-        root_module: &'a ir::Module,
+        root_module: std::pin::Pin<&'a ir::Module>,
     ) -> Self {
-        let root_module = std::pin::Pin::new(root_module);
         Self {
             return_type: None,
             reporter,

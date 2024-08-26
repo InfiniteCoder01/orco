@@ -18,18 +18,27 @@ fn main() {
         let mut source = String::new();
         std::io::stdin().read_to_string(&mut source).unwrap();
         orco_lang::Crate {
-            root: orco_lang::parser::parse(&mut orco_lang::lexer::Parser::new(
-                &orco::Src::new(source, "<buffer>".into()),
-                &mut reporter,
-            ), false),
+            root: Box::pin(orco_lang::parser::parse(
+                &mut orco_lang::lexer::Parser::new(
+                    &orco::Src::new(source, "<buffer>".into()),
+                    &mut reporter,
+                ),
+                false,
+            )),
         }
     } else {
         orco_lang::Crate::parse(cli.path, &mut reporter)
     };
 
-    let mut type_inference =
-        orco::TypeInference::new(&mut reporter, orco::Interpreter::default(), &krate.root);
-    krate.root.infer_and_check_types(&mut type_inference);
+    let mut type_inference = orco::TypeInference::new(
+        &mut reporter,
+        orco::Interpreter::default(),
+        krate.root.as_ref(),
+    );
+    krate
+        .root
+        .as_ref()
+        .infer_and_check_types(&mut type_inference);
     if type_inference.abort_compilation {
         std::process::exit(1);
     }

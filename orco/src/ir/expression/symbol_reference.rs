@@ -7,6 +7,8 @@ pub enum SymbolReference {
     Unresolved(Name),
     /// Unresolved symbol (from a scope), should be resolved during type inference pass
     ScopeAccess(Box<Spanned<SymbolReference>>, Name),
+    /// Reference to a module
+    Module(InternalPointer<Module>),
     /// Reference to a symbol
     Symbol(InternalPointer<std::sync::RwLock<Symbol>>),
     /// Reference to a symbol
@@ -17,9 +19,10 @@ impl SymbolReference {
     /// Get the type that the symbol evaluates to when accessed
     pub fn get_type(&self) -> ir::Type {
         match self {
-            SymbolReference::Unresolved(..) => ir::Type::Error,
-            SymbolReference::ScopeAccess(..) => ir::Type::Error,
-            SymbolReference::Symbol(symbol) => {
+            Self::Unresolved(..) => ir::Type::Error,
+            Self::ScopeAccess(..) => ir::Type::Error,
+            Self::Module(_) => Type::Module,
+            Self::Symbol(symbol) => {
                 if symbol::check_for_recursion(symbol) {
                     return Type::Error;
                 }
@@ -37,7 +40,7 @@ impl SymbolReference {
                     (r#type, _) => r#type.clone(),
                 }
             }
-            SymbolReference::Variable(variable) => variable.r#type.try_lock().unwrap().clone(),
+            Self::Variable(variable) => variable.r#type.try_lock().unwrap().clone(),
         }
     }
 
@@ -48,7 +51,7 @@ impl SymbolReference {
         metadata: &mut dyn SymbolMetadata,
     ) -> ir::Type {
         match self {
-            SymbolReference::Unresolved(name) => {
+            Self::Unresolved(name) => {
                 if let Some(symbol) = metadata.resolve_global_symbol(type_inference, name) {
                     *self = symbol;
                     self.infer_types(type_inference, metadata)
@@ -56,7 +59,7 @@ impl SymbolReference {
                     ir::Type::Error
                 }
             }
-            SymbolReference::ScopeAccess(scope, name) => {
+            Self::ScopeAccess(scope, name) => {
                 scope.inner.infer_types(type_inference, metadata);
                 if let Some(symbol) = metadata.resolve_scoped_symbol(type_inference, scope, name) {
                     *self = symbol;
@@ -65,14 +68,15 @@ impl SymbolReference {
                     ir::Type::Error
                 }
             }
-            SymbolReference::Symbol(symbol) => {
+            Self::Module(_) => Type::Module,
+            Self::Symbol(symbol) => {
                 if symbol::check_for_recursion(symbol) {
                     return Type::Error;
                 }
                 symbol::ensure_evaluated(symbol, type_inference);
                 self.get_type()
             }
-            SymbolReference::Variable(variable) => {
+            Self::Variable(variable) => {
                 let mut r#type = variable.r#type.inner.try_lock().unwrap();
                 type_inference.complete(&mut r#type);
                 r#type.clone()
@@ -88,18 +92,18 @@ impl SymbolReference {
         metadata: &mut dyn SymbolMetadata,
     ) -> ir::Type {
         match self {
-            SymbolReference::Unresolved(name) => {
+            Self::Unresolved(name) => {
                 type_inference.report(metadata.global_symbol_not_found(name, span.clone()));
                 ir::Type::Error
             }
-            SymbolReference::ScopeAccess(scope, name) => {
+            Self::ScopeAccess(scope, name) => {
                 scope
                     .inner
                     .finish_and_check_types(&scope.span, type_inference, metadata);
                 type_inference.report(metadata.scoped_symbol_not_found(scope, name, span.clone()));
                 ir::Type::Error
             }
-            SymbolReference::Symbol(symbol) => {
+            Self::Symbol(symbol) => {
                 if symbol::check_for_recursion(symbol) {
                     type_inference.report(metadata.recursive_evaluation(
                         span.as_ref().unwrap_or(&Span::new("Unknow")),
@@ -120,6 +124,7 @@ impl std::fmt::Display for SymbolReference {
         match self {
             Self::Unresolved(name) => write!(f, "<{name}>"),
             Self::ScopeAccess(scope, name) => write!(f, "{scope}::{name}"),
+            Self::Module(_) => write!(f, "super (TODO)"),
             Self::Symbol(symbol) => write!(f, "{}", symbol.try_read().unwrap().path),
             Self::Variable(variable) => {
                 let show_id =
@@ -150,12 +155,14 @@ pub trait SymbolMetadata: Metadata {
         if let Some(symbol) = type_inference.get_symbol(name) {
             return Some(symbol);
         }
-        if let Some(symbol) = type_inference.current_module.symbols.get(name) {
-            return Some(SymbolReference::Symbol(InternalPointer::new(
-                symbol.as_ref(),
-            )));
-        }
-        None
+        self.resolve_scoped_symbol(
+            type_inference,
+            &Spanned::new(
+                SymbolReference::Module(type_inference.current_module),
+                name.clone(),
+            ),
+            name,
+        )
     }
 
     /// Resolve symbol inside of a scope
@@ -166,19 +173,26 @@ pub trait SymbolMetadata: Metadata {
         name: &Name,
     ) -> Option<SymbolReference> {
         let _ = type_inference;
+
+        fn resolve_symbol_in_module(name: &Name, scope: &Module) -> Option<SymbolReference> {
+            if name.as_ref() == "super" {
+                return scope.parent.map(|module| SymbolReference::Module(module));
+            }
+            scope
+                .symbols
+                .get(name)
+                .map(|symbol| SymbolReference::Symbol(InternalPointer::new(symbol.as_ref())))
+        }
+
         match scope.inner {
+            SymbolReference::Module(module) => resolve_symbol_in_module(name, &module),
             SymbolReference::Symbol(symbol) => {
                 let symbol = symbol.try_read().unwrap();
                 let Some(value) = &symbol.evaluated else {
                     return None;
                 };
                 match symbol.r#type.inner {
-                    Type::Module => {
-                        let module = value.as_ref::<Module>();
-                        module.symbols.get(name).map(|symbol| {
-                            SymbolReference::Symbol(InternalPointer::new(symbol.as_ref()))
-                        })
-                    }
+                    Type::Module => resolve_symbol_in_module(name, value.as_ref::<Module>()),
                     _ => None,
                 }
             }

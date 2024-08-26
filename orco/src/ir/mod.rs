@@ -19,6 +19,8 @@ pub use expression::Expression;
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 pub struct Module {
+    /// Parent
+    pub parent: Option<expression::symbol_reference::InternalPointer<Module>>,
     /// Module content
     pub symbols: std::collections::HashMap<Name, std::pin::Pin<Box<std::sync::RwLock<Symbol>>>>,
     /// Metadata
@@ -28,15 +30,16 @@ pub struct Module {
 
 impl Module {
     /// Create a new module
-    pub fn new(metadata: impl ModuleMetadata + 'static) -> Self {
-        Self {
+    pub fn new(metadata: impl ModuleMetadata + 'static) -> Box<Self> {
+        Box::new(Self {
+            parent: None,
             symbols: std::collections::HashMap::new(),
             metadata: Box::new(metadata),
-        }
+        })
     }
 
     /// Infer and check types for the whole module
-    pub fn infer_and_check_types(&self, type_inference: &mut TypeInference) {
+    pub fn infer_and_check_types(self: std::pin::Pin<&Self>, type_inference: &mut TypeInference) {
         for symbol in self.symbols.values() {
             symbol::ensure_evaluated(symbol, type_inference);
         }
@@ -45,7 +48,11 @@ impl Module {
 
 impl Clone for Module {
     fn clone(&self) -> Self {
+        if self.parent.is_some() {
+            panic!("Can't clone inferred module (has parent)!");
+        }
         Self {
+            parent: None,
             symbols: self
                 .symbols
                 .iter()

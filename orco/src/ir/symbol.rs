@@ -69,7 +69,11 @@ pub fn ensure_evaluated(symbol: &RwLock<Symbol>, type_inference: &mut TypeInfere
         }
 
         type_inference.abort_compilation = abort_compilation;
-        symbol_locked.evaluated = Some(type_inference.interpreter.evaluate(&symbol_locked.value));
+        let mut evaluated = type_inference.interpreter.evaluate(&symbol_locked.value);
+        if symbol_locked.r#type.inner == Type::Module {
+            evaluated.as_mut::<Module>().parent = Some(type_inference.current_module);
+        }
+        symbol_locked.evaluated = Some(evaluated);
         drop(symbol_locked);
 
         let symbol_locked = symbol.try_read().unwrap();
