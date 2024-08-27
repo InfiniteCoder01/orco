@@ -20,6 +20,7 @@ pub fn parse_symbol<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option
     };
     parser.expect_operator(Operator::Equal);
     let value = expression::expect(parser);
+    parser.expect_operator(Operator::Semicolon);
     Some(ir::Symbol::new(name, r#type, value))
 }
 
@@ -41,7 +42,6 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>, braces: bool) ->
             break;
         }
         if let Some(symbol) = parse_symbol(parser) {
-            parser.expect_operator(Operator::Semicolon);
             module.symbols.insert(
                 symbol.name.clone(),
                 Box::pin(std::sync::RwLock::new(symbol)),

@@ -1,16 +1,10 @@
 comptime libc = module {
 	comptime puts = extern fn puts(msg: *char) -> i32;
-	comptime test = fn () {
-		super::test();
-	};
-};
-
-comptime test = fn () {
-	libc::puts(c"Test");
 };
 
 comptime main = fn () -> i32 {
-    // libc::puts(c"Hello, World!");
-    libc::test();
-    0
+	comptime x = 21;
+	comptime value = x * 2;
+    libc::puts(c"Hello, World!");
+    value
 };

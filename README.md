@@ -40,9 +40,9 @@ Roadmap for now:
 - [x] Path as an operator \[cancelled\]
 - [x] `orco::Path` borrowing names? \[cancelled\]
 - [x] Get metadata traits out of macros
-- [ ] Reorganize IR Tree to hold references to modules. Maybe local resolve should only be in module?
-- [ ] Parent modules (`super::`)
-- [ ] Comptimes in blocks
+- [x] Reorganize IR Tree to hold references to modules. Maybe local resolve should only be in module?
+- [x] Parent modules (`super::`)
+- [x] Comptimes in blocks
 - [ ] Operator Overloading & Traits
 - [ ] Finish the interpreter
 - [ ] Unwinding?
