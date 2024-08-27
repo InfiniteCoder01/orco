@@ -1,11 +1,9 @@
 use super::*;
 
 /// Block expression, contains multiple expressions (something along { expr1; expr2; })
-#[derive(Derivative)]
+#[derive(Derivative, Clone)]
 #[derivative(Debug, Default)]
 pub struct Block {
-    /// Comptimes
-    pub comptimes: Vec<std::pin::Pin<Box<std::sync::RwLock<Symbol>>>>,
     /// Block content
     pub expressions: Vec<Expression>,
     /// What this block evaluates to (basically tail expression)
@@ -20,27 +18,9 @@ pub struct Block {
     pub metadata: Box<dyn BlockMetadata>,
 }
 
-impl Clone for Block {
-    fn clone(&self) -> Self {
-        Self {
-            comptimes: self
-                .comptimes
-                .iter()
-                .map(|symbol| Box::pin(std::sync::RwLock::new(symbol.try_read().unwrap().clone())))
-                .collect(),
-            expressions: self.expressions.clone(),
-            tail_expression: self.tail_expression.clone(),
-            transparent: self.transparent,
-            span: self.span.clone(),
-            metadata: self.metadata.clone(),
-        }
-    }
-}
-
 impl Block {
     /// Create a new block
     pub fn new(
-        comptimes: Vec<std::pin::Pin<Box<std::sync::RwLock<Symbol>>>>,
         expressions: Vec<Expression>,
         tail_expression: Option<Box<Expression>>,
         transparent: bool,
@@ -48,7 +28,6 @@ impl Block {
         metadata: impl BlockMetadata + 'static,
     ) -> Self {
         Self {
-            comptimes,
             expressions,
             tail_expression,
             transparent,
@@ -73,13 +52,6 @@ impl Block {
     pub fn infer_types(&mut self, type_inference: &mut TypeInference) -> Type {
         if !self.transparent {
             type_inference.push_scope();
-        }
-        for symbol in &self.comptimes {
-            symbol::ensure_evaluated(symbol, type_inference);
-            type_inference.current_scope_mut().insert(
-                symbol.try_read().unwrap().name.clone(),
-                SymbolReference::Symbol(symbol_reference::InternalPointer::new(symbol.as_ref())),
-            );
         }
         let mut r#type = Type::unit();
         for expression in &mut self.expressions {

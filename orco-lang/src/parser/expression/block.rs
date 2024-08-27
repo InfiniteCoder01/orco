@@ -5,13 +5,8 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<ir::ex
     let start = parser.span().1.start;
     if parser.match_operator(Operator::LBrace) {
         let mut expressions = Vec::new();
-        let mut comptimes = Vec::new();
         let tail_expression = 'a: {
             while !parser.match_operator(Operator::RBrace) {
-                if let Some(symbol) = parse_symbol(parser) {
-                    comptimes.push(Box::pin(std::sync::RwLock::new(symbol)));
-                    continue;
-                }
                 match expression::expect(parser) {
                     ir::Expression::Error(_) => {
                         if parser.next().is_none() {
@@ -35,7 +30,6 @@ pub fn parse<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> Option<ir::ex
             None
         };
         Some(ir::expression::Block::new(
-            comptimes,
             expressions,
             tail_expression,
             false,
@@ -53,9 +47,6 @@ pub fn expect<R: ErrorReporter + ?Sized>(parser: &mut Parser<R>) -> ir::expressi
         block
     } else {
         parser.expected_error("a block");
-        ir::expression::Block {
-            span: Some(parser.point_span()),
-            ..Default::default()
-        }
+        ir::expression::Block::new(Vec::new(), None, false, Some(parser.point_span()), ())
     }
 }
