@@ -1,66 +1,37 @@
 #![doc = include_str!("../README.md")]
 #![warn(missing_docs)]
+#![feature(coerce_unsized)]
+#![feature(unsize)]
 
-pub use ariadne;
-pub use log;
+pub use orco_procmacro::*;
 
-/// Diagnostics
-pub mod diagnostics;
-pub use diagnostics::*;
+/// Symbols are essential parts of the program, like functions,
+/// constants, static variables, thread locals, types, macros, etc.
+pub mod symbol;
+pub use symbol::Symbol;
 
-/// OrCo Intermediate Representation lives here
-pub mod ir;
+/// Symbol references are one of the key features of OrCo.
+/// They allow symbols to be accessed from anywhere
+pub mod symbol_ref;
+pub use symbol_ref::{SymbolBox, SymbolRef};
 
-/// Source and span
-pub mod source;
+/// Boxed dynamic iterator
+pub type DynIter<'a, T> = Box<dyn Iterator<Item = T> + 'a>;
 
-/// Type inference structs and functions
-pub mod type_inference;
-pub use type_inference::TypeInference;
+// /// A single unit just houses symbols
+// #[debug_display]
+// pub trait Unit {
+//     /// Returns a dynamic iterator over all symbols in this unit
+//     fn symbols<'a>(&'a self) -> DynIter<'a, &'a Symbol>;
+//     /// Returns a mutable dynamic iterator over all symbols in this unit
+//     fn symbols_mut<'a>(&'a mut self) -> DynIter<'a, &'a mut Symbol>;
+// }
 
-/// Interpreter for the IR
-pub mod interpreter;
-pub use interpreter::{Interpreter, Value};
-
-/// Name, a segment of a [Path]
-pub type Name = Span;
-
-/// Path to a symbol
-#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Path(pub Vec<Name>);
-
-impl Path {
-    /// Create a new path
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Create a new path with a single segment
-    pub fn single(root: Name) -> Self {
-        Self(vec![root])
-    }
-
-    /// Append a segment to the end of the path
-    pub fn push(&mut self, segment: Name) {
-        self.0.push(segment);
-    }
-
-    /// Same as [`Self::push`], but returns a new path instead of mutating this path
-    pub fn extend(&self, segment: Name) -> Self {
-        let mut path = self.clone();
-        path.push(segment);
-        path
-    }
-}
-
-impl std::fmt::Display for Path {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (i, segment) in self.0.iter().enumerate() {
-            if i > 0 {
-                write!(f, "::")?;
-            }
-            write!(f, "{}", segment)?;
-        }
-        Ok(())
-    }
-}
+// impl std::fmt::Display for dyn Unit {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         for symbol in self.symbols() {
+//             writeln!(f, "{}", symbol)?;
+//         }
+//         Ok(())
+//     }
+// }

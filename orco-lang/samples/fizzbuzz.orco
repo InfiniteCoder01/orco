@@ -1,9 +1,0 @@
-extern fn puts(message: char*) -> i32;
-extern fn printf(message: char*, value: u32) -> i32;
-
-fn fizzbuzz(x: u32)
-
-fn main() -> i32 {
-  fizzbuzz(1);
-  return 0;
-}

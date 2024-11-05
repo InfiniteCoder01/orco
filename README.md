@@ -1,5 +1,5 @@
 # OrCo
-OrCo compiler toolchain
+OrCo is a compiler toolchain focusing on performace and extensibility
 [Developed on streams](https://www.youtube.com/playlist?list=PLvZASPqsD2VjqJ6968gEhoLlCn0i0rqHH)
 
 ## Goals
@@ -40,14 +40,20 @@ Roadmap for now:
 - [x] Path as an operator \[cancelled\]
 - [x] `orco::Path` borrowing names? \[cancelled\]
 - [x] Get metadata traits out of macros
-- [ ] Reorganize IR Tree to hold references to modules. Maybe local resolve should only be in module?
-- [ ] Parent modules (`super::`)
-- [ ] Comptimes in blocks
+- [x] Reorganize IR Tree to hold references to modules. Maybe local resolve should only be in module?
+- [x] Parent modules (`super::`)
+- [ ] Fix lazy evaluation:
+    - [ ] Extract part of TypeInference struct into something like LocalContext
+    - [ ] Rename TypeInference to something like Context and rename all the functions
+    - [ ] Remove lifetime from TypeInference/Context struct and make it shareable/cloneable
+    - [ ] Isolate LocalContext for all ensure_evaluated
+- [] Comptimes in blocks
+- [ ] Structs
+- [ ] Generics
 - [ ] Operator Overloading & Traits
 - [ ] Finish the interpreter
 - [ ] Unwinding?
 - [ ] Effect system?!
-- [ ] Structs
 - [ ] Pointers
 - [ ] Typecasts
 - [ ] Arrays

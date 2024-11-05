@@ -1,0 +1,1 @@
+Result<RwLockReadGuard<'_, Option<(NonNull<RwLock<{integer}>>, NonNull<RwLock<Vec<NonNull<SymbolRefInner<{integer}>>>>>)>>, TryLockError<RwLockReadGuard<'_, Option<(NonNull<RwLock<{integer}>>, NonNull<RwLock<Vec<NonNull<SymbolRefInner<{integer}>>>>>)>>>>
