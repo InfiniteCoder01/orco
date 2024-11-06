@@ -1,7 +1,5 @@
 #![doc = include_str!("../README.md")]
 #![warn(missing_docs)]
-#![feature(coerce_unsized)]
-#![feature(unsize)]
 
 pub use orco_procmacro::*;
 
@@ -12,8 +10,8 @@ pub use symbol::Symbol;
 
 /// Symbol references are one of the key features of OrCo.
 /// They allow symbols to be accessed from anywhere
-pub mod symbol_ref;
-pub use symbol_ref::{SymbolBox, SymbolRef};
+pub mod symbol_box;
+pub use symbol_box::{SymbolBox, SymbolRef};
 
 /// Boxed dynamic iterator
 pub type DynIter<'a, T> = Box<dyn Iterator<Item = T> + 'a>;
