@@ -119,34 +119,92 @@ fn display(
 
 #[proc_macro_attribute]
 pub fn debug_display(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    let ast: syn::Item = parse_macro_input!(item);
-    let name = match &ast {
-        syn::Item::Const(item) => &item.ident,
-        syn::Item::Enum(item) => &item.ident,
-        syn::Item::ExternCrate(item) => &item.ident,
-        syn::Item::Mod(item) => &item.ident,
-        syn::Item::Static(item) => &item.ident,
-        syn::Item::Struct(item) => &item.ident,
-        syn::Item::Trait(item) => &item.ident,
-        syn::Item::TraitAlias(item) => &item.ident,
-        syn::Item::Type(item) => &item.ident,
-        syn::Item::Union(item) => &item.ident,
-        _ => panic!("Can't put Debug on that!"),
-    };
+    let ast: syn::ItemImpl = parse_macro_input!(item);
 
-    let d = if matches!(ast, syn::Item::Trait(_)) {
-        quote! { dyn }
-    } else {
-        quote! {}
-    };
+    let generics = &ast.generics;
+    let r#type = &ast.self_ty;
+
     quote! {
         #ast
 
-        impl std::fmt::Debug for #d #name {
+        impl #generics std::fmt::Debug for #r#type {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 <Self as std::fmt::Display>::fmt(self, f)
             }
         }
+    }
+    .into()
+}
+
+#[proc_macro_attribute]
+pub fn make_mut(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let ast: syn::ItemFn = parse_macro_input!(item);
+    let mut ast2 = ast.clone();
+
+    ast2.sig.ident = syn::Ident::new(&format!("{}_mut", ast.sig.ident), ast.sig.ident.span());
+    let syn::FnArg::Receiver(arg) = ast2.sig.inputs.first_mut().unwrap() else {
+        panic!();
+    };
+    *arg = syn::parse2(quote![&mut self]).unwrap();
+
+    let syn::ReturnType::Type(_, rt) = &mut ast2.sig.output else {
+        panic!();
+    };
+
+    let syn::Type::Path(path) = &mut **rt else {
+        panic!();
+    };
+
+    let seg = path.path.segments.last_mut().unwrap();
+    seg.arguments =
+        syn::PathArguments::AngleBracketed(syn::parse2(quote! { <orco::Mut> }).unwrap());
+
+    quote! {
+        #ast
+        #ast2
+    }
+    .into()
+}
+
+#[proc_macro_derive(MutrefCloneCopy)]
+pub fn mutref_clonecopy(item: TokenStream) -> TokenStream {
+    use syn::punctuated::Punctuated;
+
+    let ast: DeriveInput = parse_macro_input!(item);
+    let syn::Data::Enum(data) = ast.data else {
+        panic!()
+    };
+
+    let name = ast.ident;
+    let mut arms = Punctuated::new();
+
+    for variant in data.variants {
+        let name = variant.ident;
+        let mut fields_pat = Punctuated::new();
+        let mut fields_cloned = Punctuated::new();
+        for i in 0..variant.fields.len() {
+            let field_name = syn::Ident::new(&format!("item{}", i), proc_macro2::Span::call_site());
+            fields_pat.push_value(quote![#field_name]);
+            fields_pat.push_punct(quote![,]);
+            fields_cloned.push_value(quote![#field_name.clone()]);
+            fields_cloned.push_punct(quote![,]);
+        }
+        arms.push_value(quote! {
+            Self::#name(#fields_pat) => Self::#name(#fields_cloned)
+        });
+        arms.push_punct(quote![,]);
+    }
+
+    quote! {
+        impl Clone for #name<'_, Imm> {
+            fn clone(&self) -> Self {
+                match self {
+                    #arms
+                }
+            }
+        }
+
+        impl Copy for Expression<'_, Imm> {}
     }
     .into()
 }

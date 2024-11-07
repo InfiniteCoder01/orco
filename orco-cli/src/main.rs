@@ -4,6 +4,7 @@ fn main() {
     )
     .unwrap();
 
-    use orco_c::parsel::ToTokens;
-    println!("{}", ast.into_token_stream());
+    // use orco_c::parsel::ToTokens;
+    // println!("{}", ast.into_token_stream());
+    println!("{}", &ast as &dyn orco::Unit);
 }

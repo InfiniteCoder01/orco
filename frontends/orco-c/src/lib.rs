@@ -22,11 +22,12 @@ pub use symbol::Symbol;
 pub mod r#type;
 pub use r#type::Type;
 
-/// Keywords
-pub mod kw {
-    #![allow(missing_docs)]
-    parsel::custom_keyword!(int);
-    parsel::custom_keyword!(void);
+parsel::define_keywords! {
+    mod kw {
+        return => Return;
+        int => Int;
+        void => Void;
+    }
 }
 
 /// Translation unit
@@ -35,12 +36,18 @@ pub struct Unit {
     pub symbols: Many<Symbol>,
 }
 
+impl orco::Unit for Unit {
+    fn symbols(&self) -> orco::DynIter<orco::Symbol> {
+        Box::new(self.symbols.iter().map(|symbol| symbol.as_orco()))
+    }
+}
+
 #[test]
 pub fn parse_test() {
     use assert2::*;
     let unit: Unit = parsel::parse_quote! {
         int main(void) {
-
+            return 42;
         }
     };
     check!(unit.symbols.len() == 1);
@@ -49,4 +56,8 @@ pub fn parse_test() {
     let main = main.object().try_read().unwrap();
     check!(let Type::Int(_) = main.return_type);
     check!(main.name == "main");
+    check!(main.body.0.len() == 1);
+    let_assert!(Some(Statement::Return(expr)) = main.body.0.first());
+    let_assert!(Expression::Integer(rv) = &expr.expression);
+    check!(rv.0.value() == 42);
 }
