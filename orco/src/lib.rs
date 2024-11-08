@@ -30,7 +30,7 @@ pub trait Unit {
 }
 
 #[debug_display]
-impl std::fmt::Display for dyn Unit {
+impl std::fmt::Display for &dyn Unit {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for symbol in self.symbols() {
             writeln!(f, "{}", symbol)?;

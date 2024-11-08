@@ -4,5 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-orco = { path = "../orco" }
-orco-c = { path = "../frontends/orco-c" }
+clap = { version = "4.5.20", features = ["derive"] }
+env_logger = "0.11.5"
+log = { workspace = true }
+orco = { workspace = true }
+orco-c = { workspace = true }
+orco-cranelift = { workspace = true }
