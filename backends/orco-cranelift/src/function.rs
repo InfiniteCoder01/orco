@@ -8,17 +8,18 @@ impl Object {
             .object
             .declare_function(
                 function.name().as_ref(),
-                cranelift_module::Linkage::Export,
-                &Signature {
+                cl::Linkage::Export,
+                &cl::Signature {
                     params: Vec::new(),
-                    returns: vec![AbiParam::new(types::I32)],
-                    call_conv: isa::CallConv::SystemV,
+                    returns: self.convert_type(function.return_type()),
+                    call_conv: cl::isa::CallConv::SystemV,
                 },
             )
             .unwrap();
         self.functions.insert(function.name().into_owned(), id);
     }
 
+    /// Build the function's body
     pub fn build_function(&mut self, function: &dyn orco::symbol::Function) {
         info!("Compiling function {}", function.name());
         trace!("OrCo IR:\n{}", function as &dyn orco::symbol::Function);
@@ -28,23 +29,23 @@ impl Object {
             .get(function.name().as_ref())
             .expect("Function has to be declared before it is built!");
 
-        let mut ctx = codegen::Context::new();
-        ctx.func = codegen::ir::Function::with_name_signature(
+        let mut ctx = cl::codegen::Context::new();
+        ctx.func = cl::codegen::ir::Function::with_name_signature(
             if cfg!(debug_assertions) {
-                codegen::ir::UserFuncName::testcase(function.name().as_ref())
+                cl::codegen::ir::UserFuncName::testcase(function.name().as_ref())
             } else {
-                codegen::ir::UserFuncName::user(0, id.as_u32())
+                cl::codegen::ir::UserFuncName::user(0, id.as_u32())
             },
-            Signature {
+            cl::Signature {
                 params: Vec::new(),
-                returns: vec![AbiParam::new(types::I32)],
-                call_conv: isa::CallConv::SystemV,
+                returns: self.convert_type(function.return_type()),
+                call_conv: cl::isa::CallConv::SystemV,
             },
         );
 
         {
-            let mut function_ctx = FunctionBuilderContext::new();
-            let mut builder = FunctionBuilder::new(&mut ctx.func, &mut function_ctx);
+            let mut function_ctx = cl::FunctionBuilderContext::new();
+            let mut builder = cl::FunctionBuilder::new(&mut ctx.func, &mut function_ctx);
             let block = builder.create_block();
             builder.switch_to_block(block);
             builder.seal_block(block);

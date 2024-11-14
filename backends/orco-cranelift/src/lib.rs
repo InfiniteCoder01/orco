@@ -1,44 +1,39 @@
-// #![doc = include_str!("../README.md")]
-#![warn(missing_docs)]
-
-use cranelift::prelude::*;
+#![doc = include_str!("../README.md")]
 use cranelift_module::Module;
 use log::*;
 
-/// Build expressions
+mod cl {
+    pub(super) use cranelift::prelude::*;
+    pub(super) use cranelift_module::*;
+    pub(super) use cranelift_object::*;
+}
+
 pub mod expression;
 /// Declare and build functions
 pub mod function;
-// /// Declare and build modules
-// pub mod module;
-// /// Declare and convert types
-// pub mod types;
+/// Declare and convert types
+pub mod types;
 
-/// Object, translation unit, a wrapper around `cranelift_object::ObjectModule`
+/// Object, translation unit, a wrapper around [`cl::ObjectModule`]
 pub struct Object {
     /// Cranelift object
-    pub object: cranelift_object::ObjectModule,
+    pub object: cl::ObjectModule,
     /// Functions table
-    pub functions: std::collections::HashMap<String, cranelift_module::FuncId>,
+    pub functions: std::collections::HashMap<String, cl::FuncId>,
     /// Constant pool
-    pub constant_data: Option<(cranelift_module::DataId, Vec<u8>)>,
+    pub constant_data: Option<(cl::DataId, Vec<u8>)>,
 }
 
 impl Object {
     /// Create a new object from an OrCo IR and an ISA name
     pub fn new(isa: &str) -> Self {
-        let flag_builder = settings::builder();
-        let isa_builder = isa::lookup_by_name(isa).unwrap();
+        let flag_builder = cl::settings::builder();
+        let isa_builder = cl::isa::lookup_by_name(isa).unwrap();
         let isa = isa_builder
-            .finish(settings::Flags::new(flag_builder))
+            .finish(cl::settings::Flags::new(flag_builder))
             .unwrap();
-        let object = cranelift_object::ObjectModule::new(
-            cranelift_object::ObjectBuilder::new(
-                isa,
-                "foo",
-                cranelift_module::default_libcall_names(),
-            )
-            .unwrap(),
+        let object = cl::ObjectModule::new(
+            cl::ObjectBuilder::new(isa, "foo", cl::default_libcall_names()).unwrap(),
         );
 
         Self {
@@ -81,8 +76,8 @@ pub fn build(unit: &dyn orco::Unit) {
             .object
             .define_data(
                 id,
-                &cranelift_module::DataDescription {
-                    init: cranelift_module::Init::Bytes {
+                &cl::DataDescription {
+                    init: cl::Init::Bytes {
                         contents: data.as_slice().into(),
                     },
                     function_decls: Default::default(),

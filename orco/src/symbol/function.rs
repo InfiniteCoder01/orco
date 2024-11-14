@@ -8,11 +8,19 @@ pub trait Function {
     fn body(&self) -> Expression;
     /// Version of [`Function::body`] that returns mutable reference
     fn body_mut(&mut self) -> Expression<Mut>;
+    /// Get the return type of the function
+    fn return_type(&self) -> Type;
 }
 
 #[debug_display]
 impl std::fmt::Display for &dyn Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "fn {} () {}", self.name(), self.body())
+        write!(
+            f,
+            "fn {} () -> {} {}",
+            self.name(),
+            self.return_type(),
+            self.body()
+        )
     }
 }

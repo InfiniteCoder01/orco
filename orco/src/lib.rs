@@ -11,6 +11,10 @@ pub use expression::Expression;
 pub mod symbol;
 pub use symbol::Symbol;
 
+/// See [Type]
+pub mod types;
+pub use types::Type;
+
 /// Mutability
 pub mod mutability;
 pub use mutability::*;

@@ -27,4 +27,8 @@ impl orco::symbol::Function for FunctionDefinition {
     fn body_mut(&mut self) -> orco::Expression<orco::Mut> {
         orco::Expression::Block(&mut self.body as _)
     }
+
+    fn return_type(&self) -> orco::Type {
+        self.return_type.as_orco()
+    }
 }

@@ -61,8 +61,16 @@ impl<T> SymbolBox<T> {
 // * SymbolRef
 /// SymbolRefHandler is an object that is stored in every [SymbolRef] and can also be accessed via [`SymbolBox::references`]
 /// It provides methods to act on events like LSP rename, go to references, etc.
-pub trait SymbolRefHandler {}
-impl SymbolRefHandler for () {}
+pub trait SymbolRefHandler {
+    /// Get the name of the symbol
+    fn name(&self) -> std::borrow::Cow<str>;
+}
+
+impl SymbolRefHandler for () {
+    fn name(&self) -> std::borrow::Cow<str> {
+        "<???>".into()
+    }
+}
 
 /// Reference to [SymbolBox], invalidates, if SymbolBox drops
 pub struct SymbolRef<T: ?Sized> {

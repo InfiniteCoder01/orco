@@ -3,9 +3,9 @@ use super::*;
 impl Object {
     pub fn build_literal(
         &mut self,
-        builder: &mut FunctionBuilder,
+        builder: &mut cl::FunctionBuilder,
         lit: orco::expression::Literal,
-    ) -> Option<Value> {
+    ) -> Option<cl::Value> {
         match lit {
             orco::expression::Literal::Integer(lit) => self.build_integer_literal(builder, lit),
         }
@@ -13,9 +13,12 @@ impl Object {
 
     pub fn build_integer_literal(
         &mut self,
-        builder: &mut FunctionBuilder,
+        builder: &mut cl::FunctionBuilder,
         lit: &dyn orco::expression::literal::IntegerLiteral,
-    ) -> Option<Value> {
-        Some(builder.ins().iconst(types::I32, lit.value() as i64))
+    ) -> Option<cl::Value> {
+        Some(builder.ins().iconst(
+            self.convert_type(lit.r#type())[0].value_type,
+            lit.value() as i64,
+        ))
     }
 }

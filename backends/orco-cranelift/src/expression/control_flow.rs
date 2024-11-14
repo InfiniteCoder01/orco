@@ -3,9 +3,9 @@ use super::*;
 impl Object {
     pub fn build_return(
         &mut self,
-        builder: &mut FunctionBuilder,
+        builder: &mut cl::FunctionBuilder,
         expr: &dyn orco::expression::Return,
-    ) -> Option<Value> {
+    ) -> Option<cl::Value> {
         let value = self.build_expression(builder, expr.expression());
         builder.ins().return_(&if let Some(value) = value {
             vec![value]
