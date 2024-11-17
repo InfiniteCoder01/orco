@@ -49,15 +49,32 @@ pub fn parse_test() {
         int main(void) {
             return 42;
         }
+
+        void foo(int x) {}
     };
-    check!(unit.symbols.len() == 1);
+    check!(unit.symbols.len() == 2);
     let main = unit.symbols.first().unwrap();
     let_assert!(Symbol::FunctionDefinition(main) = main);
     let main = main.object().try_read().unwrap();
     check!(let Type::Int(_) = main.return_type);
     check!(main.name == "main");
+    check!(main.params.is_left());
     check!(main.body.0.len() == 1);
     let_assert!(Some(Statement::Return(expr)) = main.body.0.first());
     let_assert!(Expression::Integer(rv) = &expr.expression);
     check!(rv.0.value() == 42);
+
+    let_assert!(Symbol::FunctionDefinition(foo) = &unit.symbols[1]);
+    let foo = foo.object().try_read().unwrap();
+    check!(let Type::Void(_) = foo.return_type);
+    check!(foo.name == "foo");
+    let_assert!(parsel::ast::Either::Right(params) = foo.params.as_ref());
+    check!(params.len() == 1);
+    check!(let Type::Int(_) = params.first().unwrap().r#type);
+    check!(params
+        .first()
+        .unwrap()
+        .name
+        .as_prefix()
+        .is_some_and(|name| name.to_string() == "x"));
 }

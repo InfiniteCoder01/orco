@@ -1,4 +1,4 @@
-int main (void) {
-    int a, b = 4;
+int main () {
+    // int a, b = 4;
     return 42;
 }

@@ -1,17 +1,31 @@
-use parsel::ast::{Paren, Word};
+use parsel::{
+    ast::{Either, Maybe, Paren, Punctuated, Word},
+    syn::token::Comma,
+};
 
 use super::*;
 
-/// C function definition
+#[derive(Clone, PartialEq, Eq, Parse, ToTokens)]
+pub struct FunctionParameter {
+    pub r#type: Type,
+    pub name: Maybe<Word>,
+}
+
+impl orco::symbol::function::FunctionParameter for FunctionParameter {
+    fn name(&self) -> Option<std::borrow::Cow<str>> {
+        self.name.as_prefix().map(|name| name.to_string().into())
+    }
+
+    fn r#type(&self) -> orco::Type {
+        self.r#type.as_orco()
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Parse, ToTokens)]
 pub struct FunctionDefinition {
-    /// Return type
     pub return_type: Type,
-    /// Name
     pub name: Word,
-    /// Args
-    pub args: Paren<kw::Void>,
-    /// Body
+    pub params: Paren<Either<kw::Void, Punctuated<FunctionParameter, Comma>>>,
     pub body: statement::Block,
 }
 
@@ -20,12 +34,38 @@ impl orco::symbol::Function for FunctionDefinition {
         self.name.to_string().into()
     }
 
+    fn signature(&self) -> &dyn orco::symbol::function::FunctionSignature {
+        self
+    }
+
+    fn signature_mut(&mut self) -> &mut dyn orco::symbol::function::FunctionSignature {
+        self
+    }
+
     fn body(&self) -> orco::Expression {
         orco::Expression::Block(&self.body as _)
     }
 
     fn body_mut(&mut self) -> orco::Expression<orco::Mut> {
         orco::Expression::Block(&mut self.body as _)
+    }
+}
+
+impl orco::symbol::function::FunctionSignature for FunctionDefinition {
+    fn parameters(&self) -> orco::DynIter<&dyn orco::symbol::function::FunctionParameter> {
+        match self.params.as_ref() {
+            Either::Left(_) => Box::new(std::iter::empty()),
+            Either::Right(params) => Box::new(params.iter().map(|param| param as _)),
+        }
+    }
+
+    fn parameters_mut(
+        &mut self,
+    ) -> orco::DynIter<&mut dyn orco::symbol::function::FunctionParameter> {
+        match self.params.as_mut() {
+            Either::Left(_) => Box::new(std::iter::empty()),
+            Either::Right(params) => Box::new(params.iter_mut().map(|param| param as _)),
+        }
     }
 
     fn return_type(&self) -> orco::Type {

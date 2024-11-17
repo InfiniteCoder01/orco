@@ -9,11 +9,7 @@ impl Object {
             .declare_function(
                 function.name().as_ref(),
                 cl::Linkage::Export,
-                &cl::Signature {
-                    params: Vec::new(),
-                    returns: self.convert_type(function.return_type()),
-                    call_conv: cl::isa::CallConv::SystemV,
-                },
+                &self.convert_function_signature(function.signature()),
             )
             .unwrap();
         self.functions.insert(function.name().into_owned(), id);
@@ -36,11 +32,7 @@ impl Object {
             } else {
                 cl::codegen::ir::UserFuncName::user(0, id.as_u32())
             },
-            cl::Signature {
-                params: Vec::new(),
-                returns: self.convert_type(function.return_type()),
-                call_conv: cl::isa::CallConv::SystemV,
-            },
+            self.convert_function_signature(function.signature()),
         );
 
         {
@@ -49,30 +41,25 @@ impl Object {
             let block = builder.create_block();
             builder.switch_to_block(block);
             builder.seal_block(block);
+            builder.append_block_params_for_function_params(block);
             self.build_expression(&mut builder, function.body());
             builder.finalize();
         }
         self.object.define_function(id, &mut ctx).unwrap();
     }
 
-    // /// Convert OrCo function signature to Cranelift function signature
-    // pub fn convert_function_signature(
-    //     &self,
-    //     signature: &orco::ir::expression::function::Signature,
-    // ) -> cranelift_codegen::ir::Signature {
-    //     use cranelift_codegen::ir::AbiParam;
-    //     cranelift_codegen::ir::Signature {
-    //         params: signature
-    //             .args
-    //             .iter()
-    //             .map(|arg| AbiParam::new(self.convert_type(&arg.r#type.try_lock().unwrap())))
-    //             .collect(),
-    //         returns: if *signature.return_type == orco::ir::Type::Unit {
-    //             vec![]
-    //         } else {
-    //             vec![AbiParam::new(self.convert_type(&signature.return_type))]
-    //         },
-    //         call_conv: cranelift_codegen::isa::CallConv::SystemV,
-    //     }
-    // }
+    /// Convert OrCo function signature to Cranelift function signature
+    pub fn convert_function_signature(
+        &self,
+        signature: &dyn orco::symbol::function::FunctionSignature,
+    ) -> cl::Signature {
+        cl::Signature {
+            params: signature
+                .parameters()
+                .flat_map(|param| self.convert_type(param.r#type()).into_iter())
+                .collect(),
+            returns: self.convert_type(signature.return_type()),
+            call_conv: cl::isa::CallConv::SystemV,
+        }
+    }
 }
