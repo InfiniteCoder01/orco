@@ -15,6 +15,7 @@ impl Object {
             orco::Expression::Block(block) => self.build_block(builder, block),
             orco::Expression::Return(expr) => self.build_return(builder, expr),
             orco::Expression::VariableDeclaration(_) => todo!(),
+            orco::Expression::FunctionCall(_) => todo!(),
             orco::Expression::Literal(lit) => self.build_literal(builder, lit),
         }
     }

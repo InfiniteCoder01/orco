@@ -56,6 +56,18 @@ impl<T> SymbolBox<T> {
     pub fn new_ref(&mut self, handler: impl SymbolRefHandler + 'static) -> SymbolRef<T> {
         SymbolRef::new(self, handler)
     }
+
+    /// Create a new [SymbolRef] referencing this [SymbolBox]
+    #[inline]
+    pub fn new_ref_unsize<U: ?Sized>(
+        &mut self,
+        handler: impl SymbolRefHandler + 'static,
+    ) -> SymbolRef<U>
+    where
+        T: std::marker::Unsize<U>,
+    {
+        SymbolRef::new_unsize(self, handler)
+    }
 }
 
 // * SymbolRef
@@ -78,14 +90,31 @@ pub struct SymbolRef<T: ?Sized> {
     handler: Arc<RwLock<dyn SymbolRefHandler>>,
 }
 
-impl<T: Sized> SymbolRef<T> {
+impl<T: ?Sized> SymbolRef<T> {
     /// Create a new SymbolRef from [SymbolBoxAccess]
-    pub fn new(symbol_box: &mut SymbolBox<T>, handler: impl SymbolRefHandler + 'static) -> Self {
+    pub fn new(symbol_box: &mut SymbolBox<T>, handler: impl SymbolRefHandler + 'static) -> Self
+    where
+        T: Sized,
+    {
         let handler: Arc<RwLock<dyn SymbolRefHandler>> = Arc::new(RwLock::new(handler));
         symbol_box.references.push(Arc::downgrade(&handler));
 
         Self {
-            object: Arc::downgrade(&symbol_box.object),
+            object: Arc::downgrade(&(symbol_box.object.clone() as Arc<RwLock<T>>)),
+            handler,
+        }
+    }
+
+    /// Create a new SymbolRef from [SymbolBoxAccess]
+    pub fn new_unsize(
+        symbol_box: &mut SymbolBox<impl std::marker::Unsize<T>>,
+        handler: impl SymbolRefHandler + 'static,
+    ) -> Self {
+        let handler: Arc<RwLock<dyn SymbolRefHandler>> = Arc::new(RwLock::new(handler));
+        symbol_box.references.push(Arc::downgrade(&handler));
+
+        Self {
+            object: Arc::downgrade(&(symbol_box.object.clone() as Arc<RwLock<T>>)),
             handler,
         }
     }
