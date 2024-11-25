@@ -4,7 +4,7 @@ use parsel::{Parse, ToTokens};
 
 pub use parsel;
 
-/// Wrapper around [`orco::SymbolBox`] with parsing traits
+/// Wrapper around [`orco::SymbolBox`] and [`orco::SymbolRef`] with parsing traits
 pub mod symbol_box;
 pub use symbol_box::SymbolBox;
 

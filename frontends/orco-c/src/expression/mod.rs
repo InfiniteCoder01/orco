@@ -1,9 +1,15 @@
 use super::*;
 use parsel::ast::LitUint;
 
+pub mod functions;
+// pub use functions::FunctionCall;
+pub mod literal;
+pub use literal::IntegerLiteral;
+
 #[derive(Clone, PartialEq, Eq, Parse, ToTokens)]
 pub enum Expression {
     Integer(IntegerLiteral),
+    // FunctionCall(FunctionCall),
 }
 
 impl Expression {
@@ -13,18 +19,5 @@ impl Expression {
         match self {
             Self::Integer(literal) => orco::Expression::Literal(Literal::Integer(literal as _)),
         }
-    }
-}
-
-#[derive(Clone, PartialEq, Eq, Parse, ToTokens)]
-pub struct IntegerLiteral(pub LitUint);
-
-impl orco::expression::literal::IntegerLiteral for IntegerLiteral {
-    fn r#type(&self) -> orco::Type {
-        orco::Type::Integer(32)
-    }
-
-    fn value(&self) -> u128 {
-        self.0.value() as _
     }
 }

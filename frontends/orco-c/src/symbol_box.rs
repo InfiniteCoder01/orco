@@ -19,7 +19,36 @@ impl<T> std::ops::DerefMut for SymbolBox<T> {
 
 impl<T: Parse> Parse for SymbolBox<T> {
     fn parse(input: parsel::syn::parse::ParseStream) -> parsel::Result<Self> {
-        Ok(SymbolBox(orco::SymbolBox::new(T::parse(input)?)))
+        Ok(Self(orco::SymbolBox::new(T::parse(input)?)))
+    }
+}
+
+impl<T: ToTokens> ToTokens for SymbolBox<T> {
+    fn to_tokens(&self, tokens: &mut parsel::TokenStream) {
+        self.object().try_read().unwrap().to_tokens(tokens)
+    }
+}
+
+impl<T: PartialEq> PartialEq for SymbolBox<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.object()
+            .try_read()
+            .unwrap()
+            .eq(&*other.object().try_read().unwrap())
+    }
+}
+
+impl<T: Eq> Eq for SymbolBox<T> {}
+
+/// Wrapper around [`orco::SymbolRef`] with parsing traits
+pub struct SymbolRef<I, T: ?Sized> {
+    pub ident: I,
+    pub reference: Option<orco::SymbolRef<T>>,
+}
+
+impl<I: Parse, T: ?Sized> Parse for SymbolRef<I, T> {
+    fn parse(input: parsel::syn::parse::ParseStream) -> parsel::Result<Self> {
+        Ok(Self::Unresolved(orco::SymbolBox::new(T::parse(input)?)))
     }
 }
 

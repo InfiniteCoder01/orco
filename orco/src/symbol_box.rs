@@ -119,6 +119,14 @@ impl<T: ?Sized> SymbolRef<T> {
         }
     }
 
+    pub fn unbound(handler: impl SymbolRefHandler + 'static) -> Self {
+        let handler: Arc<RwLock<dyn SymbolRefHandler>> = Arc::new(RwLock::new(handler));
+        Self {
+            object: Weak::new(),
+            handler,
+        }
+    }
+
     /// Access contents of the [SymbolBox]
     pub fn object(&self) -> Option<Guard<T>> {
         self.object
