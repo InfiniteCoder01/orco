@@ -16,12 +16,12 @@ impl<T: ?Sized> std::ops::Deref for Guard<'_, T> {
 
 // * SymbolBox
 /// Smart pointer for your symbols, so they can be referenced using [SymbolRef]
-pub struct SymbolBox<T> {
+pub struct SymbolBox<T, H: ?Sized> {
     object: Arc<RwLock<T>>,
-    references: Vec<Weak<RwLock<dyn SymbolRefHandler>>>,
+    references: Vec<Weak<RwLock<H>>>,
 }
 
-impl<T> SymbolBox<T> {
+impl<T, H: ?Sized> SymbolBox<T, H> {
     /// Create a new [SymbolBox] from it's contents
     pub fn new(object: T) -> Self {
         Self {
@@ -37,7 +37,7 @@ impl<T> SymbolBox<T> {
     }
 
     /// Get a list of references to this [SymbolBox] and return their [SymbolRefHandler]s
-    pub fn references(&mut self) -> Vec<Guard<dyn SymbolRefHandler>> {
+    pub fn references(&mut self) -> Vec<Guard<H>> {
         let mut references = Vec::with_capacity(self.references.len());
         self.references.retain(|reference| {
             if let Some(reference) = reference.upgrade() {
@@ -53,7 +53,7 @@ impl<T> SymbolBox<T> {
 
     /// Create a new [SymbolRef] referencing this [SymbolBox]
     #[inline]
-    pub fn new_ref(&mut self, handler: impl SymbolRefHandler + 'static) -> SymbolRef<T> {
+    pub fn new_ref(&mut self, handler: H) -> SymbolRef<T, H> {
         SymbolRef::new(self, handler)
     }
 
@@ -85,22 +85,25 @@ impl SymbolRefHandler for () {
 }
 
 /// Reference to [SymbolBox], invalidates, if SymbolBox drops
-pub struct SymbolRef<T: ?Sized> {
-    object: Weak<RwLock<T>>,
-    handler: Arc<RwLock<dyn SymbolRefHandler>>,
+pub struct SymbolRef<T: ?Sized, H: ?Sized> {
+    object: Option<Weak<RwLock<T>>>,
+    handler: Arc<RwLock<H>>,
 }
 
-impl<T: ?Sized> SymbolRef<T> {
+impl<H, T: ?Sized> SymbolRef<H, T> {
     /// Create a new SymbolRef from [SymbolBoxAccess]
-    pub fn new(symbol_box: &mut SymbolBox<T>, handler: impl SymbolRefHandler + 'static) -> Self
+    pub fn new<BH>(symbol_box: &mut SymbolBox<T, BH>, handler: H) -> Self
     where
         T: Sized,
+        BH: std::marker::Unsize<H>,
     {
-        let handler: Arc<RwLock<dyn SymbolRefHandler>> = Arc::new(RwLock::new(handler));
+        let handler = Arc::new(RwLock::new(handler));
         symbol_box.references.push(Arc::downgrade(&handler));
 
         Self {
-            object: Arc::downgrade(&(symbol_box.object.clone() as Arc<RwLock<T>>)),
+            object: Some(Arc::downgrade(
+                &(symbol_box.object.clone() as Arc<RwLock<T>>),
+            )),
             handler,
         }
     }
@@ -108,21 +111,24 @@ impl<T: ?Sized> SymbolRef<T> {
     /// Create a new SymbolRef from [SymbolBoxAccess]
     pub fn new_unsize(
         symbol_box: &mut SymbolBox<impl std::marker::Unsize<T>>,
-        handler: impl SymbolRefHandler + 'static,
+        handler: impl std::marker::Unsize<H>,
     ) -> Self {
-        let handler: Arc<RwLock<dyn SymbolRefHandler>> = Arc::new(RwLock::new(handler));
+        let handler = Arc::new(RwLock::new(handler));
         symbol_box.references.push(Arc::downgrade(&handler));
 
         Self {
-            object: Arc::downgrade(&(symbol_box.object.clone() as Arc<RwLock<T>>)),
+            object: Some(Arc::downgrade(
+                &(symbol_box.object.clone() as Arc<RwLock<T>>),
+            )),
             handler,
         }
     }
 
-    pub fn unbound(handler: impl SymbolRefHandler + 'static) -> Self {
-        let handler: Arc<RwLock<dyn SymbolRefHandler>> = Arc::new(RwLock::new(handler));
+    /// Create an unbound [SymbolRef], [`Self::object`] returns None until it's bound using [`Self::bind`]
+    pub fn unbound(handler: impl std::marker::Unsize<H>) -> Self {
+        let handler = Arc::new(RwLock::new(handler));
         Self {
-            object: Weak::new(),
+            object: None,
             handler,
         }
     }
@@ -130,8 +136,8 @@ impl<T: ?Sized> SymbolRef<T> {
     /// Access contents of the [SymbolBox]
     pub fn object(&self) -> Option<Guard<T>> {
         self.object
-            .upgrade()
-            .map(|object| Guard(object, PhantomData))
+            .as_ref()
+            .and_then(|object| object.upgrade().map(|object| Guard(object, PhantomData)))
     }
 
     /// Get the [SymbolRefHandler] associated with this [SymbolRef]
