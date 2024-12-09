@@ -1,17 +1,11 @@
 use super::*;
 
-/// See [Block]
-pub mod block;
-pub use block::Block;
-/// Constructs that affect control flow, like [Return], [Break], etc. Conditionals not included
-pub mod control_flow;
-pub use control_flow::Return;
+/// Operators
+pub mod operators;
+pub use operators::Operator;
 /// Everything related to variables
 pub mod variables;
 pub use variables::VariableDeclaration;
-/// Functions
-pub mod functions;
-pub use functions::FunctionCall;
 /// See [Literal]
 pub mod literal;
 pub use literal::Literal;
@@ -19,10 +13,6 @@ pub use literal::Literal;
 /// Expressions in orco are all the actual code. Statements are expressions
 #[derive(MutrefCloneCopy)]
 pub enum Expression<'a, M: Mutability = Imm> {
-    /// See [Block]
-    Block(M::Ref<'a, dyn Block>),
-    /// See [Return]
-    Return(M::Ref<'a, dyn Return>),
     /// See [VariableDeclaration]
     VariableDeclaration(M::Ref<'a, dyn VariableDeclaration>),
     /// See [FunctionCall]
