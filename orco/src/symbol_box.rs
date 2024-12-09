@@ -1,5 +1,5 @@
 use std::{
-    marker::PhantomData,
+    marker::{PhantomData, Unsize},
     sync::{Arc, RwLock, Weak},
 };
 
@@ -53,20 +53,14 @@ impl<T, H: ?Sized> SymbolBox<T, H> {
 
     /// Create a new [SymbolRef] referencing this [SymbolBox]
     #[inline]
-    pub fn new_ref(&mut self, handler: H) -> SymbolRef<T, H> {
-        SymbolRef::new(self, handler)
-    }
-
-    /// Create a new [SymbolRef] referencing this [SymbolBox]
-    #[inline]
-    pub fn new_ref_unsize<U: ?Sized>(
-        &mut self,
-        handler: impl SymbolRefHandler + 'static,
-    ) -> SymbolRef<U>
+    pub fn new_ref<RT: ?Sized, RH>(&mut self, handler: RH) -> SymbolRef<RT, RH>
     where
-        T: std::marker::Unsize<U>,
+        T: Unsize<RT>,
+        RH: Unsize<H>,
     {
-        SymbolRef::new_unsize(self, handler)
+        let mut symbol_ref = SymbolRef::new(handler);
+        symbol_ref.bind(self);
+        symbol_ref
     }
 }
 
@@ -90,47 +84,28 @@ pub struct SymbolRef<T: ?Sized, H: ?Sized> {
     handler: Arc<RwLock<H>>,
 }
 
-impl<H, T: ?Sized> SymbolRef<H, T> {
+impl<T: ?Sized, H: ?Sized> SymbolRef<T, H> {
     /// Create a new SymbolRef from [SymbolBoxAccess]
-    pub fn new<BH>(symbol_box: &mut SymbolBox<T, BH>, handler: H) -> Self
+    pub fn new(handler: H) -> Self
     where
-        T: Sized,
-        BH: std::marker::Unsize<H>,
+        H: Sized,
     {
-        let handler = Arc::new(RwLock::new(handler));
-        symbol_box.references.push(Arc::downgrade(&handler));
-
-        Self {
-            object: Some(Arc::downgrade(
-                &(symbol_box.object.clone() as Arc<RwLock<T>>),
-            )),
-            handler,
-        }
-    }
-
-    /// Create a new SymbolRef from [SymbolBoxAccess]
-    pub fn new_unsize(
-        symbol_box: &mut SymbolBox<impl std::marker::Unsize<T>>,
-        handler: impl std::marker::Unsize<H>,
-    ) -> Self {
-        let handler = Arc::new(RwLock::new(handler));
-        symbol_box.references.push(Arc::downgrade(&handler));
-
-        Self {
-            object: Some(Arc::downgrade(
-                &(symbol_box.object.clone() as Arc<RwLock<T>>),
-            )),
-            handler,
-        }
-    }
-
-    /// Create an unbound [SymbolRef], [`Self::object`] returns None until it's bound using [`Self::bind`]
-    pub fn unbound(handler: impl std::marker::Unsize<H>) -> Self {
-        let handler = Arc::new(RwLock::new(handler));
         Self {
             object: None,
-            handler,
+            handler: Arc::new(RwLock::new(handler)),
         }
+    }
+
+    pub fn bind<BT, BH: ?Sized>(&mut self, symbol_box: &mut SymbolBox<BT, BH>)
+    where
+        BT: Unsize<T>,
+        H: Unsize<BH>,
+    {
+        let handler: Arc<RwLock<BH>> = self.handler.clone();
+        symbol_box.references.push(Arc::downgrade(&handler));
+
+        let object: Arc<RwLock<T>> = symbol_box.object.clone();
+        self.object = Some(Arc::downgrade(&object));
     }
 
     /// Access contents of the [SymbolBox]
@@ -141,50 +116,89 @@ impl<H, T: ?Sized> SymbolRef<H, T> {
     }
 
     /// Get the [SymbolRefHandler] associated with this [SymbolRef]
-    pub fn handler(&self) -> &RwLock<dyn SymbolRefHandler> {
+    pub fn handler(&self) -> &RwLock<H> {
         &self.handler
+    }
+
+    /// Cast underlying handler type
+    pub fn cast<NH>(self) -> SymbolRef<T, NH>
+    where
+        H: Unsize<NH>,
+    {
+        SymbolRef {
+            object: self.object,
+            handler: self.handler,
+        }
     }
 }
 
-#[test]
-fn test() {
+#[cfg(test)]
+mod tests {
+    use super::*;
     use assert2::*;
-    let mut symbol_box = SymbolBox::new(42);
-    *symbol_box.object().try_write().unwrap() = 69;
-    check!(*symbol_box.object().try_read().unwrap() == 69);
 
-    let symbol_ref = symbol_box.new_ref(());
-    *symbol_box.object().try_write().unwrap() += 1;
-    check!(*symbol_box.object().try_read().unwrap() == 70);
-    check!(*symbol_ref.object().unwrap().try_read().unwrap() == 70);
-}
+    struct A;
+    struct B;
+    trait TA {}
+    trait TB {}
 
-#[test]
-fn test_safety_drop_ref() {
-    use assert2::*;
-    let mut symbol_box = SymbolBox::<i32>::new(42);
-    check!(symbol_box.references().len() == 0);
-    check!(Arc::strong_count(&symbol_box.object) == 1);
-    check!(Arc::weak_count(&symbol_box.object) == 0);
-    let symbol_ref = symbol_box.new_ref(());
-    check!(symbol_box.references().len() == 1);
-    check!(Arc::strong_count(&symbol_box.object) == 1);
-    check!(Arc::weak_count(&symbol_box.object) == 1);
-    drop(symbol_ref);
-    check!(symbol_box.references().len() == 0);
-    check!(Arc::strong_count(&symbol_box.object) == 1);
-    check!(Arc::weak_count(&symbol_box.object) == 0);
-}
+    impl TA for A {}
+    impl TB for B {}
 
-#[test]
-fn test_safety_drop_box() {
-    use assert2::*;
-    let mut symbol_box = SymbolBox::new(42);
-    let symbol_ref = symbol_box.new_ref(());
-    check!(Arc::strong_count(&symbol_ref.handler) == 1);
-    check!(Arc::weak_count(&symbol_ref.handler) == 1);
-    drop(symbol_box);
-    check!(Arc::strong_count(&symbol_ref.handler) == 1);
-    check!(Arc::weak_count(&symbol_ref.handler) == 0);
-    check!(symbol_ref.object().is_none());
+    #[test]
+    fn test_box() {
+        let mut symbol_box = SymbolBox::<_, dyn TB>::new(A);
+        check!(symbol_box.references().len() == 0);
+
+        let symbol_ref = symbol_box.new_ref::<dyn TA, _>(B);
+        check!(symbol_box.references().len() == 1);
+        check!(symbol_ref.object().is_some());
+
+        drop(symbol_box);
+        check!(symbol_ref.object().is_none());
+    }
+
+    #[test]
+    fn test_ref() {
+        let mut symbol_box = SymbolBox::<_, dyn TB>::new(A);
+        check!(symbol_box.references().len() == 0);
+
+        let symbol_ref = symbol_box.new_ref::<dyn TA, _>(B);
+        check!(symbol_box.references().len() == 1);
+        check!(symbol_ref.object().is_some());
+
+        drop(symbol_ref);
+        check!(symbol_box.references().len() == 0);
+    }
+
+    #[test]
+    fn test_safety_drop_ref() {
+        let mut symbol_box = SymbolBox::<_, dyn TB>::new(A);
+        check!(symbol_box.references().len() == 0);
+        check!(Arc::strong_count(&symbol_box.object) == 1);
+        check!(Arc::weak_count(&symbol_box.object) == 0);
+
+        let symbol_ref = symbol_box.new_ref::<dyn TA, _>(B);
+        check!(symbol_box.references().len() == 1);
+        check!(Arc::strong_count(&symbol_box.object) == 1);
+        check!(Arc::weak_count(&symbol_box.object) == 1);
+
+        drop(symbol_ref);
+        check!(symbol_box.references().len() == 0);
+        check!(Arc::strong_count(&symbol_box.object) == 1);
+        check!(Arc::weak_count(&symbol_box.object) == 0);
+    }
+
+    #[test]
+    fn test_safety_drop_box() {
+        let mut symbol_box = SymbolBox::<_, dyn TB>::new(A);
+        let symbol_ref = symbol_box.new_ref::<dyn TA, _>(B);
+        check!(Arc::strong_count(&symbol_ref.handler) == 1);
+        check!(Arc::weak_count(&symbol_ref.handler) == 1);
+
+        drop(symbol_box);
+        check!(Arc::strong_count(&symbol_ref.handler) == 1);
+        check!(Arc::weak_count(&symbol_ref.handler) == 0);
+        check!(symbol_ref.object().is_none());
+    }
 }
