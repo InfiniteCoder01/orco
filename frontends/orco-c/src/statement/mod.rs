@@ -18,14 +18,15 @@ pub enum Statement {
 }
 
 impl Statement {
-    #[orco::make_mut]
     pub fn as_orco(&self) -> orco::Expression {
         match self {
-            Self::Block(block) => orco::Expression::Block(block as _),
-            Self::Return(expr) => orco::Expression::Return(expr as _),
-            Self::VariableDeclaration(decl) => orco::Expression::VariableDeclaration(decl as _),
-            Self::Expression(_, _) => todo!(),
-            Self::Empty(_) => todo!(),
+            Self::Block(block) => block.statements(),
+            Self::Return(expr) => expr.as_orco(),
+            Self::VariableDeclaration(decl) => {
+                std::iter::once(orco::Expression::VariableDeclaration(decl as _))
+            }
+            Self::Expression(expr, _) => expr.as_orco(),
+            Self::Empty(_) => std::iter::empty(),
         }
     }
 }

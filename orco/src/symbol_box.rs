@@ -64,20 +64,6 @@ impl<T, H: ?Sized> SymbolBox<T, H> {
     }
 }
 
-// * SymbolRef
-/// SymbolRefHandler is an object that is stored in every [SymbolRef] and can also be accessed via [`SymbolBox::references`]
-/// It provides methods to act on events like LSP rename, go to references, etc.
-pub trait SymbolRefHandler {
-    /// Get the name of the symbol
-    fn name(&self) -> std::borrow::Cow<str>;
-}
-
-impl SymbolRefHandler for () {
-    fn name(&self) -> std::borrow::Cow<str> {
-        "<???>".into()
-    }
-}
-
 /// Reference to [SymbolBox], invalidates, if SymbolBox drops
 pub struct SymbolRef<T: ?Sized, H: ?Sized> {
     object: Option<Weak<RwLock<T>>>,
@@ -96,6 +82,7 @@ impl<T: ?Sized, H: ?Sized> SymbolRef<T, H> {
         }
     }
 
+    /// Bind this [SymbolRef] to a [SymbolBox]
     pub fn bind<BT, BH: ?Sized>(&mut self, symbol_box: &mut SymbolBox<BT, BH>)
     where
         BT: Unsize<T>,

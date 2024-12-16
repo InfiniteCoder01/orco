@@ -151,11 +151,30 @@ pub fn make_mut(_attr: TokenStream, item: TokenStream) -> TokenStream {
         panic!();
     };
 
-    let syn::Type::Path(path) = &mut **rt else {
-        panic!();
+    let path = match &mut **rt {
+        syn::Type::ImplTrait(impl_trait) => {
+            let syn::TypeParamBound::Trait(trait_) = impl_trait.bounds.first_mut().unwrap() else {
+                panic!()
+            };
+            let seg = trait_.path.segments.last_mut().unwrap();
+            let syn::PathArguments::AngleBracketed(args) = &mut seg.arguments else {
+                panic!()
+            };
+            let syn::GenericArgument::AssocType(ty) = args.args.first_mut().unwrap() else {
+                panic!()
+            };
+
+            let syn::Type::Path(path) = &mut ty.ty else {
+                panic!()
+            };
+
+            &mut path.path
+        }
+        syn::Type::Path(path) => &mut path.path,
+        _ => panic!(),
     };
 
-    let seg = path.path.segments.last_mut().unwrap();
+    let seg = path.segments.last_mut().unwrap();
     seg.arguments =
         syn::PathArguments::AngleBracketed(syn::parse2(quote! { <orco::Mut> }).unwrap());
 

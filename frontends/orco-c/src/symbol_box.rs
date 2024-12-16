@@ -1,35 +1,35 @@
 use parsel::{Parse, ToTokens};
 
 /// Wrapper around [`orco::SymbolBox`] with parsing traits
-pub struct SymbolBox<T>(orco::SymbolBox<T>);
+pub struct SymbolBox<T, H: ?Sized>(orco::SymbolBox<T, H>);
 
-impl<T> std::ops::Deref for SymbolBox<T> {
-    type Target = orco::SymbolBox<T>;
+impl<T, H: ?Sized> std::ops::Deref for SymbolBox<T, H> {
+    type Target = orco::SymbolBox<T, H>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<T> std::ops::DerefMut for SymbolBox<T> {
+impl<T, H: ?Sized> std::ops::DerefMut for SymbolBox<T, H> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl<T: Parse> Parse for SymbolBox<T> {
+impl<T: Parse, H: ?Sized> Parse for SymbolBox<T, H> {
     fn parse(input: parsel::syn::parse::ParseStream) -> parsel::Result<Self> {
         Ok(Self(orco::SymbolBox::new(T::parse(input)?)))
     }
 }
 
-impl<T: ToTokens> ToTokens for SymbolBox<T> {
+impl<T: ToTokens, H: ?Sized> ToTokens for SymbolBox<T, H> {
     fn to_tokens(&self, tokens: &mut parsel::TokenStream) {
         self.object().try_read().unwrap().to_tokens(tokens)
     }
 }
 
-impl<T: PartialEq> PartialEq for SymbolBox<T> {
+impl<T: PartialEq, H: ?Sized> PartialEq for SymbolBox<T, H> {
     fn eq(&self, other: &Self) -> bool {
         self.object()
             .try_read()
@@ -38,24 +38,18 @@ impl<T: PartialEq> PartialEq for SymbolBox<T> {
     }
 }
 
-impl<T: Eq> Eq for SymbolBox<T> {}
+impl<T: Eq, H: ?Sized> Eq for SymbolBox<T, H> {}
 
 /// Wrapper around [`orco::SymbolRef`] with parsing traits
-pub struct SymbolRef<I: orco::symbol_box::SymbolRefHandler, T: ?Sized> {
-    pub reference: orco::SymbolRef<T>,
-    phantom: std::marker::PhantomData<I>,
-}
+pub struct SymbolRef<T: ?Sized, H: ?Sized>(orco::SymbolRef<T, H>);
 
-impl<I: Parse + orco::symbol_box::SymbolRefHandler + 'static, T: ?Sized> Parse for SymbolRef<I, T> {
+impl<T: ?Sized, H: Parse> Parse for SymbolRef<T, H> {
     fn parse(input: parsel::syn::parse::ParseStream) -> parsel::Result<Self> {
-        Ok(Self {
-            reference: orco::SymbolRef::unbound(I::parse(input)?),
-            phantom: std::marker::PhantomData::default(),
-        })
+        Ok(Self(orco::SymbolRef::new(H::parse(input)?)))
     }
 }
 
-impl<I: orco::symbol_box::SymbolRefHandler, T: ToTokens> ToTokens for SymbolRef<I, T> {
+impl<T: ?Sized, H: ToTokens + ?Sized> ToTokens for SymbolRef<T, H> {
     fn to_tokens(&self, tokens: &mut parsel::TokenStream) {
         self.object().try_read().unwrap().to_tokens(tokens)
     }

@@ -7,12 +7,14 @@ pub struct Return {
     pub op_semi: Semi,
 }
 
-impl orco::expression::Return for Return {
-    fn expression(&self) -> orco::Expression {
-        self.expression.as_orco()
+impl Return {
+    pub fn as_orco(&self) -> orco::Expression {
+        // self.expression.as_orco()
+        todo!()
     }
 
-    fn expression_mut(&mut self) -> orco::Expression<orco::Mut> {
+    pub fn as_orco_mut(&mut self) -> orco::Expression<orco::Mut> {
         self.expression.as_orco_mut()
+        todo!()
     }
 }
