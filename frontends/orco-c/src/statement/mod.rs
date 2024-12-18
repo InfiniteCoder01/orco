@@ -8,7 +8,7 @@ pub use control_flow::Return;
 pub mod variables;
 pub use variables::VariableDeclaration;
 
-#[derive(Clone, PartialEq, Eq, Parse, ToTokens)]
+#[derive(Parse, ToTokens)]
 pub enum Statement {
     Block(Block),
     Return(Return),
@@ -20,13 +20,11 @@ pub enum Statement {
 impl Statement {
     pub fn as_orco(&self) -> orco::Expression {
         match self {
-            Self::Block(block) => block.statements(),
+            Self::Block(block) => orco::Expression::Block(block as _),
             Self::Return(expr) => expr.as_orco(),
-            Self::VariableDeclaration(decl) => {
-                std::iter::once(orco::Expression::VariableDeclaration(decl as _))
-            }
+            Self::VariableDeclaration(decl) => orco::Expression::VariableDeclaration(decl as _),
             Self::Expression(expr, _) => expr.as_orco(),
-            Self::Empty(_) => std::iter::empty(),
+            Self::Empty(_) => todo!(),
         }
     }
 }

@@ -2,7 +2,7 @@ use super::*;
 
 /// Operators
 pub mod operators;
-pub use operators::Operator;
+pub use operators::OperatorCall;
 /// See [Block]
 pub mod block;
 pub use block::Block;
@@ -19,7 +19,7 @@ pub enum Expression<'a, M: Mutability = Imm> {
     /// See [Block]
     Block(M::Ref<'a, dyn Block>),
     /// See [FunctionCall]
-    Operator(M::Ref<'a, dyn Operator>),
+    Operator(M::Ref<'a, dyn OperatorCall>),
     /// See [VariableDeclaration]
     VariableDeclaration(M::Ref<'a, dyn VariableDeclaration>),
     /// See [Literal]
@@ -41,7 +41,7 @@ impl<M: Mutability> Expression<'_, M> {
 impl<M: Mutability> std::fmt::Display for Expression<'_, M> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Block(block) (&**block).fmt(f),
+            Self::Block(block) => (&**block).fmt(f),
             Self::Operator(op) => (&**op).fmt(f),
             Self::VariableDeclaration(decl) => (&**decl).fmt(f),
             Self::Literal(literal) => literal.fmt(f),

@@ -6,6 +6,7 @@ pub use orco_procmacro::*;
 
 /// See [Expression]
 pub mod expression;
+pub use expression::operators;
 pub use expression::Expression;
 
 /// See [Symbol]

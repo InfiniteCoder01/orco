@@ -3,7 +3,7 @@ use super::*;
 #[derive(Clone, PartialEq, Eq, Parse, ToTokens)]
 pub struct Block(#[parsel(recursive)] pub Brace<Many<Statement>>);
 
-impl orco::Block for Block {
+impl orco::expression::Block for Block {
     fn expressions(&self) -> impl Iterator<Item = orco::Expression> {
         Box::new(self.0.iter().flat_map(|statement| statement.as_orco()))
     }
