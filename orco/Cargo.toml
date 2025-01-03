@@ -5,5 +5,8 @@ edition = "2021"
 
 [dependencies]
 indent = "0.1.1"
-assert2 = { workspace = true }
 orco-procmacro = { workspace = true }
+
+assert2 = { workspace = true }
+unindent = "0.2.3"
+diff = "0.1.13"

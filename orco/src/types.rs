@@ -1,9 +1,10 @@
 use super::*;
 
 /// Type. Can be a primitive or a whole struct
-#[derive(Clone)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
     /// Wildcard type
+    #[default]
     Wildcard,
 
     /// Never type

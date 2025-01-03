@@ -4,11 +4,13 @@ use super::*;
 pub mod function;
 pub use function::FunctionDefinition;
 
+pub trait FunctionHandler {}
+
 /// C symbols
-#[derive(PartialEq, Eq, Parse, ToTokens)]
+#[derive(Parse, ToTokens)]
 pub enum Symbol {
     /// Function definition
-    FunctionDefinition(SymbolBox<FunctionDefinition>),
+    FunctionDefinition(SymbolBox<FunctionDefinition, dyn FunctionHandler>),
 }
 
 impl Symbol {

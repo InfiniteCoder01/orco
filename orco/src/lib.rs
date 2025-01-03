@@ -44,3 +44,33 @@ impl std::fmt::Display for &dyn Unit {
         Ok(())
     }
 }
+
+/// EXPERIMENTAL API!
+/// Use in tests. Checks if unit has all symbols like symbols using [`std::fmt::Display`] formatting
+pub fn test_symbols(unit: &dyn Unit, symbols: &[impl AsRef<str>]) {
+    assert2::check!(unit.symbols().count() == symbols.len());
+    let mut failed_tests = 0;
+    for (expected, symbol) in symbols.iter().zip(unit.symbols()) {
+        let expected = unindent::unindent(expected.as_ref().trim());
+        let symbol = unindent::unindent(symbol.to_string().trim());
+        let lines = diff::lines(&expected, &symbol);
+
+        if lines
+            .iter()
+            .any(|diff| !matches!(diff, diff::Result::Both(_, _)))
+        {
+            for diff in lines {
+                match diff {
+                    diff::Result::Left(l) => println!("\x1b[91m-{}\x1b[0m", l),
+                    diff::Result::Both(l, _) => println!(" {}", l),
+                    diff::Result::Right(r) => println!("\x1b[92m+{}\x1b[0m", r),
+                }
+            }
+            failed_tests += 1;
+        }
+    }
+
+    if failed_tests > 0 {
+        panic!("{} tests failed.", failed_tests);
+    }
+}

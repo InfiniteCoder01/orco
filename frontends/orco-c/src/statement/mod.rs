@@ -27,4 +27,14 @@ impl Statement {
             Self::Empty(_) => todo!(),
         }
     }
+
+    pub fn as_orco_mut(&mut self) -> orco::Expression<orco::Mut> {
+        match self {
+            Self::Block(block) => orco::Expression::Block(block as _),
+            Self::Return(expr) => expr.as_orco_mut(),
+            Self::VariableDeclaration(decl) => orco::Expression::VariableDeclaration(decl as _),
+            Self::Expression(expr, _) => expr.as_orco_mut(),
+            Self::Empty(_) => todo!(),
+        }
+    }
 }

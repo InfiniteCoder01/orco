@@ -21,7 +21,7 @@ impl orco::symbol::function::FunctionParameter for FunctionParameter {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Parse, ToTokens)]
+#[derive(Parse, ToTokens)]
 pub struct FunctionDefinition {
     pub return_type: Type,
     pub name: Word,
