@@ -8,6 +8,10 @@ pub use parsel;
 pub mod symbol_box;
 pub use symbol_box::SymbolBox;
 
+/// Wrapper around the type that allows it being a normal field that is not getting parsed
+pub mod unparse;
+pub use unparse::Unparse;
+
 pub mod expression;
 pub use expression::Expression;
 
@@ -36,12 +40,6 @@ pub struct Unit {
     pub symbols: Many<Symbol>,
 }
 
-impl orco::Unit for Unit {
-    fn symbols(&self) -> orco::DynIter<orco::Symbol> {
-        Box::new(self.symbols.iter().map(|symbol| symbol.as_orco()))
-    }
-}
-
 #[test]
 pub fn parse_test() {
     use assert2::*;
@@ -61,7 +59,7 @@ pub fn parse_test() {
     check!(main.params.is_left());
     check!(main.body.0.len() == 1);
     let_assert!(Some(Statement::Return(expr)) = main.body.0.first());
-    let_assert!(Expression::Integer(rv) = &expr.handler().read().unwrap().expression);
+    let_assert!(Expression::Integer(rv) = &expr.expression);
     check!(rv.0.value() == 42);
 
     let_assert!(Symbol::FunctionDefinition(foo) = &unit.symbols[1]);
@@ -81,7 +79,6 @@ pub fn parse_test() {
 
 #[test]
 pub fn interface_test() {
-    use assert2::*;
     let unit: Unit = parsel::parse_quote! {
         int main(void) {
             return 42;
@@ -89,10 +86,11 @@ pub fn interface_test() {
 
         void foo(int x) {}
     };
-    let unit = &unit as &dyn orco::Unit;
-    check!(unit.symbols().count() == 2);
+
+    let symbols = unit.symbols.iter().map(Symbol::as_orco).collect::<Vec<_>>();
+
     orco::test_symbols(
-        unit,
+        &symbols,
         &[
             "
                 fn main () -> i32 {
@@ -105,32 +103,4 @@ pub fn interface_test() {
             ",
         ],
     );
-    // let_assert!(
-    //     [orco::Symbol::Function(main), orco::Symbol::Function(foo)] =
-    //         unit.symbols().collect::<Vec<_>>().as_slice()
-    // );
-
-    // let main = main.try_read().unwrap();
-    // check!(main.name() == "main");
-    // check!(main.signature().parameters().count() == 0);
-    // check!(main.signature().return_type() == orco::Type::Integer(0));
-    // let_assert!(orco::Expression::Block(body) = main.body());
-    // check!(body.expressions().count() == 1);
-    println!("{}", unit)
-    // let_assert!(Expression::Integer(rv) = &expr.expression);
-    // check!(rv.0.value() == 42);
-
-    // let_assert!(Symbol::FunctionDefinition(foo) = &unit.symbols[1]);
-    // let foo = foo.object().try_read().unwrap();
-    // check!(let Type::Void(_) = foo.return_type);
-    // check!(foo.name == "foo");
-    // let_assert!(parsel::ast::Either::Right(params) = foo.params.as_ref());
-    // check!(params.len() == 1);
-    // check!(let Type::Int(_) = params.first().unwrap().r#type);
-    // check!(params
-    //     .first()
-    //     .unwrap()
-    //     .name
-    //     .as_prefix()
-    //     .is_some_and(|name| name.to_string() == "x"));
 }

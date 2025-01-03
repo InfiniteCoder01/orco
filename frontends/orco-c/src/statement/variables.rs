@@ -18,9 +18,7 @@ pub struct VariableDeclaration {
 }
 
 impl orco::expression::VariableDeclaration for VariableDeclaration {
-    fn variables(
-        &self,
-    ) -> orco::DynIter<(orco::Type, std::borrow::Cow<str>, Option<orco::Expression>)> {
+    fn variables(&self) -> orco::DynIter<(orco::Type, orco::CowStr, Option<orco::Expression>)> {
         let ty = self.ty.as_orco();
         Box::new(self.variables.iter().map(move |entry| {
             (
@@ -35,7 +33,7 @@ impl orco::expression::VariableDeclaration for VariableDeclaration {
         &mut self,
     ) -> orco::DynIter<(
         orco::Type,
-        std::borrow::Cow<str>,
+        orco::CowStr,
         Option<orco::Expression<orco::Mut>>,
     )> {
         let ty = self.ty.as_orco();

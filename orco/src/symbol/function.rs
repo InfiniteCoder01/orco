@@ -3,7 +3,7 @@ use super::*;
 /// A single function parameter
 pub trait FunctionParameter {
     /// Parameter name, optiona;
-    fn name(&self) -> Option<std::borrow::Cow<str>>;
+    fn name(&self) -> Option<CowStr>;
     /// Parameter type
     fn r#type(&self) -> Type;
 }
@@ -51,7 +51,7 @@ impl std::fmt::Display for &dyn FunctionSignature {
 /// This is a function definition
 pub trait Function {
     /// Returns the name of the function
-    fn name(&self) -> std::borrow::Cow<str>;
+    fn name(&self) -> CowStr;
     /// Get the signature of this function
     fn signature(&self) -> &dyn FunctionSignature;
     /// Version of [`Function::signature`] that returns mutable reference

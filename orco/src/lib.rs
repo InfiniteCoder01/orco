@@ -21,6 +21,10 @@ pub use types::Type;
 pub mod mutability;
 pub use mutability::*;
 
+/// See [TypeInferenceContext]
+pub mod type_inference;
+pub use type_inference::TypeInferenceContext;
+
 /// Symbol references are one of the key features of OrCo.
 /// They allow symbols to be accessed from anywhere
 pub mod symbol_box;
@@ -29,28 +33,15 @@ pub use symbol_box::{SymbolBox, SymbolRef};
 /// Boxed dynamic iterator
 pub type DynIter<'a, T> = Box<dyn Iterator<Item = T> + 'a>;
 
-/// A single unit just houses symbols
-pub trait Unit {
-    /// Returns a dynamic iterator over all symbols in this unit
-    fn symbols(&self) -> DynIter<Symbol>;
-}
-
-#[debug_display]
-impl std::fmt::Display for &dyn Unit {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for symbol in self.symbols() {
-            writeln!(f, "{}", symbol)?;
-        }
-        Ok(())
-    }
-}
+/// `Cow<str>`
+pub type CowStr<'a> = std::borrow::Cow<'a, str>;
 
 /// EXPERIMENTAL API!
 /// Use in tests. Checks if unit has all symbols like symbols using [`std::fmt::Display`] formatting
-pub fn test_symbols(unit: &dyn Unit, symbols: &[impl AsRef<str>]) {
-    assert2::check!(unit.symbols().count() == symbols.len());
+pub fn test_symbols<'a>(symbols: &[Symbol<'a>], expected: &[impl AsRef<str>]) {
+    assert2::check!(symbols.len() == expected.len());
     let mut failed_tests = 0;
-    for (expected, symbol) in symbols.iter().zip(unit.symbols()) {
+    for (expected, symbol) in expected.iter().zip(symbols.iter()) {
         let expected = unindent::unindent(expected.as_ref().trim());
         let symbol = unindent::unindent(symbol.to_string().trim());
         let lines = diff::lines(&expected, &symbol);

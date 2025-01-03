@@ -1,8 +1,9 @@
 use super::*;
 
-/// Operators
+/// Operators are everything that happens.
+/// `break`, `return`, adding two numbers together are all operators
 pub mod operators;
-pub use operators::{Operator, OperatorCall, OperatorHandler};
+pub use operators::{AsOperator, Operator};
 /// See [Block]
 pub mod block;
 pub use block::Block;
@@ -18,8 +19,8 @@ pub use literal::Literal;
 pub enum Expression<'a, M: Mutability = Imm> {
     /// See [Block]
     Block(M::Ref<'a, dyn Block>),
-    /// See [FunctionCall]
-    Operator(M::Ref<'a, dyn OperatorCall>),
+    /// See [operators]
+    Operator(M::Ref<'a, dyn AsOperator>),
     /// See [VariableDeclaration]
     VariableDeclaration(M::Ref<'a, dyn VariableDeclaration>),
     /// See [Literal]

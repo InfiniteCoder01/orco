@@ -43,33 +43,28 @@ impl Object {
         }
     }
 
-    fn declare_module(&mut self, unit: &dyn orco::Unit) {
-        for symbol in unit.symbols() {
-            match symbol {
-                orco::Symbol::Function(function) => {
-                    self.declare_function(&*function.read().unwrap())
-                }
-            }
+    fn declare_symbol(&mut self, symbol: &orco::Symbol) {
+        match symbol {
+            orco::Symbol::Function(function) => self.declare_function(&*function.read().unwrap()),
         }
     }
 
-    fn build_module(&mut self, unit: &dyn orco::Unit) {
-        for symbol in unit.symbols() {
-            match symbol {
-                orco::Symbol::Function(function) => {
-                    self.build_function(&*function.read().unwrap())
-                }
-            }
+    fn build_symbol(&mut self, symbol: &orco::Symbol) {
+        match symbol {
+            orco::Symbol::Function(function) => self.build_function(&*function.read().unwrap()),
         }
     }
 }
 
 /// Build OrCo IR Unit
-pub fn build(unit: &dyn orco::Unit) {
-    debug!("Compiling module:\n{}", unit as &dyn orco::Unit);
+pub fn build(symbols: &[orco::Symbol]) {
     let mut object = Object::new("x86_64-unknown-linux-gnu");
-    object.declare_module(unit);
-    object.build_module(unit);
+    for symbol in symbols {
+        object.declare_symbol(symbol);
+    }
+    for symbol in symbols {
+        object.build_symbol(symbol);
+    }
 
     if let Some((id, data)) = object.constant_data {
         object

@@ -3,9 +3,9 @@ use super::*;
 /// Variable declaration expression. Creates one or more variables, each one can be initialized or not
 pub trait VariableDeclaration {
     /// Get the variables declared
-    fn variables(&self) -> DynIter<(Type, std::borrow::Cow<str>, Option<Expression>)>;
+    fn variables(&self) -> DynIter<(Type, CowStr, Option<Expression>)>;
     /// Version of [`VariableDeclaration::variables`] that yields mutable references
-    fn variables_mut(&mut self) -> DynIter<(Type, std::borrow::Cow<str>, Option<Expression<Mut>>)>;
+    fn variables_mut(&mut self) -> DynIter<(Type, CowStr, Option<Expression<Mut>>)>;
 }
 
 #[debug_display]

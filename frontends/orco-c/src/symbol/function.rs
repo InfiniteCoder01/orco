@@ -12,7 +12,7 @@ pub struct FunctionParameter {
 }
 
 impl orco::symbol::function::FunctionParameter for FunctionParameter {
-    fn name(&self) -> Option<std::borrow::Cow<str>> {
+    fn name(&self) -> Option<orco::CowStr> {
         self.name.as_prefix().map(|name| name.to_string().into())
     }
 
@@ -30,7 +30,7 @@ pub struct FunctionDefinition {
 }
 
 impl orco::symbol::Function for FunctionDefinition {
-    fn name(&self) -> std::borrow::Cow<str> {
+    fn name(&self) -> orco::CowStr {
         self.name.to_string().into()
     }
 

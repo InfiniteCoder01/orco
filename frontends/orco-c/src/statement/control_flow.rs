@@ -1,20 +1,15 @@
 use super::*;
 
-pub type ReturnExpression = symbol_box::SymbolRef<dyn orco::operators::Operator, Return>;
-
 #[derive(Parse, ToTokens)]
 pub struct Return {
     pub kw_return: kw::Return,
     pub expression: Expression,
     pub op_semi: Semi,
+    pub operator: Unparse<Option<Box<dyn orco::operators::Operator>>>,
 }
 
-impl orco::operators::OperatorHandler for Return {
-    fn args(&self) -> Vec<orco::Expression> {
-        vec![self.expression.as_orco()]
-    }
-
-    fn args_mut(&mut self) -> Vec<orco::Expression<orco::Mut>> {
-        vec![self.expression.as_orco_mut()]
+impl orco::operators::AsOperator for Return {
+    fn operator(&self) -> Option<&dyn orco::operators::Operator> {
+        self.operator.as_ref().map(Box::as_ref)
     }
 }

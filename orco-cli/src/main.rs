@@ -32,5 +32,11 @@ fn main() {
     };
 
     // println!("{}", &unit as &dyn orco::Unit);
-    orco_cranelift::build(&unit);
+    orco_cranelift::build(
+        &unit
+            .symbols
+            .iter()
+            .map(orco_c::Symbol::as_orco)
+            .collect::<Vec<_>>(),
+    );
 }
