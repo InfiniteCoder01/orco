@@ -47,7 +47,7 @@ impl Object {
         for symbol in unit.symbols() {
             match symbol {
                 orco::Symbol::Function(function) => {
-                    self.declare_function(&*function.try_read().unwrap())
+                    self.declare_function(&*function.read().unwrap())
                 }
             }
         }
@@ -57,7 +57,7 @@ impl Object {
         for symbol in unit.symbols() {
             match symbol {
                 orco::Symbol::Function(function) => {
-                    self.build_function(&*function.try_read().unwrap())
+                    self.build_function(&*function.read().unwrap())
                 }
             }
         }

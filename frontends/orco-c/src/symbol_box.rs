@@ -1,7 +1,7 @@
 use parsel::{Parse, ToTokens};
 
 /// Wrapper around [`orco::SymbolBox`] with parsing traits
-pub struct SymbolBox<T, H: ?Sized>(orco::SymbolBox<T, H>);
+pub struct SymbolBox<T, H: ?Sized>(pub orco::SymbolBox<T, H>);
 
 impl<T, H: ?Sized> std::ops::Deref for SymbolBox<T, H> {
     type Target = orco::SymbolBox<T, H>;
@@ -25,23 +25,23 @@ impl<T: Parse, H: ?Sized> Parse for SymbolBox<T, H> {
 
 impl<T: ToTokens, H: ?Sized> ToTokens for SymbolBox<T, H> {
     fn to_tokens(&self, tokens: &mut parsel::TokenStream) {
-        self.object().try_read().unwrap().to_tokens(tokens)
+        self.object().read().unwrap().to_tokens(tokens)
     }
 }
 
 impl<T: PartialEq, H: ?Sized> PartialEq for SymbolBox<T, H> {
     fn eq(&self, other: &Self) -> bool {
         self.object()
-            .try_read()
+            .read()
             .unwrap()
-            .eq(&*other.object().try_read().unwrap())
+            .eq(&*other.object().read().unwrap())
     }
 }
 
 impl<T: Eq, H: ?Sized> Eq for SymbolBox<T, H> {}
 
 /// Wrapper around [`orco::SymbolRef`] with parsing traits
-pub struct SymbolRef<T: ?Sized, H: ?Sized>(orco::SymbolRef<T, H>);
+pub struct SymbolRef<T: ?Sized, H: ?Sized>(pub orco::SymbolRef<T, H>);
 
 impl<T: ?Sized, H: ?Sized> std::ops::Deref for SymbolRef<T, H> {
     type Target = orco::SymbolRef<T, H>;
@@ -65,6 +65,6 @@ impl<T: ?Sized, H: Parse> Parse for SymbolRef<T, H> {
 
 impl<T: ?Sized, H: ToTokens + ?Sized> ToTokens for SymbolRef<T, H> {
     fn to_tokens(&self, tokens: &mut parsel::TokenStream) {
-        self.handler().try_read().unwrap().to_tokens(tokens)
+        self.handler().read().unwrap().to_tokens(tokens)
     }
 }

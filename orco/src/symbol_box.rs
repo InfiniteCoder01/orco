@@ -108,7 +108,7 @@ impl<T: ?Sized, H: ?Sized> SymbolRef<T, H> {
     }
 
     /// Cast underlying handler type
-    pub fn cast<NH>(self) -> SymbolRef<T, NH>
+    pub fn cast<NH: ?Sized>(self) -> SymbolRef<T, NH>
     where
         H: Unsize<NH>,
     {

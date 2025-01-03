@@ -2,7 +2,7 @@ use super::*;
 
 /// Operators
 pub mod operators;
-pub use operators::OperatorCall;
+pub use operators::{Operator, OperatorCall, OperatorHandler};
 /// See [Block]
 pub mod block;
 pub use block::Block;

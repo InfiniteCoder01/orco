@@ -36,7 +36,7 @@ impl std::fmt::Display for Type {
             Self::Unsigned(size) => write!(f, "u{}", size),
             Self::Float(size) => write!(f, "f{}", size),
             // Self::Reference(r#type) => {
-            //     write!(f, "f{}", r#type.handler().try_read().unwrap().name())
+            //     write!(f, "f{}", r#type.handler().read().unwrap().name())
             // }
         }
     }

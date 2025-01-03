@@ -61,7 +61,7 @@ pub fn parse_test() {
     check!(main.params.is_left());
     check!(main.body.0.len() == 1);
     let_assert!(Some(Statement::Return(expr)) = main.body.0.first());
-    let_assert!(Expression::Integer(rv) = &expr.expression);
+    let_assert!(Expression::Integer(rv) = &expr.handler().read().unwrap().expression);
     check!(rv.0.value() == 42);
 
     let_assert!(Symbol::FunctionDefinition(foo) = &unit.symbols[1]);

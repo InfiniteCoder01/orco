@@ -16,7 +16,7 @@ pub enum Symbol<'a> {
 impl std::fmt::Display for Symbol<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Function(function) => (&*function.try_read().unwrap()).fmt(f),
+            Self::Function(function) => (&*function.read().unwrap()).fmt(f),
         }
     }
 }
