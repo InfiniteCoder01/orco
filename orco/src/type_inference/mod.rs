@@ -4,6 +4,4 @@
 /// type variables, on the second pass it's passed
 /// as an immutable reference and is used to
 /// finalise the types and send out diagnostics
-pub struct TypeInferenceContext {
-    //
-}
+pub struct TypeInferenceContext {}
