@@ -22,10 +22,10 @@ impl TypeInferenceContext {
         }
     }
 
-    pub fn enter_function(&mut self) {
+    pub fn enter_function(&mut self, signature: &crate::types::FunctionSignature) {
         self.intrinsics
             .r#return
-            .insert(self.intrinsics.return_default.clone());
+            .insert(self.intrinsics.r#return(signature));
     }
 
     pub fn exit_function(&mut self) {
