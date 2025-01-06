@@ -1,14 +1,15 @@
 use super::*;
 
 #[derive(Clone, PartialEq, Eq, Parse, ToTokens)]
-pub struct IntegerLiteral(pub LitUint);
-
-impl orco::expression::literal::IntegerLiteral for IntegerLiteral {
-    fn r#type(&self) -> orco::Type {
-        orco::Type::Integer(32)
-    }
-
-    fn value(&self) -> u128 {
-        self.0.value() as _
+pub enum Literal {
+    Integer(LitUint),
+}
+impl Literal {
+    pub fn build(&self, ctx: &mut orco::TypeInferenceContext) -> orco::expression::Literal {
+        match self {
+            Self::Integer(literal) => {
+                orco::expression::Literal::Integer(literal.value() as _, orco::Type::Wildcard)
+            }
+        }
     }
 }

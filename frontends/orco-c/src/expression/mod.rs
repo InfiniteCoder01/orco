@@ -1,23 +1,26 @@
 use super::*;
 use parsel::ast::LitUint;
 
-pub mod functions;
+// pub mod functions;
 // pub use functions::FunctionCall;
 pub mod literal;
-pub use literal::IntegerLiteral;
+pub use literal::Literal;
 
 #[derive(Clone, PartialEq, Eq, Parse, ToTokens)]
 pub enum Expression {
-    Integer(IntegerLiteral),
-    // FunctionCall(FunctionCall),
+    Literal(Literal),
 }
 
 impl Expression {
-    #[orco::make_mut]
-    pub fn as_orco(&self) -> orco::Expression {
-        use orco::expression::Literal;
+    pub fn build(
+        &self,
+        ctx: &mut orco::TypeInferenceContext,
+        expressions: &mut Vec<orco::Expression>,
+    ) {
         match self {
-            Self::Integer(literal) => orco::Expression::Literal(Literal::Integer(literal as _)),
+            Expression::Literal(literal) => {
+                expressions.push(orco::Expression::Literal(literal.build(ctx)))
+            }
         }
     }
 }

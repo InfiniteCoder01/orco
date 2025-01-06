@@ -4,14 +4,6 @@ use parsel::{Parse, ToTokens};
 
 pub use parsel;
 
-/// Wrapper around [`orco::SymbolBox`] and [`orco::SymbolRef`] with parsing traits
-pub mod symbol_box;
-pub use symbol_box::SymbolBox;
-
-/// Wrapper around the type that allows it being a normal field that is not getting parsed
-pub mod unparse;
-pub use unparse::Unparse;
-
 pub mod expression;
 pub use expression::Expression;
 
@@ -40,6 +32,20 @@ pub struct Unit {
     pub symbols: Many<Symbol>,
 }
 
+impl Unit {
+    pub fn build(
+        &self,
+        ctx: &mut orco::TypeInferenceContext,
+    ) -> std::collections::HashMap<String, orco::Expression> {
+        let mut symbols = std::collections::HashMap::new();
+        for symbol in &self.symbols {
+            let (name, symbol) = symbol.build(ctx);
+            symbols.insert(name, symbol);
+        }
+        symbols
+    }
+}
+
 #[test]
 pub fn parse_test() {
     use assert2::*;
@@ -53,17 +59,15 @@ pub fn parse_test() {
     check!(unit.symbols.len() == 2);
     let main = unit.symbols.first().unwrap();
     let_assert!(Symbol::FunctionDefinition(main) = main);
-    let main = main.object().try_read().unwrap();
     check!(let Type::Int(_) = main.return_type);
     check!(main.name == "main");
     check!(main.params.is_left());
     check!(main.body.0.len() == 1);
     let_assert!(Some(Statement::Return(expr)) = main.body.0.first());
-    let_assert!(Expression::Integer(rv) = &expr.expression);
-    check!(rv.0.value() == 42);
+    let_assert!(Expression::Literal(expression::Literal::Integer(rv)) = &expr.expression);
+    check!(rv.value() == 42);
 
     let_assert!(Symbol::FunctionDefinition(foo) = &unit.symbols[1]);
-    let foo = foo.object().try_read().unwrap();
     check!(let Type::Void(_) = foo.return_type);
     check!(foo.name == "foo");
     let_assert!(parsel::ast::Either::Right(params) = foo.params.as_ref());
@@ -77,30 +81,30 @@ pub fn parse_test() {
         .is_some_and(|name| name.to_string() == "x"));
 }
 
-#[test]
-pub fn interface_test() {
-    let unit: Unit = parsel::parse_quote! {
-        int main(void) {
-            return 42;
-        }
+// #[test]
+// pub fn interface_test() {
+//     let unit: Unit = parsel::parse_quote! {
+//         int main(void) {
+//             return 42;
+//         }
 
-        void foo(int x) {}
-    };
+//         void foo(int x) {}
+//     };
 
-    let symbols = unit.symbols.iter().map(Symbol::as_orco).collect::<Vec<_>>();
+//     let symbols = unit.symbols.iter().map(Symbol::as_orco).collect::<Vec<_>>();
 
-    orco::test_symbols(
-        &symbols,
-        &[
-            "
-                fn main () -> i32 {
-                    return 42;
-                }
-            ",
-            "
-                fn foo (x: i32) -> () {
-                }
-            ",
-        ],
-    );
-}
+//     orco::test_symbols(
+//         &symbols,
+//         &[
+//             "
+//                 fn main () -> i32 {
+//                     return 42;
+//                 }
+//             ",
+//             "
+//                 fn foo (x: i32) -> () {
+//                 }
+//             ",
+//         ],
+//     );
+// }

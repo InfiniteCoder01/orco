@@ -4,19 +4,20 @@ use super::*;
 pub mod function;
 pub use function::FunctionDefinition;
 
-pub trait FunctionHandler {}
-
 /// C symbols
 #[derive(Parse, ToTokens)]
 pub enum Symbol {
     /// Function definition
-    FunctionDefinition(SymbolBox<FunctionDefinition, dyn FunctionHandler>),
+    FunctionDefinition(FunctionDefinition),
 }
 
 impl Symbol {
-    pub fn as_orco(&self) -> orco::Symbol {
+    pub fn build(&self, ctx: &mut orco::TypeInferenceContext) -> (String, orco::Expression) {
         match self {
-            Self::FunctionDefinition(symbol) => orco::Symbol::Function(symbol.object()),
+            Self::FunctionDefinition(function) => (
+                function.name.to_string(),
+                orco::Expression::Function(function.build(ctx)),
+            ),
         }
     }
 }

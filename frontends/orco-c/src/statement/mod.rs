@@ -18,23 +18,17 @@ pub enum Statement {
 }
 
 impl Statement {
-    pub fn as_orco(&self) -> orco::Expression {
+    pub fn build(
+        &self,
+        ctx: &mut orco::TypeInferenceContext,
+        expressions: &mut Vec<orco::Expression>,
+    ) {
         match self {
-            Self::Block(block) => orco::Expression::Block(block as _),
-            Self::Return(expr) => orco::Expression::Operator(expr as _),
-            Self::VariableDeclaration(decl) => orco::Expression::VariableDeclaration(decl as _),
-            Self::Expression(expr, _) => expr.as_orco(),
-            Self::Empty(_) => todo!(),
-        }
-    }
-
-    pub fn as_orco_mut(&mut self) -> orco::Expression<orco::Mut> {
-        match self {
-            Self::Block(block) => orco::Expression::Block(block as _),
-            Self::Return(expr) => orco::Expression::Operator(expr as _),
-            Self::VariableDeclaration(decl) => orco::Expression::VariableDeclaration(decl as _),
-            Self::Expression(expr, _) => expr.as_orco_mut(),
-            Self::Empty(_) => todo!(),
+            Statement::Block(block) => block.build(ctx, expressions),
+            Statement::Return(r#return) => r#return.build(ctx, expressions),
+            Statement::VariableDeclaration(_) => todo!(),
+            Statement::Expression(expression, _) => expression.build(ctx, expressions),
+            Statement::Empty(_) => (),
         }
     }
 }
