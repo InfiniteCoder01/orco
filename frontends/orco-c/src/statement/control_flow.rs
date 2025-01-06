@@ -12,8 +12,7 @@ impl Return {
         ctx: &mut orco::TypeInferenceContext,
         expressions: &mut Vec<orco::Expression>,
     ) {
-        self.expression.build(ctx, expressions);
-        let expr = expressions.pop().unwrap();
+        let expr = self.expression.build(ctx, expressions);
         if let Some(function) = ctx.intrinsics.r#return.clone() {
             expressions.push(orco::Expression::Call(orco::expression::Call {
                 function,

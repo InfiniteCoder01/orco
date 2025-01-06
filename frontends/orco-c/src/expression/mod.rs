@@ -15,12 +15,10 @@ impl Expression {
     pub fn build(
         &self,
         ctx: &mut orco::TypeInferenceContext,
-        expressions: &mut Vec<orco::Expression>,
-    ) {
+        _expressions: &mut Vec<orco::Expression>,
+    ) -> orco::Expression {
         match self {
-            Expression::Literal(literal) => {
-                expressions.push(orco::Expression::Literal(literal.build(ctx)))
-            }
+            Expression::Literal(literal) => orco::Expression::Literal(literal.build(ctx)),
         }
     }
 }

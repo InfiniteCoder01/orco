@@ -27,7 +27,10 @@ impl Statement {
             Statement::Block(block) => block.build(ctx, expressions),
             Statement::Return(r#return) => r#return.build(ctx, expressions),
             Statement::VariableDeclaration(_) => todo!(),
-            Statement::Expression(expression, _) => expression.build(ctx, expressions),
+            Statement::Expression(expression, _) => {
+                let expr = expression.build(ctx, expressions);
+                expressions.push(expr)
+            }
             Statement::Empty(_) => (),
         }
     }
