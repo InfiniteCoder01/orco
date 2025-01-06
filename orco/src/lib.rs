@@ -6,7 +6,7 @@ pub use orco_procmacro::*;
 
 /// See [Expression]
 pub mod expression;
-pub use expression::Expression;
+pub use expression::{ExpressionMut, ExpressionRef, Expressions};
 
 /// See [Type]
 pub mod types;

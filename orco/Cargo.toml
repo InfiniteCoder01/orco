@@ -10,3 +10,4 @@ orco-procmacro = { workspace = true }
 assert2 = { workspace = true }
 unindent = "0.2.3"
 diff = "0.1.13"
+soa-rs = "0.7.5"

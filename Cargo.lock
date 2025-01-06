@@ -328,6 +328,7 @@ dependencies = [
  "diff",
  "indent",
  "orco-procmacro",
+ "soa-rs",
  "unindent",
 ]
 
@@ -465,6 +466,26 @@ name = "semver"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61697e0a1c7e512e84a621326239844a24d8207b4669b41bc18b32ea5cbf988b"
+
+[[package]]
+name = "soa-rs"
+version = "0.7.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f27ed1cf2309a12c884b8bfa225df5b79de0fea6359d44162c0b4f5f02258ab9"
+dependencies = [
+ "soa-rs-derive",
+]
+
+[[package]]
+name = "soa-rs-derive"
+version = "0.7.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "486036fd9540d1aab1b523bb031d8eccc083e07d32476746234a5a5f5d6db44e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "strsim"
