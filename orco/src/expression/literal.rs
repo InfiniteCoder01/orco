@@ -1,5 +1,5 @@
 /// Literals
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub enum Literal {
     /// Unsigned integer literal, holding type and value
     Integer(u128, crate::Type),
