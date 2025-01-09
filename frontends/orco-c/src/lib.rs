@@ -20,6 +20,8 @@ pub use r#type::Type;
 
 parsel::define_keywords! {
     mod kw {
+        if => If;
+        else => Else;
         return => Return;
         int => Int;
         void => Void;

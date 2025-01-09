@@ -22,12 +22,12 @@ impl TypeInferenceContext {
         }
     }
 
+    /// Call when starting to generate a new function
     pub fn enter_function(&mut self, signature: &crate::types::FunctionSignature) {
-        self.intrinsics
-            .r#return
-            .insert(self.intrinsics.r#return(signature));
+        self.intrinsics.r#return = Some(self.intrinsics.r#return(signature));
     }
 
+    /// Call once done with the current function
     pub fn exit_function(&mut self) {
         self.intrinsics.r#return.take();
     }

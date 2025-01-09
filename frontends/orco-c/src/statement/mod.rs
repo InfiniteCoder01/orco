@@ -3,6 +3,8 @@ use parsel::{ast::Brace, syn::token::Semi};
 
 pub mod block;
 pub use block::Block;
+pub mod branching;
+pub use branching::If;
 pub mod control_flow;
 pub use control_flow::Return;
 pub mod variables;
@@ -11,8 +13,9 @@ pub use variables::VariableDeclaration;
 #[derive(Parse, ToTokens)]
 pub enum Statement {
     Block(Block),
+    If(Box<If>),
     Return(Return),
-    VariableDeclaration(VariableDeclaration),
+    VariableDeclaration(Box<VariableDeclaration>),
     Expression(Expression, Semi),
     Empty(Semi),
 }
@@ -25,6 +28,7 @@ impl Statement {
     ) {
         match self {
             Statement::Block(block) => block.build(ctx, expressions),
+            Statement::If(statement) => statement.build(ctx, expressions),
             Statement::Return(r#return) => r#return.build(ctx, expressions),
             Statement::VariableDeclaration(_) => todo!(),
             Statement::Expression(expression, _) => {
