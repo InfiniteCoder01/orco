@@ -13,9 +13,13 @@ pub enum Expression {
     /// See [Literal]
     Literal(Literal),
     /// See [Function]
+    Variable(crate::ArcLock<crate::Variable>),
+    /// See [Function]
     Function(Function),
     /// See [Call]
     Call(Call),
+    /// Invalid expression
+    Error,
 }
 
 impl Expression {
@@ -32,8 +36,10 @@ impl std::fmt::Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Literal(literal) => literal.fmt(f),
+            Self::Variable(variable) => variable.read().unwrap().fmt(f),
             Self::Function(function) => function.fmt(f),
             Self::Call(call) => call.fmt(f),
+            Self::Error => write!(f, "<ERROR>"),
         }
     }
 }

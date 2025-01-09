@@ -14,7 +14,7 @@ pub use types::Type;
 
 /// See [TypeInferenceContext]
 pub mod type_inference;
-pub use type_inference::TypeInferenceContext;
+pub use type_inference::{TypeInferenceContext, Variable};
 
 /// Symbol references are one of the key features of OrCo.
 /// They allow symbols to be accessed from anywhere

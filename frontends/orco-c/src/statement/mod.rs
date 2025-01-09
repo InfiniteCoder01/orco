@@ -30,7 +30,22 @@ impl Statement {
             Statement::Block(block) => block.build(ctx, expressions),
             Statement::If(statement) => statement.build(ctx, expressions),
             Statement::Return(r#return) => r#return.build(ctx, expressions),
-            Statement::VariableDeclaration(_) => todo!(),
+            Statement::VariableDeclaration(decl) => {
+                let Some(scope) = ctx.scopes.last_mut() else {
+                    todo!("Error")
+                };
+                let r#type = decl.ty.as_orco();
+                for var in &decl.variables {
+                    let name = var.name.to_string();
+                    scope.insert(
+                        name.clone(),
+                        std::sync::Arc::new(std::sync::RwLock::new(orco::Variable::new(
+                            Some(name),
+                            r#type.clone(),
+                        ))),
+                    );
+                }
+            }
             Statement::Expression(expression, _) => {
                 let expr = expression.build(ctx, expressions);
                 expressions.push(expr)
