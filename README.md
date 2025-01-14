@@ -1,4 +1,6 @@
 # OrCo
+[![wakatime](https://wakatime.com/badge/github/InfiniteCoder01/orco.svg)](https://wakatime.com/badge/github/InfiniteCoder01/orco)
+
 OrCo is a compiler toolchain focusing on performace and extensibility
 [Developed on streams](https://www.youtube.com/playlist?list=PLvZASPqsD2VjqJ6968gEhoLlCn0i0rqHH)
 
