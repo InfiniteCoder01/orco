@@ -46,13 +46,14 @@ impl std::fmt::Display for Function {
             FunctionBody::Block(name, body) => {
                 writeln!(
                     f,
-                    "fn {}{}:",
+                    "fn {}{} {{",
                     name.as_ref().map(String::as_str).unwrap_or_default(),
                     self.signature
                 )?;
                 for expression in body {
                     writeln!(f, "{}", indent::indent_all_by(4, format!("{expression};")))?;
                 }
+                write!(f, "}}")?;
                 Ok(())
             }
             FunctionBody::External(name) => write!(f, "fn {}()", &name),

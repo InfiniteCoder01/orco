@@ -33,25 +33,9 @@ fn main() {
 
     let mut ctx = orco::TypeInferenceContext::new();
     let symbols = unit.build(&mut ctx);
-    for (name, symbol) in symbols {
-        println!(
-            "const {} = {}{}",
-            name,
-            symbol,
-            if !matches!(symbol, orco::Expression::Function(_)) {
-                ";"
-            } else {
-                ""
-            }
-        );
+    for (name, symbol) in &symbols {
+        println!("const {} = {};", name, symbol);
     }
 
-    // println!("{}", &unit as &dyn orco::Unit);
-    // orco_cranelift::build(
-    //     &unit
-    //         .symbols
-    //         .iter()
-    //         .map(orco_c::Symbol::as_orco)
-    //         .collect::<Vec<_>>(),
-    // );
+    orco_cranelift::build(&symbols);
 }

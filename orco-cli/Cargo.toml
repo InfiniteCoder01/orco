@@ -9,4 +9,4 @@ env_logger = "0.11.5"
 log = { workspace = true }
 orco = { workspace = true }
 orco-c = { workspace = true }
-# orco-cranelift = { workspace = true }
+orco-cranelift = { workspace = true }

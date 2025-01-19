@@ -43,27 +43,29 @@ impl Object {
         }
     }
 
-    fn declare_symbol(&mut self, symbol: &orco::Symbol) {
+    fn declare_symbol(&mut self, name: &str, symbol: &orco::Expression) {
         match symbol {
-            orco::Symbol::Function(function) => self.declare_function(&*function.read().unwrap()),
+            orco::Expression::Function(function) => self.declare_function(name, function),
+            _ => todo!(),
         }
     }
 
-    fn build_symbol(&mut self, symbol: &orco::Symbol) {
+    fn build_symbol(&mut self, name: &str, symbol: &orco::Expression) {
         match symbol {
-            orco::Symbol::Function(function) => self.build_function(&*function.read().unwrap()),
+            orco::Expression::Function(function) => self.build_function(name, function),
+            _ => todo!(),
         }
     }
 }
 
 /// Build OrCo IR Unit
-pub fn build(symbols: &[orco::Symbol]) {
+pub fn build(symbols: &std::collections::HashMap<String, orco::Expression>) {
     let mut object = Object::new("x86_64-unknown-linux-gnu");
-    for symbol in symbols {
-        object.declare_symbol(symbol);
+    for (name, symbol) in symbols {
+        object.declare_symbol(name, symbol);
     }
-    for symbol in symbols {
-        object.build_symbol(symbol);
+    for (name, symbol) in symbols {
+        object.build_symbol(name, symbol);
     }
 
     if let Some((id, data)) = object.constant_data {

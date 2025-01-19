@@ -21,14 +21,22 @@ impl If {
         let then_block = {
             let mut expressions = Vec::new();
             self.then_block.build(ctx, &mut expressions);
-            orco::expression::Function::new(None, orco::function_signature![() -> ()], expressions)
+            orco::expression::Function::new(
+                None,
+                orco::function_signature![() -> () transparent],
+                expressions,
+            )
         };
         let else_block = {
             let mut expressions = Vec::new();
             if let Some(else_block) = self.else_block.as_ref() {
                 else_block.build(ctx, &mut expressions);
             }
-            orco::expression::Function::new(None, orco::function_signature![() -> ()], expressions)
+            orco::expression::Function::new(
+                None,
+                orco::function_signature![() -> () transparent],
+                expressions,
+            )
         };
         expressions.push(orco::Expression::Call(orco::expression::Call {
             function: ctx.intrinsics.branch(orco::Type::Unit),

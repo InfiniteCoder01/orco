@@ -36,6 +36,7 @@ impl FunctionDefinition {
                 })
                 .collect(),
             self.return_type.as_orco(),
+            orco::types::CallingConvention::default(),
         );
 
         let mut expressions = Vec::new();

@@ -24,7 +24,7 @@ impl Intrinsics {
     pub(super) fn r#return(&self, signature: &FunctionSignature) -> Intrinsic {
         make_intrinsic(
             "orco::intrinsics::return",
-            crate::function_signature![(value: {signature.return_type.as_ref().clone()}) -> !],
+            crate::function_signature![(value: {signature.return_type.as_ref().clone()}) -> ! transparent],
         )
     }
 
@@ -33,7 +33,7 @@ impl Intrinsics {
     pub fn branch(&self, r#type: crate::Type) -> Intrinsic {
         make_intrinsic(
             "orco::intrinsics::branch",
-            crate::function_signature![(cond: bool, then: (fn () -> {r#type.clone()}), else: (fn () -> {r#type.clone()})) -> {r#type}],
+            crate::function_signature![(cond: bool, then: (fn () -> {r#type.clone()} transparent), else: (fn () -> {r#type.clone()} transparent)) -> {r#type} transparent],
         )
     }
 }

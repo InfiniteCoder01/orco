@@ -2,37 +2,37 @@ use super::*;
 
 impl Object {
     /// Declare a function in the object
-    pub fn declare_function(&mut self, function: &dyn orco::symbol::Function) {
-        trace!("Declaring function {}", function.name());
+    pub fn declare_function(&mut self, name: &str, function: &orco::expression::Function) {
+        trace!("Declaring function {:?}", name);
         let id = self
             .object
             .declare_function(
-                function.name().as_ref(),
+                name,
                 cl::Linkage::Export,
-                &self.convert_function_signature(function.signature()),
+                &self.convert_function_signature(&function.signature),
             )
             .unwrap();
-        self.functions.insert(function.name().into_owned(), id);
+        self.functions.insert(name.to_owned(), id);
     }
 
-    /// Build the function's body
-    pub fn build_function(&mut self, function: &dyn orco::symbol::Function) {
-        info!("Compiling function {}", function.name());
-        trace!("OrCo IR:\n{}", function as &dyn orco::symbol::Function);
+    /// Build the function
+    pub fn build_function(&mut self, name: &str, function: &orco::expression::Function) {
+        info!("Compiling function {:?}", name);
+        trace!("OrCo IR:\n{}", function);
 
         let id = *self
             .functions
-            .get(function.name().as_ref())
+            .get(name)
             .expect("Function has to be declared before it is built!");
 
         let mut ctx = cl::codegen::Context::new();
         ctx.func = cl::codegen::ir::Function::with_name_signature(
             if cfg!(debug_assertions) {
-                cl::codegen::ir::UserFuncName::testcase(function.name().as_ref())
+                cl::codegen::ir::UserFuncName::testcase(function.name().unwrap_or(name))
             } else {
                 cl::codegen::ir::UserFuncName::user(0, id.as_u32())
             },
-            self.convert_function_signature(function.signature()),
+            self.convert_function_signature(&function.signature),
         );
 
         {
@@ -42,24 +42,25 @@ impl Object {
             builder.switch_to_block(block);
             builder.seal_block(block);
             builder.append_block_params_for_function_params(block);
-            self.build_expression(&mut builder, function.body());
+            self.build_function_body(&mut builder, function);
             builder.finalize();
         }
         self.object.define_function(id, &mut ctx).unwrap();
     }
 
-    /// Convert OrCo function signature to Cranelift function signature
-    pub fn convert_function_signature(
-        &self,
-        signature: &dyn orco::symbol::function::FunctionSignature,
-    ) -> cl::Signature {
-        cl::Signature {
-            params: signature
-                .parameters()
-                .flat_map(|param| self.convert_type(param.r#type()).into_iter())
-                .collect(),
-            returns: self.convert_type(signature.return_type()),
-            call_conv: cl::isa::CallConv::SystemV,
+    /// Build the function's body using a function builder
+    pub fn build_function_body(
+        &mut self,
+        builder: &mut cranelift::prelude::FunctionBuilder,
+        function: &orco::expression::Function,
+    ) {
+        match &function.body {
+            orco::expression::function::FunctionBody::Block(_, body) => {
+                for expr in body {
+                    self.build_expression(builder, expr);
+                }
+            }
+            orco::expression::function::FunctionBody::External(_) => todo!(),
         }
     }
 }
