@@ -1,6 +1,5 @@
 #![doc = include_str!("../README.md")]
 use cranelift_module::Module;
-use log::*;
 
 mod cl {
     pub(super) use cranelift::prelude::*;
@@ -8,6 +7,7 @@ mod cl {
     pub(super) use cranelift_object::*;
 }
 
+/// Codegen expression
 pub mod expression;
 /// Declare and build functions
 pub mod function;

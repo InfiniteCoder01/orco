@@ -22,8 +22,8 @@ impl If {
             let mut expressions = Vec::new();
             self.then_block.build(ctx, &mut expressions);
             orco::expression::Function::new(
-                None,
                 orco::function_signature![() -> () transparent],
+                None,
                 expressions,
             )
         };
@@ -33,8 +33,8 @@ impl If {
                 else_block.build(ctx, &mut expressions);
             }
             orco::expression::Function::new(
-                None,
                 orco::function_signature![() -> () transparent],
+                None,
                 expressions,
             )
         };

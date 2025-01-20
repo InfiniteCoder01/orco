@@ -1,6 +1,6 @@
-use super::*;
+use crate::cl;
 
-impl Object {
+impl crate::Object {
     /// Convert OrCo type to Cranelift AbiParam
     pub fn convert_type(&self, ty: &orco::Type) -> Vec<cl::AbiParam> {
         match ty {

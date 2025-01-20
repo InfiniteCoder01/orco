@@ -1,29 +1,50 @@
-use super::*;
+use crate::cl;
 use cranelift::prelude::InstBuilder;
 
 // pub mod block;
 // pub mod control_flow;
 // pub mod literal;
+pub mod intrinsic;
 
-impl Object {
+impl crate::Object {
     pub fn build_expression(
         &mut self,
         builder: &mut cl::FunctionBuilder,
         expression: &orco::Expression,
     ) -> Option<cl::Value> {
-        // match expression {
-        //     orco::Expression::Block(block) => self.build_block(builder, block),
-        //     orco::Expression::Return(expr) => self.build_return(builder, expr),
-        //     orco::Expression::VariableDeclaration(_) => todo!(),
-        //     orco::Expression::FunctionCall(_) => todo!(),
-        //     orco::Expression::Literal(lit) => self.build_literal(builder, lit),
-        // }
+        use orco::Expression;
         match expression {
-            orco::Expression::Literal(literal) => todo!(),
-            orco::Expression::Variable(rw_lock) => todo!(),
-            orco::Expression::Function(function) => todo!(),
-            orco::Expression::Call(call) => todo!(),
-            orco::Expression::Error => todo!(),
+            Expression::Literal(literal) => todo!(),
+            Expression::Variable(rw_lock) => todo!(),
+            Expression::Function(function) => todo!(),
+            Expression::Call(call) => {
+                let function = call.function.read().unwrap();
+                use orco::types::CallingConvention;
+                match function.signature.calling_convention {
+                    CallingConvention::Transparent => {
+                        match function.body {
+                            orco::expression::function::FunctionBody::Block(vec) => todo!(),
+                            orco::expression::function::FunctionBody::Intrinsic(intrinsic) => {
+                                todo!()
+                            }
+                            //
+                        }
+                    }
+                    CallingConvention::Inline => todo!(),
+                    CallingConvention::Fastest => todo!(),
+                    CallingConvention::SystemV => todo!(),
+                    CallingConvention::Fastcall => todo!(),
+                }
+            }
+            Expression::Error => todo!(),
         }
+    }
+
+    pub fn inline_function(
+        &mut self,
+        builder: cl::FunctionBuilder,
+        function: orco::expression::Function,
+        args: Vec<orco::Expression>,
+    ) -> Option<cl::Value> {
     }
 }

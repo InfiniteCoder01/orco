@@ -1,6 +1,10 @@
-use super::*;
+use crate::cl;
+use cranelift_module::Module;
+use log::*;
 
-impl Object {
+pub mod intrinsic;
+
+impl crate::Object {
     /// Declare a function in the object
     pub fn declare_function(&mut self, name: &str, function: &orco::expression::Function) {
         trace!("Declaring function {:?}", name);
@@ -28,7 +32,9 @@ impl Object {
         let mut ctx = cl::codegen::Context::new();
         ctx.func = cl::codegen::ir::Function::with_name_signature(
             if cfg!(debug_assertions) {
-                cl::codegen::ir::UserFuncName::testcase(function.name().unwrap_or(name))
+                cl::codegen::ir::UserFuncName::testcase(
+                    function.name.as_ref().map(String::as_str).unwrap_or(name),
+                )
             } else {
                 cl::codegen::ir::UserFuncName::user(0, id.as_u32())
             },
@@ -54,13 +60,14 @@ impl Object {
         builder: &mut cranelift::prelude::FunctionBuilder,
         function: &orco::expression::Function,
     ) {
+        use orco::expression::function::FunctionBody;
         match &function.body {
-            orco::expression::function::FunctionBody::Block(_, body) => {
+            FunctionBody::Block(body) => {
                 for expr in body {
                     self.build_expression(builder, expr);
                 }
             }
-            orco::expression::function::FunctionBody::External(_) => todo!(),
+            FunctionBody::Intrinsic(_) => unreachable!(),
         }
     }
 }

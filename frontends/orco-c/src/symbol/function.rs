@@ -43,6 +43,6 @@ impl FunctionDefinition {
         ctx.enter_function(&signature);
         self.body.build(ctx, &mut expressions);
         ctx.exit_function();
-        orco::expression::Function::new(Some(self.name.to_string()), signature, expressions)
+        orco::expression::Function::new(signature, Some(self.name.to_string()), expressions)
     }
 }

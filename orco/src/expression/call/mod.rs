@@ -16,7 +16,9 @@ impl std::fmt::Display for Call {
             self.function
                 .read()
                 .unwrap()
-                .name()
+                .name
+                .as_ref()
+                .map(String::as_str)
                 .unwrap_or("<unnamed function>")
         )?;
         for (index, arg) in self.args.iter().enumerate() {
