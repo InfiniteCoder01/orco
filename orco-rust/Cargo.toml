@@ -1,0 +1,15 @@
+[package]
+name = "orco-rust"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+cranelift = "0.117.1"
+cranelift-module = "0.117.2"
+cranelift-object = "0.117.2"
+
+handy = "0.1.4"
+interned-string = "0.3.0"
+
+proc-macro2 = "1.0.93"
+syn = { version = "2.0.98", features = ["full"] }

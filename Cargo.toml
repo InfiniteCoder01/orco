@@ -1,17 +1,5 @@
 [workspace]
 resolver = "1"
 members = [
-  "orco",
-  "orco-procmacro",
-  "frontends/orco-c",
-  "backends/orco-cranelift",
-  "orco-cli",
+  "orco-rust"
 ]
-
-[workspace.dependencies]
-log = "0.4.22"
-assert2 = "0.3.15"
-orco = { path = "orco" }
-orco-procmacro = { path = "orco-procmacro" }
-orco-c = { path = "frontends/orco-c" }
-orco-cranelift = { path = "backends/orco-cranelift" }

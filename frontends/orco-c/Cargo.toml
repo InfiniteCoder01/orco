@@ -1,9 +1,0 @@
-[package]
-name = "orco-c"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-orco = { workspace = true }
-assert2 = { workspace = true }
-parsel = "0.16.0"
