@@ -1,10 +1,8 @@
 /// Intrinsics in OrCo are basic building blocks, functions
 /// that are necessary to make programs, as every single action
 /// is a function.
-pub mod intrinsics;
 
 /// This struct holds type inference state.
-/// On the first pass it's passed to every node
 /// as a mutable reference and gets filled with
 /// type variables, on the second pass it's passed
 /// as an immutable reference and is used to
@@ -26,10 +24,6 @@ impl TypeInferenceContext {
     }
 
     /// Call when starting to generate a new function
-    pub fn enter_function(&mut self, signature: &crate::types::FunctionSignature) {
-        self.intrinsics.r#return = Some(self.intrinsics.r#return(signature));
-        self.scopes.push(Scope::new());
-    }
 
     /// Call once done with the current function
     pub fn exit_function(&mut self) {
@@ -69,17 +63,6 @@ pub struct Variable {
 impl Variable {
     pub fn new(name: Option<String>, r#type: crate::Type) -> Self {
         Self { name, r#type }
-    }
-}
-
-impl std::fmt::Display for Variable {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "<{}: {}>",
-            self.name
-                .as_ref()
-                .map(String::as_str)
                 .unwrap_or("unnamed variable"),
             self.r#type
         )

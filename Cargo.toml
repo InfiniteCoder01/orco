@@ -1,6 +1,5 @@
 [workspace]
 resolver = "1"
-members = [
   "orco",
   "orco-procmacro",
   "frontends/orco-c",

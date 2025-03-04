@@ -1,7 +1,3 @@
-#![doc = include_str!("../README.md")]
-use parsel::ast::Many;
-use parsel::{Parse, ToTokens};
-
 pub use parsel;
 
 pub mod expression;
@@ -18,8 +14,6 @@ pub use symbol::Symbol;
 pub mod r#type;
 pub use r#type::Type;
 
-parsel::define_keywords! {
-    mod kw {
         if => If;
         else => Else;
         return => Return;
@@ -40,9 +34,6 @@ impl Unit {
         ctx: &mut orco::TypeInferenceContext,
     ) -> std::collections::HashMap<String, orco::Expression> {
         let mut symbols = std::collections::HashMap::new();
-        for symbol in &self.symbols {
-            let (name, symbol) = symbol.build(ctx);
-            symbols.insert(name, symbol);
         }
         symbols
     }
@@ -61,11 +52,6 @@ pub fn parse_test() {
     check!(unit.symbols.len() == 2);
     let main = unit.symbols.first().unwrap();
     let_assert!(Symbol::FunctionDefinition(main) = main);
-    check!(let Type::Int(_) = main.return_type);
-    check!(main.name == "main");
-    check!(main.params.is_left());
-    check!(main.body.0.len() == 1);
-    let_assert!(Some(Statement::Return(expr)) = main.body.0.first());
     let_assert!(Expression::Literal(expression::Literal::Integer(rv)) = &expr.expression);
     check!(rv.value() == 42);
 

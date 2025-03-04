@@ -5,9 +5,6 @@ OrCo is a compiler toolchain focusing on performace and extensibility
 [Developed on streams](https://www.youtube.com/playlist?list=PLvZASPqsD2VjqJ6968gEhoLlCn0i0rqHH)
 
 ## Goals
-OrCo has the following goals:
-- Bring hot code reloading, intellisence, debugging, interpreters, cross-compilers and similar features to all supported languages
-- Easy language interop
 
 Some note I worte a long time ago. Doesn't really make sence to me, but should make sence for new developers:
 > Note for developers:

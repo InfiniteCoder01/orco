@@ -1,6 +1,3 @@
-/// Calls are everything that happens.
-/// `break`, `return`, adding two numbers
-/// together are all function calls
 pub struct Call {
     /// Function to call
     pub function: crate::ArcLock<crate::expression::Function>,
@@ -8,17 +5,6 @@ pub struct Call {
     pub args: Vec<crate::Expression>,
 }
 
-impl std::fmt::Display for Call {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}(",
-            self.function
-                .read()
-                .unwrap()
-                .name
-                .as_ref()
-                .map(String::as_str)
                 .unwrap_or("<unnamed function>")
         )?;
         for (index, arg) in self.args.iter().enumerate() {

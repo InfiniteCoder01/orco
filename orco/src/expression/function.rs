@@ -42,13 +42,6 @@ impl std::fmt::Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "fn {}{}",
-            self.name.as_ref().map(String::as_str).unwrap_or_default(),
-            self.signature
-        )?;
-        match &self.body {
-            FunctionBody::Block(body) => {
-                writeln!(f, "{{",)?;
                 for expression in body {
                     writeln!(f, "{}", indent::indent_all_by(4, format!("{expression};")))?;
                 }
