@@ -10,9 +10,10 @@ use backend::cl::InstBuilder;
 pub struct Context {
     pub diag: crate::DiagCtx,
     pub hir: Hir,
+    pub path: hir::Path,
 }
 
-fn parse_file(ctx: &mut Context, filepath: impl AsRef<std::path::Path>, modpath: hir::Path) {
+fn parse_file(ctx: &mut Context, filepath: impl AsRef<std::path::Path>) {
     let filepath = filepath.as_ref();
     let source = std::fs::read_to_string(filepath).unwrap();
     ctx.diag
@@ -28,16 +29,15 @@ fn parse_file(ctx: &mut Context, filepath: impl AsRef<std::path::Path>, modpath:
     for item in file.items {
         match item {
             syn::Item::Fn(r#fn) => {
-                let path = modpath.clone().join(&r#fn.sig.ident);
-                let body = ctx
-                    .hir
-                    .bodies
-                    .insert(hir::Body::new(hir::Block::parse(&r#fn.block, &path).into()));
+                ctx.path.push(&r#fn.sig.ident);
+                let body = hir::Body::new(hir::Block::parse(ctx, &r#fn.block).into());
+                let body = ctx.hir.bodies.insert(body);
                 ctx.hir.functions.insert(hir::Function {
-                    path,
+                    path: ctx.path.clone(),
                     signature: r#fn.sig.into(),
                     body,
                 });
+                ctx.path.pop();
             }
             _ => todo!(),
         }
@@ -49,8 +49,9 @@ fn main() {
     let mut ctx = Context {
         diag: DiagCtx::new(),
         hir: hir::Hir::new(),
+        path: hir::Path::empty(), // hir::Path::single("sample")
     };
-    parse_file(&mut ctx, file, hir::Path::empty()); // hir::Path::single("sample")
+    parse_file(&mut ctx, file);
     ctx.hir.resolve();
 
     let mut object = backend::Object::new("x86_64-unknown-linux-gnu");

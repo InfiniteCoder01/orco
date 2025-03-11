@@ -82,6 +82,10 @@ impl Path {
         self.0.push(segment.into());
     }
 
+    pub fn pop(&mut self) {
+        self.0.pop();
+    }
+
     pub fn join(mut self, segment: impl Into<Ident>) -> Self {
         self.push(segment);
         self

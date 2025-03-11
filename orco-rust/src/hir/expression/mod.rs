@@ -1,3 +1,5 @@
+use crate::Context;
+
 pub mod block;
 pub use block::Block;
 
@@ -11,14 +13,14 @@ pub enum Expression {
 }
 
 impl Expression {
-    pub fn parse(value: &syn::Expr, path: &super::Path) -> Self {
+    pub fn parse(ctx: &mut Context, value: &syn::Expr) -> Self {
         match value {
             syn::Expr::Array(expr_array) => todo!(),
             syn::Expr::Assign(expr_assign) => todo!(),
             syn::Expr::Async(expr_async) => todo!(),
             syn::Expr::Await(expr_await) => todo!(),
             syn::Expr::Binary(expr_binary) => todo!(),
-            syn::Expr::Block(block) => Block::parse(&block.block, path).into(),
+            syn::Expr::Block(block) => Block::parse(ctx, &block.block).into(),
             syn::Expr::Break(expr_break) => todo!(),
             syn::Expr::Call(expr_call) => todo!(),
             syn::Expr::Cast(expr_cast) => todo!(),
