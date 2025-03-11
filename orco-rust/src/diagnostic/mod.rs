@@ -5,7 +5,7 @@ use thiserror::Error;
 pub mod syntax_error;
 pub use syntax_error::SyntaxError;
 
-pub trait Diagnostic: Miette {}
+pub trait Diagnostic: Miette + Send + Sync {}
 pub type SourceFile = std::sync::Arc<miette::NamedSource<String>>;
 
 #[derive(Default)]
@@ -39,7 +39,12 @@ impl DiagCtx {
 
     pub fn emit(self) {
         for diagnostic in self.diagnostics {
-            eprintln!("{}", diagnostic);
+            // println!("{}", DiagnosticFmt(diagnostic.as_ref(), &report_handler));
+            println!("{:?}", miette::Report::new_boxed(diagnostic));
         }
     }
 }
+
+// struct DiagnosticWrapper<D:  + ?Sized>()
+
+// impl
