@@ -11,5 +11,8 @@ cranelift-object = "0.117.2"
 handy = "0.1.4"
 interned-string = "0.3.0"
 
-proc-macro2 = "1.0.93"
+miette = { version = "7.5.0", features = ["fancy"] }
+thiserror = "2.0.12"
+
 syn = { version = "2.0.98", features = ["full"] }
+proc-macro2 = { version = "1.0.94", features = ["span-locations"] }

@@ -56,6 +56,24 @@ impl Expression {
             _ => todo!(),
         }
     }
+
+    pub fn build(
+        &self,
+        builder: &mut crate::backend::FunctionBuilder,
+    ) -> Vec<crate::backend::cl::Value> {
+        match self {
+            Self::Literal(literal) => vec![literal.build(builder)],
+            Self::Block(block) => {
+                for statement in &block.statements {
+                    statement.build(builder);
+                }
+                block
+                    .tail
+                    .as_ref()
+                    .map_or_else(Vec::new, |expr| expr.build(builder))
+            }
+        }
+    }
 }
 
 impl From<Literal> for Expression {
