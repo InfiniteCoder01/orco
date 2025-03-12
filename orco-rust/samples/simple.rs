@@ -1,4 +1,4 @@
-fn main() -> i32 {
+fn main() {
     // println!("Hello, World!");
-    42
+    // 42
 }

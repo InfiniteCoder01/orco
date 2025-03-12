@@ -44,7 +44,3 @@ impl DiagCtx {
         }
     }
 }
-
-// struct DiagnosticWrapper<D:  + ?Sized>()
-
-// impl

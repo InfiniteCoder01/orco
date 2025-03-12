@@ -87,7 +87,7 @@ impl Object {
         handle: crate::hir::FunctionHandle,
         build: impl FnOnce(&mut FunctionBuilder),
     ) {
-        let decl = self.functions.remove(&handle).unwrap();
+        let decl = self.functions.get(&handle).unwrap();
         let mut ctx = cl::codegen::Context::new();
         ctx.func = cl::codegen::ir::Function::with_name_signature(
             if cfg!(debug_assertions) {

@@ -1,4 +1,5 @@
 pub mod hir;
+use cranelift_module::Module;
 pub use hir::Hir;
 
 pub mod diagnostic;
@@ -29,7 +30,16 @@ fn parse_file(ctx: &mut Context, filepath: impl AsRef<std::path::Path>) {
     for item in file.items {
         match item {
             syn::Item::Fn(r#fn) => {
-                ctx.path.push(&r#fn.sig.ident);
+                let back = if r#fn.sig.ident.to_string() == "main" {
+                    Some(std::mem::replace(
+                        &mut ctx.path,
+                        hir::Path::single(&r#fn.sig.ident),
+                    ))
+                } else {
+                    ctx.path.push(&r#fn.sig.ident);
+                    None
+                };
+
                 let body = hir::Body::new(hir::Block::parse(ctx, &r#fn.block).into());
                 let body = ctx.hir.bodies.insert(body);
                 ctx.hir.functions.insert(hir::Function {
@@ -37,7 +47,12 @@ fn parse_file(ctx: &mut Context, filepath: impl AsRef<std::path::Path>) {
                     signature: r#fn.sig.into(),
                     body,
                 });
-                ctx.path.pop();
+
+                if let Some(back) = back {
+                    ctx.path = back;
+                } else {
+                    ctx.path.pop();
+                }
             }
             _ => todo!(),
         }
@@ -49,7 +64,7 @@ fn main() {
     let mut ctx = Context {
         diag: DiagCtx::new(),
         hir: hir::Hir::new(),
-        path: hir::Path::empty(), // hir::Path::single("sample")
+        path: hir::Path::single("sample"),
     };
     parse_file(&mut ctx, file);
     ctx.hir.resolve();
