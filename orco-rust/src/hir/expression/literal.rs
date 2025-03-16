@@ -1,13 +1,27 @@
+use crate::Context;
 use crate::backend::cl::InstBuilder;
 
-#[derive(Clone, Debug)]
-pub struct Literal {
-    pub lit: syn::Lit,
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Literal {
+    Int(u128),
 }
 
-impl From<syn::Lit> for Literal {
-    fn from(value: syn::Lit) -> Self {
-        Self { lit: value }
+impl Literal {
+    pub fn parse(_ctx: &mut Context, literal: &syn::Lit) -> Self {
+        match literal {
+            syn::Lit::Str(_) => todo!(),
+            syn::Lit::ByteStr(_) => todo!(),
+            syn::Lit::CStr(_) => todo!(),
+            syn::Lit::Byte(_) => todo!(),
+            syn::Lit::Char(_) => todo!(),
+            syn::Lit::Int(value) => {
+                Self::Int(value.base10_digits().parse().expect("Invalid int literal"))
+            }
+            syn::Lit::Float(_) => todo!(),
+            syn::Lit::Bool(_) => todo!(),
+            syn::Lit::Verbatim(_) => todo!(),
+            _ => todo!(),
+        }
     }
 }
 
@@ -16,20 +30,11 @@ impl Literal {
         &self,
         builder: &mut crate::backend::FunctionBuilder,
     ) -> crate::backend::cl::Value {
-        match &self.lit {
-            syn::Lit::Str(lit_str) => todo!(),
-            syn::Lit::ByteStr(lit_byte_str) => todo!(),
-            syn::Lit::CStr(lit_cstr) => todo!(),
-            syn::Lit::Byte(lit_byte) => todo!(),
-            syn::Lit::Char(lit_char) => todo!(),
-            syn::Lit::Int(int) => builder.0.ins().iconst(
-                crate::backend::cl::types::I32,
-                int.base10_parse::<i64>().unwrap(),
-            ),
-            syn::Lit::Float(lit_float) => todo!(),
-            syn::Lit::Bool(lit_bool) => todo!(),
-            syn::Lit::Verbatim(literal) => todo!(),
-            _ => todo!(),
+        match self {
+            Literal::Int(value) => builder
+                .0
+                .ins()
+                .iconst(crate::backend::cl::types::I32, *value as i64),
         }
     }
 }

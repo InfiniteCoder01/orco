@@ -9,6 +9,9 @@ OrCo has the following goals:
 - Bring hot code reloading, intellisence, debugging, interpreters, cross-compilers and similar features to all supported languages
 - Easy language interop
 
+# OUTDATED
+Everything below is outdated
+
 Some note I worte a long time ago. Doesn't really make sence to me, but should make sence for new developers:
 > Note for developers:
 > > Intermediate Representation is nesesary, because

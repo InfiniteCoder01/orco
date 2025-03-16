@@ -12,7 +12,7 @@ use function::FunctionDecl;
 
 pub struct Object {
     pub(crate) object: cl::ObjectModule,
-    functions: std::collections::HashMap<crate::hir::FunctionHandle, FunctionDecl>,
+    functions: std::collections::HashMap<crate::hir::FunctionId, FunctionDecl>,
 }
 
 impl Object {
@@ -35,7 +35,7 @@ impl Object {
 
     pub fn declare_function(
         &mut self,
-        handle: crate::hir::FunctionHandle,
+        handle: crate::hir::FunctionId,
         path: &crate::hir::Path,
         signature: &crate::hir::Signature,
     ) {
@@ -55,14 +55,20 @@ impl Object {
         );
     }
 
-    pub fn convert_type(&mut self, ty: &crate::hir::Type) -> cl::AbiParam {
+    pub fn convert_type(&mut self, ty: &crate::hir::Type) -> Vec<cl::AbiParam> {
         match ty {
-            crate::hir::Type::Unit => cl::AbiParam::new(cl::types::INVALID),
             crate::hir::Type::Path(path) => {
                 panic!("Paths in backend are not allowed (found {})", path)
             }
-            crate::hir::Type::Int(bits) => cl::AbiParam::new(cl::Type::int(*bits).unwrap()),
-            crate::hir::Type::Unsigned(bits) => cl::AbiParam::new(cl::Type::int(*bits).unwrap()),
+            crate::hir::Type::Int(bits) => vec![cl::AbiParam::new(cl::Type::int(*bits).unwrap())],
+            crate::hir::Type::Unsigned(bits) => {
+                vec![cl::AbiParam::new(cl::Type::int(*bits).unwrap())]
+            }
+            crate::hir::Type::Tuple(items) => items
+                .iter()
+                .map(|ty| self.convert_type(ty))
+                .flatten()
+                .collect(),
         }
     }
 
@@ -72,19 +78,16 @@ impl Object {
                 .parameters
                 .iter()
                 .map(|param| self.convert_type(param))
+                .flatten()
                 .collect(),
-            returns: if signature.return_type == crate::hir::Type::Unit {
-                vec![]
-            } else {
-                vec![self.convert_type(&signature.return_type)]
-            },
+            returns: self.convert_type(&signature.return_type),
             call_conv: cl::isa::CallConv::SystemV,
         }
     }
 
     pub fn build_function(
         &mut self,
-        handle: crate::hir::FunctionHandle,
+        handle: crate::hir::FunctionId,
         build: impl FnOnce(&mut FunctionBuilder),
     ) {
         let decl = self.functions.get(&handle).unwrap();
@@ -106,6 +109,25 @@ impl Object {
             builder.0.switch_to_block(block);
             builder.0.seal_block(block);
             builder.0.append_block_params_for_function_params(block);
+
+            let print = self
+                .object
+                .declare_function(
+                    "print",
+                    cranelift_module::Linkage::Import,
+                    &cl::Signature {
+                        params: vec![cl::AbiParam::new(cl::types::I32)],
+                        returns: vec![],
+                        call_conv: cl::isa::CallConv::SystemV,
+                    },
+                )
+                .unwrap();
+
+            let func = self.object.declare_func_in_func(print, builder.0.func);
+            let value = builder.0.ins().iconst(cl::types::I32, 42);
+            use cl::InstBuilder;
+            builder.0.ins().call(func, &[value]);
+
             build(&mut builder);
             builder.0.finalize();
         }

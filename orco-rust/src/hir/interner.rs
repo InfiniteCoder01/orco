@@ -4,7 +4,7 @@ pub type Symbol = interned_string::IString;
 #[derive(Clone)]
 pub struct Ident {
     pub name: Symbol,
-    pub span: proc_macro2::Span,
+    pub span: miette::SourceSpan,
 }
 
 impl std::fmt::Debug for Ident {
@@ -52,7 +52,7 @@ impl From<&syn::Ident> for Ident {
     fn from(value: &syn::Ident) -> Self {
         Self {
             name: value.to_string().intern(),
-            span: value.span(),
+            span: value.span().byte_range().into(),
         }
     }
 }
@@ -61,7 +61,7 @@ impl From<&str> for Ident {
     fn from(value: &str) -> Self {
         Self {
             name: value.intern(),
-            span: proc_macro2::Span::call_site(),
+            span: (0..value.len()).into(),
         }
     }
 }

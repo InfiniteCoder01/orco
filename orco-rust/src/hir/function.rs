@@ -1,4 +1,5 @@
-use super::{BodyHandle, Path, Type};
+use super::{BodyId, Path, Type};
+use crate::Context;
 
 #[derive(Clone, Debug)]
 pub struct Signature {
@@ -6,20 +7,20 @@ pub struct Signature {
     pub return_type: Type,
 }
 
-impl From<syn::Signature> for Signature {
-    fn from(value: syn::Signature) -> Self {
+impl Signature {
+    pub fn parse(ctx: &mut Context, value: syn::Signature) -> Self {
         Self {
             parameters: value
                 .inputs
                 .iter()
                 .map(|arg| match arg {
                     syn::FnArg::Receiver(receiver) => todo!(),
-                    syn::FnArg::Typed(arg) => arg.ty.as_ref().into(),
+                    syn::FnArg::Typed(arg) => Type::parse(ctx, &arg.ty),
                 })
                 .collect(),
             return_type: match value.output {
-                syn::ReturnType::Default => Type::Unit,
-                syn::ReturnType::Type(_, ty) => ty.as_ref().into(),
+                syn::ReturnType::Default => Type::unit(),
+                syn::ReturnType::Type(_, ty) => Type::parse(ctx, &ty),
             },
         }
     }
@@ -29,5 +30,5 @@ impl From<syn::Signature> for Signature {
 pub struct Function {
     pub path: Path,
     pub signature: Signature,
-    pub body: BodyHandle,
+    pub body: BodyId,
 }

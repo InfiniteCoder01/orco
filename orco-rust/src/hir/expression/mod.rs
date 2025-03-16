@@ -6,55 +6,59 @@ pub use block::Block;
 pub mod literal;
 pub use literal::Literal;
 
+pub mod operator;
+pub use operator::Operator;
+
 #[derive(Clone, Debug)]
 pub enum Expression {
     Literal(Literal),
+    Operator(Operator),
     Block(Block),
 }
 
 impl Expression {
     pub fn parse(ctx: &mut Context, value: &syn::Expr) -> Self {
         match value {
-            syn::Expr::Array(expr_array) => todo!(),
-            syn::Expr::Assign(expr_assign) => todo!(),
-            syn::Expr::Async(expr_async) => todo!(),
-            syn::Expr::Await(expr_await) => todo!(),
-            syn::Expr::Binary(expr_binary) => todo!(),
+            syn::Expr::Array(_expr_array) => todo!(),
+            syn::Expr::Assign(_expr_assign) => todo!(),
+            syn::Expr::Async(_expr_async) => todo!(),
+            syn::Expr::Await(_expr_await) => todo!(),
+            syn::Expr::Binary(_expr_binary) => todo!(),
             syn::Expr::Block(block) => Block::parse(ctx, &block.block).into(),
-            syn::Expr::Break(expr_break) => todo!(),
-            syn::Expr::Call(expr_call) => todo!(),
-            syn::Expr::Cast(expr_cast) => todo!(),
-            syn::Expr::Closure(expr_closure) => todo!(),
-            syn::Expr::Const(expr_const) => todo!(),
-            syn::Expr::Continue(expr_continue) => todo!(),
-            syn::Expr::Field(expr_field) => todo!(),
-            syn::Expr::ForLoop(expr_for_loop) => todo!(),
-            syn::Expr::Group(expr_group) => todo!(),
-            syn::Expr::If(expr_if) => todo!(),
-            syn::Expr::Index(expr_index) => todo!(),
-            syn::Expr::Infer(expr_infer) => todo!(),
-            syn::Expr::Let(expr_let) => todo!(),
-            syn::Expr::Lit(literal) => Literal::from(literal.lit.clone()).into(),
-            syn::Expr::Loop(expr_loop) => todo!(),
-            syn::Expr::Macro(expr_macro) => todo!(),
-            syn::Expr::Match(expr_match) => todo!(),
-            syn::Expr::MethodCall(expr_method_call) => todo!(),
-            syn::Expr::Paren(expr_paren) => todo!(),
-            syn::Expr::Path(expr_path) => todo!(),
-            syn::Expr::Range(expr_range) => todo!(),
-            syn::Expr::RawAddr(expr_raw_addr) => todo!(),
-            syn::Expr::Reference(expr_reference) => todo!(),
-            syn::Expr::Repeat(expr_repeat) => todo!(),
-            syn::Expr::Return(expr_return) => todo!(),
-            syn::Expr::Struct(expr_struct) => todo!(),
-            syn::Expr::Try(expr_try) => todo!(),
-            syn::Expr::TryBlock(expr_try_block) => todo!(),
-            syn::Expr::Tuple(expr_tuple) => todo!(),
-            syn::Expr::Unary(expr_unary) => todo!(),
-            syn::Expr::Unsafe(expr_unsafe) => todo!(),
-            syn::Expr::Verbatim(token_stream) => todo!(),
-            syn::Expr::While(expr_while) => todo!(),
-            syn::Expr::Yield(expr_yield) => todo!(),
+            syn::Expr::Break(_expr_break) => todo!(),
+            syn::Expr::Call(call) => Operator::call(ctx, call).into(),
+            syn::Expr::Cast(_expr_cast) => todo!(),
+            syn::Expr::Closure(_expr_closure) => todo!(),
+            syn::Expr::Const(_expr_const) => todo!(),
+            syn::Expr::Continue(_expr_continue) => todo!(),
+            syn::Expr::Field(_expr_field) => todo!(),
+            syn::Expr::ForLoop(_expr_for_loop) => todo!(),
+            syn::Expr::Group(_expr_group) => todo!(),
+            syn::Expr::If(_expr_if) => todo!(),
+            syn::Expr::Index(_expr_index) => todo!(),
+            syn::Expr::Infer(_expr_infer) => todo!(),
+            syn::Expr::Let(_expr_let) => todo!(),
+            syn::Expr::Lit(literal) => Literal::parse(ctx, &literal.lit).into(),
+            syn::Expr::Loop(_expr_loop) => todo!(),
+            syn::Expr::Macro(_expr_macro) => todo!(),
+            syn::Expr::Match(_expr_match) => todo!(),
+            syn::Expr::MethodCall(_expr_method_call) => todo!(),
+            syn::Expr::Paren(_expr_paren) => todo!(),
+            syn::Expr::Path(_expr_path) => todo!(),
+            syn::Expr::Range(_expr_range) => todo!(),
+            syn::Expr::RawAddr(_expr_raw_addr) => todo!(),
+            syn::Expr::Reference(_expr_reference) => todo!(),
+            syn::Expr::Repeat(_expr_repeat) => todo!(),
+            syn::Expr::Return(_expr_return) => todo!(),
+            syn::Expr::Struct(_expr_struct) => todo!(),
+            syn::Expr::Try(_expr_try) => todo!(),
+            syn::Expr::TryBlock(_expr_try_block) => todo!(),
+            syn::Expr::Tuple(_expr_tuple) => todo!(),
+            syn::Expr::Unary(_expr_unary) => todo!(),
+            syn::Expr::Unsafe(_expr_unsafe) => todo!(),
+            syn::Expr::Verbatim(_token_stream) => todo!(),
+            syn::Expr::While(_expr_while) => todo!(),
+            syn::Expr::Yield(_expr_yield) => todo!(),
             _ => todo!(),
         }
     }
@@ -65,15 +69,9 @@ impl Expression {
     ) -> Vec<crate::backend::cl::Value> {
         match self {
             Self::Literal(literal) => vec![literal.build(builder)],
-            Self::Block(block) => {
-                for statement in &block.statements {
-                    statement.build(builder);
-                }
-                block
-                    .tail
-                    .as_ref()
-                    .map_or_else(Vec::new, |expr| expr.build(builder))
-            }
+            Self::Block(block) => block.build(builder),
+
+            Self::Operator(call) => call.build(builder),
         }
     }
 }
@@ -90,14 +88,11 @@ impl From<Block> for Expression {
     }
 }
 
-// impl syn::spanned::Spanned for Expression {
-//     fn span(&self) -> proc_macro2::Span {
-//         match self {
-//             Expression::Literal(literal) => todo!(),
-//             Expression::Block(block) => todo!(),
-//         }
-//     }
-// }
+impl From<Operator> for Expression {
+    fn from(value: Operator) -> Self {
+        Self::Operator(value)
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct Body {
@@ -107,5 +102,9 @@ pub struct Body {
 impl Body {
     pub fn new(expression: Expression) -> Self {
         Self { expression }
+    }
+
+    pub fn resolve(&self, ctx: &Context) {
+        //
     }
 }

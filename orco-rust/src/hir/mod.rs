@@ -1,4 +1,7 @@
-use handy::typed::{TypedHandle, TypedHandleMap};
+use crate::Context;
+use indexland::{Idx, IndexVec};
+use rayon::prelude::*;
+use std::sync::RwLock;
 
 pub mod interner;
 pub use interner::{Ident, Path, Symbol};
@@ -12,13 +15,16 @@ pub use function::{Function, Signature};
 pub mod expression;
 pub use expression::{Block, Body, Expression, Literal};
 
-pub type FunctionHandle = TypedHandle<Function>;
-pub type BodyHandle = TypedHandle<Body>;
+#[derive(Idx)]
+pub struct FunctionId(usize);
 
-#[derive(Clone, Debug, Default)]
+#[derive(Idx)]
+pub struct BodyId(usize);
+
+#[derive(Debug, Default)]
 pub struct Hir {
-    pub functions: TypedHandleMap<Function>,
-    pub bodies: TypedHandleMap<Body>,
+    pub functions: IndexVec<FunctionId, RwLock<Function>>,
+    pub bodies: IndexVec<BodyId, RwLock<Body>>,
 }
 
 impl Hir {
@@ -26,14 +32,9 @@ impl Hir {
         Self::default()
     }
 
-    pub fn resolve(&mut self) {
-        for function in self.functions.iter_mut() {
-            let Type::Path(path) = &function.signature.return_type else {
-                continue;
-            };
-            if path == &Path::parse("i32") {
-                function.signature.return_type = Type::Int(32);
-            }
-        }
+    pub fn resolve(&self, ctx: &Context) {
+        self.bodies.as_slice().into_par_iter().for_each(|body| {
+            body.write().unwrap().resolve(ctx);
+        });
     }
 }
