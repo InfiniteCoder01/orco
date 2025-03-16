@@ -1,4 +1,4 @@
-use crate::Context;
+use super::Context;
 
 pub mod block;
 pub use block::Block;
@@ -17,16 +17,16 @@ pub enum Expression {
 }
 
 impl Expression {
-    pub fn parse(ctx: &mut Context, value: &syn::Expr) -> Self {
+    pub fn parse(value: &syn::Expr, path: &crate::hir::Path) -> Self {
         match value {
             syn::Expr::Array(_expr_array) => todo!(),
             syn::Expr::Assign(_expr_assign) => todo!(),
             syn::Expr::Async(_expr_async) => todo!(),
             syn::Expr::Await(_expr_await) => todo!(),
             syn::Expr::Binary(_expr_binary) => todo!(),
-            syn::Expr::Block(block) => Block::parse(ctx, &block.block).into(),
+            syn::Expr::Block(block) => Block::parse(&block.block, path).into(),
             syn::Expr::Break(_expr_break) => todo!(),
-            syn::Expr::Call(call) => Operator::call(ctx, call).into(),
+            syn::Expr::Call(call) => Operator::call(call, path).into(),
             syn::Expr::Cast(_expr_cast) => todo!(),
             syn::Expr::Closure(_expr_closure) => todo!(),
             syn::Expr::Const(_expr_const) => todo!(),
@@ -38,7 +38,7 @@ impl Expression {
             syn::Expr::Index(_expr_index) => todo!(),
             syn::Expr::Infer(_expr_infer) => todo!(),
             syn::Expr::Let(_expr_let) => todo!(),
-            syn::Expr::Lit(literal) => Literal::parse(ctx, &literal.lit).into(),
+            syn::Expr::Lit(literal) => Literal::parse(&literal.lit).into(),
             syn::Expr::Loop(_expr_loop) => todo!(),
             syn::Expr::Macro(_expr_macro) => todo!(),
             syn::Expr::Match(_expr_match) => todo!(),
@@ -104,7 +104,5 @@ impl Body {
         Self { expression }
     }
 
-    pub fn resolve(&self, ctx: &Context) {
-        //
-    }
+    pub fn resolve(&self, _ctx: &Context) {}
 }

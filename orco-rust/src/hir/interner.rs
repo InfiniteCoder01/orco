@@ -30,6 +30,7 @@ impl PartialEq for Ident {
 
 impl Eq for Ident {}
 
+#[allow(clippy::non_canonical_partial_ord_impl)]
 impl PartialOrd for Ident {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.name.partial_cmp(&other.name)

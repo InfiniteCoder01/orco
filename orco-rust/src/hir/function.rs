@@ -1,5 +1,4 @@
 use super::{BodyId, Path, Type};
-use crate::Context;
 
 #[derive(Clone, Debug)]
 pub struct Signature {
@@ -8,19 +7,19 @@ pub struct Signature {
 }
 
 impl Signature {
-    pub fn parse(ctx: &mut Context, value: syn::Signature) -> Self {
+    pub fn parse(signature: syn::Signature) -> Self {
         Self {
-            parameters: value
+            parameters: signature
                 .inputs
                 .iter()
                 .map(|arg| match arg {
-                    syn::FnArg::Receiver(receiver) => todo!(),
-                    syn::FnArg::Typed(arg) => Type::parse(ctx, &arg.ty),
+                    syn::FnArg::Receiver(_receiver) => todo!(),
+                    syn::FnArg::Typed(arg) => Type::parse(&arg.ty),
                 })
                 .collect(),
-            return_type: match value.output {
+            return_type: match signature.output {
                 syn::ReturnType::Default => Type::unit(),
-                syn::ReturnType::Type(_, ty) => Type::parse(ctx, &ty),
+                syn::ReturnType::Type(_, ty) => Type::parse(&ty),
             },
         }
     }

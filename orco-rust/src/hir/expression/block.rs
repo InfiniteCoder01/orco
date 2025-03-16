@@ -1,4 +1,4 @@
-use super::{Context, Expression};
+use super::Expression;
 use syn::spanned::Spanned as _;
 
 #[derive(Clone, Debug)]
@@ -9,7 +9,7 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn parse(ctx: &mut Context, value: &syn::Block) -> Self {
+    pub fn parse(value: &syn::Block, path: &crate::hir::Path) -> Self {
         let mut block = Self {
             span: value.span().byte_range().into(),
             statements: Vec::with_capacity(value.stmts.len()),
@@ -21,9 +21,9 @@ impl Block {
                 syn::Stmt::Item(_) => todo!(),
                 syn::Stmt::Expr(expr, semi) => {
                     if idx + 1 == value.stmts.len() && semi.is_none() {
-                        block.tail = Some(Box::new(Expression::parse(ctx, expr)));
+                        block.tail = Some(Box::new(Expression::parse(expr, path)));
                     } else {
-                        block.statements.push(Expression::parse(ctx, expr));
+                        block.statements.push(Expression::parse(expr, path));
                     }
                 }
                 syn::Stmt::Macro(_) => todo!(),

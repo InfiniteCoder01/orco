@@ -1,4 +1,3 @@
-use crate::Context;
 use crate::backend::cl::InstBuilder;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -7,7 +6,7 @@ pub enum Literal {
 }
 
 impl Literal {
-    pub fn parse(_ctx: &mut Context, literal: &syn::Lit) -> Self {
+    pub fn parse(literal: &syn::Lit) -> Self {
         match literal {
             syn::Lit::Str(_) => todo!(),
             syn::Lit::ByteStr(_) => todo!(),

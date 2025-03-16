@@ -1,5 +1,6 @@
 use miette::Diagnostic as Miette;
 use miette::LabeledSpan;
+use std::sync::Mutex;
 use thiserror::Error;
 
 pub mod syntax_error;
@@ -11,7 +12,7 @@ pub type SourceFile = std::sync::Arc<miette::NamedSource<String>>;
 #[derive(Default)]
 pub struct DiagCtx {
     current_file: Option<SourceFile>,
-    diagnostics: Vec<Box<dyn Diagnostic>>,
+    diagnostics: Mutex<Vec<Box<dyn Diagnostic>>>,
 }
 
 impl DiagCtx {
@@ -23,13 +24,11 @@ impl DiagCtx {
         self.current_file = Some(file);
     }
 
-    pub fn diagnostic<T: Diagnostic + 'static>(&mut self, mut diagnostic: Box<T>) -> &mut T {
-        let ptr = diagnostic.as_mut() as *mut T;
-        self.diagnostics.push(diagnostic);
-        unsafe { &mut *ptr }
+    pub fn diagnostic<T: Diagnostic + 'static>(&self, diagnostic: Box<T>) -> DiagnosticBuilder<T> {
+        DiagnosticBuilder(Some(diagnostic), self)
     }
 
-    pub fn syntax_error(&mut self, message: impl ToString) -> &mut SyntaxError {
+    pub fn syntax_error(&self, message: impl ToString) -> DiagnosticBuilder<SyntaxError> {
         self.diagnostic(Box::new(SyntaxError {
             src: self.current_file.clone(),
             message: message.to_string(),
@@ -38,9 +37,35 @@ impl DiagCtx {
     }
 
     pub fn emit(self) {
-        for diagnostic in self.diagnostics {
+        for diagnostic in self.diagnostics.into_inner().unwrap() {
             // println!("{}", DiagnosticFmt(diagnostic.as_ref(), &report_handler));
             println!("{:?}", miette::Report::new_boxed(diagnostic));
         }
+    }
+}
+
+pub struct DiagnosticBuilder<'a, T: Diagnostic + 'static>(Option<Box<T>>, &'a DiagCtx);
+
+impl<T: Diagnostic + 'static> std::ops::Deref for DiagnosticBuilder<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref().unwrap()
+    }
+}
+
+impl<T: Diagnostic + 'static> std::ops::DerefMut for DiagnosticBuilder<'_, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0.as_mut().unwrap()
+    }
+}
+
+impl<T: Diagnostic + 'static> std::ops::Drop for DiagnosticBuilder<'_, T> {
+    fn drop(&mut self) {
+        self.1
+            .diagnostics
+            .lock()
+            .unwrap()
+            .push(self.0.take().unwrap())
     }
 }

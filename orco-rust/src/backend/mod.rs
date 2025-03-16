@@ -40,7 +40,7 @@ impl Object {
         signature: &crate::hir::Signature,
     ) {
         let name = path.to_string();
-        let signature = self.convert_signature(signature);
+        let signature = Self::convert_signature(signature);
         let id = self
             .object
             .declare_function(&name, cranelift_module::Linkage::Export, &signature)
@@ -55,7 +55,7 @@ impl Object {
         );
     }
 
-    pub fn convert_type(&mut self, ty: &crate::hir::Type) -> Vec<cl::AbiParam> {
+    pub fn convert_type(ty: &crate::hir::Type) -> Vec<cl::AbiParam> {
         match ty {
             crate::hir::Type::Path(path) => {
                 panic!("Paths in backend are not allowed (found {})", path)
@@ -64,23 +64,18 @@ impl Object {
             crate::hir::Type::Unsigned(bits) => {
                 vec![cl::AbiParam::new(cl::Type::int(*bits).unwrap())]
             }
-            crate::hir::Type::Tuple(items) => items
-                .iter()
-                .map(|ty| self.convert_type(ty))
-                .flatten()
-                .collect(),
+            crate::hir::Type::Tuple(items) => items.iter().flat_map(Self::convert_type).collect(),
         }
     }
 
-    pub fn convert_signature(&mut self, signature: &crate::hir::Signature) -> cl::Signature {
+    pub fn convert_signature(signature: &crate::hir::Signature) -> cl::Signature {
         cl::Signature {
             params: signature
                 .parameters
                 .iter()
-                .map(|param| self.convert_type(param))
-                .flatten()
+                .flat_map(Self::convert_type)
                 .collect(),
-            returns: self.convert_type(&signature.return_type),
+            returns: Self::convert_type(&signature.return_type),
             call_conv: cl::isa::CallConv::SystemV,
         }
     }
