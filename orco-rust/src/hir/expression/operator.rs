@@ -1,4 +1,4 @@
-use super::Expression;
+use super::{Expression, ob};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum OperatorKind {
@@ -25,11 +25,7 @@ impl Operator {
         }
     }
 
-    pub fn build(
-        &self,
-        _builder: &mut crate::backend::FunctionBuilder<'_>,
-    ) -> Vec<cranelift::prelude::Value> {
-        // builder.0.ins().call(FN, args)
+    pub fn build(&self, _builder: &mut dyn ob::FunctionBuilder) -> ob::SSAValue {
         todo!()
     }
 }

@@ -1,4 +1,9 @@
-use miette::Diagnostic as Miette;
+pub use miette;
+pub use thiserror;
+
+pub use miette::Diagnostic as Miette;
+pub use miette::SourceSpan as Span;
+
 use miette::LabeledSpan;
 use std::sync::Mutex;
 use thiserror::Error;

@@ -4,7 +4,7 @@ pub type Symbol = interned_string::IString;
 #[derive(Clone)]
 pub struct Ident {
     pub name: Symbol,
-    pub span: miette::SourceSpan,
+    pub span: orco::diagnostic::Span,
 }
 
 impl std::fmt::Debug for Ident {

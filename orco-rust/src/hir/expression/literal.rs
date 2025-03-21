@@ -1,4 +1,4 @@
-use crate::backend::cl::InstBuilder;
+use super::ob;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Literal {
@@ -25,15 +25,9 @@ impl Literal {
 }
 
 impl Literal {
-    pub fn build(
-        &self,
-        builder: &mut crate::backend::FunctionBuilder,
-    ) -> crate::backend::cl::Value {
+    pub fn build(&self, builder: &mut dyn ob::FunctionBuilder) -> ob::SSAValue {
         match self {
-            Literal::Int(value) => builder
-                .0
-                .ins()
-                .iconst(crate::backend::cl::types::I32, *value as i64),
+            Literal::Int(value) => builder.i32(*value as _),
         }
     }
 }

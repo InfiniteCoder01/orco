@@ -1,5 +1,8 @@
 [workspace]
 resolver = "1"
-members = [
+members = [ "orco", "orco-cranelift",
   "orco-rust"
 ]
+
+[workspace.dependencies]
+orco = { path = "orco" }

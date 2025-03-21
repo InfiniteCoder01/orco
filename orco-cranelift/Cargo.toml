@@ -1,0 +1,11 @@
+[package]
+name = "orco-cranelift"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+orco = { workspace = true }
+
+cranelift = "0.117.1"
+cranelift-module = "0.117.2"
+cranelift-object = "0.117.2"

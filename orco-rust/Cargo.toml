@@ -4,16 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-cranelift = "0.117.1"
-cranelift-module = "0.117.2"
-cranelift-object = "0.117.2"
+orco = { workspace = true }
+orco-cranelift = { path = "../orco-cranelift" }
 
 rayon = "1.10.0"
 indexland = "0.2.1"
 interned-string = "0.3.0"
-
-miette = { version = "7.5.0", features = ["fancy"] }
-thiserror = "2.0.12"
 
 syn = { version = "2.0.98", features = ["full"] }
 proc-macro2 = { version = "1.0.94", features = ["span-locations"] }

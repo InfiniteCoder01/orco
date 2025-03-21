@@ -1,4 +1,4 @@
-use super::Context;
+use super::{Context, ob};
 
 pub mod block;
 pub use block::Block;
@@ -63,12 +63,9 @@ impl Expression {
         }
     }
 
-    pub fn build(
-        &self,
-        builder: &mut crate::backend::FunctionBuilder,
-    ) -> Vec<crate::backend::cl::Value> {
+    pub fn build(&self, builder: &mut dyn ob::FunctionBuilder) -> ob::SSAValue {
         match self {
-            Self::Literal(literal) => vec![literal.build(builder)],
+            Self::Literal(literal) => literal.build(builder),
             Self::Block(block) => block.build(builder),
 
             Self::Operator(call) => call.build(builder),

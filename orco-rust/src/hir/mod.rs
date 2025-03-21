@@ -1,4 +1,5 @@
 use indexland::{Idx, IndexVec};
+use orco::backend as ob;
 use rayon::prelude::*;
 use std::sync::RwLock;
 
@@ -39,7 +40,7 @@ impl Hir {
 }
 
 pub struct Context {
-    pub diag: crate::DiagCtx,
+    pub diag: orco::diagnostic::DiagCtx,
 }
 
 pub fn parse_file(
@@ -50,8 +51,10 @@ pub fn parse_file(
 ) {
     let filepath = filepath.as_ref();
     let source = std::fs::read_to_string(filepath).unwrap();
-    ctx.diag
-        .set_source(miette::NamedSource::new(filepath.to_string_lossy(), source.clone()).into());
+    ctx.diag.set_source(
+        orco::diagnostic::miette::NamedSource::new(filepath.to_string_lossy(), source.clone())
+            .into(),
+    );
     let file = match syn::parse_str::<syn::File>(&source) {
         Ok(file) => file,
         Err(err) => {

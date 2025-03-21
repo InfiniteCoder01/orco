@@ -1,9 +1,9 @@
-use super::Expression;
+use super::{Expression, ob};
 use syn::spanned::Spanned as _;
 
 #[derive(Clone, Debug)]
 pub struct Block {
-    pub span: miette::SourceSpan,
+    pub span: orco::diagnostic::Span,
     pub statements: Vec<Expression>,
     pub tail: Option<Box<Expression>>,
 }
@@ -32,15 +32,13 @@ impl Block {
         block
     }
 
-    pub fn build(
-        &self,
-        builder: &mut crate::backend::FunctionBuilder<'_>,
-    ) -> Vec<cranelift::prelude::Value> {
+    pub fn build(&self, builder: &mut dyn ob::FunctionBuilder) -> ob::SSAValue {
         for statement in &self.statements {
             statement.build(builder);
         }
-        self.tail
-            .as_ref()
-            .map_or_else(Vec::new, |expr| expr.build(builder))
+        match self.tail.as_ref() {
+            Some(expr) => expr.build(builder),
+            None => builder.unit(),
+        }
     }
 }
