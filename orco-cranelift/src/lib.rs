@@ -1,17 +1,21 @@
-pub use orco::backend as ob;
+use orco::backend as ob;
 
 pub mod cl {
+    pub use cranelift;
+    pub use cranelift_module;
+    pub use cranelift_object;
+
     pub use cranelift::prelude::*;
     pub use cranelift_module::{FuncId, Module, default_libcall_names};
     pub use cranelift_object::{ObjectBuilder, ObjectModule, ObjectProduct};
 }
 
-pub mod function;
+mod function;
 use function::{FunctionBuilder, FunctionDecl, SignatureBuilder};
 
 pub struct Object {
     pub(crate) object: std::sync::Mutex<cl::ObjectModule>,
-    functions: std::collections::HashMap<ob::FunctionId, FunctionDecl>,
+    pub(crate) functions: std::collections::HashMap<ob::FunctionId, FunctionDecl>,
 }
 
 impl Object {

@@ -14,7 +14,7 @@ impl Literal {
             syn::Lit::Byte(_) => todo!(),
             syn::Lit::Char(_) => todo!(),
             syn::Lit::Int(value) => {
-                Self::Int(value.base10_digits().parse().expect("Invalid int literal"))
+                Self::Int(value.base10_digits().parse().expect("invalid int literal"))
             }
             syn::Lit::Float(_) => todo!(),
             syn::Lit::Bool(_) => todo!(),

@@ -1,5 +1,9 @@
 use super::{Object, cl, ob};
 use cl::Module;
+use cranelift::prelude::InstBuilder;
+
+mod signature_builder;
+pub(crate) use signature_builder::SignatureBuilder;
 
 pub(crate) struct FunctionDecl {
     pub(crate) cl_id: cl::FuncId,
@@ -7,50 +11,9 @@ pub(crate) struct FunctionDecl {
     pub(crate) signature: cl::Signature,
 }
 
-pub(crate) struct SignatureBuilder<'a> {
-    object: &'a mut Object,
-    id: ob::FunctionId,
-    name: String,
-    signature: cl::Signature,
-}
-
-impl<'a> SignatureBuilder<'a> {
-    pub(crate) fn new(object: &'a mut Object, id: ob::FunctionId, name: String) -> Self {
-        Self {
-            object,
-            id,
-            name,
-            signature: cl::Signature {
-                params: Vec::new(),
-                returns: Vec::new(),
-                call_conv: cl::isa::CallConv::Fast,
-            },
-        }
-    }
-}
-
-impl ob::SignatureBuilder for SignatureBuilder<'_> {
-    fn finish(self: Box<Self>) {
-        let cl_id = self
-            .object
-            .object
-            .lock()
-            .unwrap()
-            .declare_function(
-                &self.name,
-                cranelift_module::Linkage::Export,
-                &self.signature,
-            )
-            .unwrap();
-        self.object.functions.insert(
-            self.id,
-            FunctionDecl {
-                cl_id,
-                name: self.name,
-                signature: self.signature,
-            },
-        );
-    }
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) enum SSAValue {
+    Split(Vec<cl::Value>),
 }
 
 struct FunctionBuilderInner {
@@ -63,6 +26,7 @@ pub(crate) struct FunctionBuilder<'a> {
     id: ob::FunctionId,
     inner: std::pin::Pin<Box<FunctionBuilderInner>>,
     builder: cl::FunctionBuilder<'a>,
+    ssa: Vec<SSAValue>,
 }
 
 impl<'a> FunctionBuilder<'a> {
@@ -70,7 +34,7 @@ impl<'a> FunctionBuilder<'a> {
         let decl = object
             .functions
             .get(&id)
-            .expect("Trying to build an undeclared function");
+            .expect("trying to build an undeclared function");
 
         let mut ctx = cl::codegen::Context::new();
         ctx.func = cl::codegen::ir::Function::with_name_signature(
@@ -87,31 +51,47 @@ impl<'a> FunctionBuilder<'a> {
             fctx: cl::FunctionBuilderContext::new(),
         });
 
-        let builder =
+        let mut builder =
             cl::FunctionBuilder::new(unsafe { &mut *(&mut inner.ctx.func as *mut _) }, unsafe {
                 &mut *(&mut inner.fctx as *mut _)
             });
+
+        let entry = builder.create_block();
+        builder.switch_to_block(entry);
+        builder.append_block_params_for_function_params(entry);
+        builder.seal_block(entry);
 
         Self {
             object,
             id,
             inner,
             builder,
+            ssa: vec![SSAValue::Split(Vec::new())],
         }
+    }
+
+    fn alloc_ssa(&mut self, value: SSAValue) -> ob::SSAValue {
+        let id = self.ssa.len();
+        self.ssa.push(value);
+        ob::SSAValue(id)
     }
 }
 
 impl ob::FunctionBuilder for FunctionBuilder<'_> {
-    fn unit(&mut self) -> ob::function::SSAValue {
+    fn unit(&mut self) -> ob::SSAValue {
+        ob::SSAValue(0)
+    }
+
+    fn i32(&mut self, value: i32) -> ob::SSAValue {
         todo!()
     }
 
-    fn i32(&mut self, value: i32) -> ob::function::SSAValue {
-        todo!()
-    }
-
-    fn ret(&mut self, value: ob::function::SSAValue) {
-        todo!()
+    fn ret(&mut self, value: ob::SSAValue) {
+        self.builder.ins().return_(
+            match self.ssa.get(value.0).expect("got an invalid SSA id") {
+                SSAValue::Split(values) => values,
+            },
+        );
     }
 
     fn finish(mut self: Box<Self>) {
@@ -119,7 +99,7 @@ impl ob::FunctionBuilder for FunctionBuilder<'_> {
             .object
             .functions
             .get(&self.id)
-            .expect("Trying to build an undeclared function");
+            .expect("trying to build an undeclared function");
 
         self.builder.finalize();
         self.object
