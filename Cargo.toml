@@ -6,3 +6,4 @@ members = [ "orco", "orco-cranelift",
 
 [workspace.dependencies]
 orco = { path = "orco" }
+indexland = "0.2.1"

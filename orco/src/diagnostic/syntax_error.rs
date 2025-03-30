@@ -1,5 +1,6 @@
 use super::*;
 
+/// A regular syntax error
 #[derive(Clone, Debug, Error)]
 #[error("{message}")]
 pub struct SyntaxError {

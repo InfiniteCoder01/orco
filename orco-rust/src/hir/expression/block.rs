@@ -1,4 +1,4 @@
-use super::{Expression, ob};
+use super::{Context, Expression, ob};
 use syn::spanned::Spanned as _;
 
 #[derive(Clone, Debug)]
@@ -30,6 +30,12 @@ impl Block {
             }
         }
         block
+    }
+
+    pub fn resolve(&mut self, ctx: &Context) {
+        for statement in &mut self.statements {
+            statement.resolve(ctx);
+        }
     }
 
     pub fn build(&self, builder: &mut dyn ob::FunctionBuilder) -> ob::SSAValue {

@@ -6,7 +6,7 @@ pub mod cl {
     pub use cranelift_object;
 
     pub use cranelift::prelude::*;
-    pub use cranelift_module::{FuncId, Module, default_libcall_names};
+    pub use cranelift_module::{FuncId, Linkage, Module, default_libcall_names};
     pub use cranelift_object::{ObjectBuilder, ObjectModule, ObjectProduct};
 }
 
@@ -14,13 +14,14 @@ mod function;
 use function::{FunctionBuilder, FunctionDecl, SignatureBuilder};
 
 pub struct Object {
+    pub(crate) registry: orco::Registry,
     pub(crate) object: std::sync::Mutex<cl::ObjectModule>,
     pub(crate) functions: std::collections::HashMap<ob::FunctionId, FunctionDecl>,
 }
 
 impl Object {
     /// Create a new object from an ISA name
-    pub fn new(isa: &str) -> Self {
+    pub fn new(isa: &str, registry: orco::Registry) -> Self {
         let flag_builder = cl::settings::builder();
         let isa_builder = cl::isa::lookup_by_name(isa).unwrap();
         let isa = isa_builder
@@ -31,6 +32,7 @@ impl Object {
         );
 
         Self {
+            registry,
             object: object.into(),
             functions: std::collections::HashMap::new(),
         }

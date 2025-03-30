@@ -83,7 +83,35 @@ impl ob::FunctionBuilder for FunctionBuilder<'_> {
     }
 
     fn i32(&mut self, value: i32) -> ob::SSAValue {
-        todo!()
+        let value = self.builder.ins().iconst(cl::types::I32, value as i64);
+        self.alloc_ssa(SSAValue::Split(vec![value]))
+    }
+
+    fn call(&mut self, id: ob::FunctionId, args: &[ob::SSAValue]) -> ob::SSAValue {
+        let args = args
+            .into_iter()
+            .flat_map(
+                |value| match self.ssa.get(value.0).expect("got an invalid SSA id") {
+                    SSAValue::Split(values) => values.iter().copied(),
+                },
+            )
+            .collect::<Vec<_>>();
+
+        let id = self
+            .object
+            .functions
+            .get(&id)
+            .expect("undeclared function")
+            .cl_id;
+        let func = self
+            .object
+            .object
+            .lock()
+            .unwrap()
+            .declare_func_in_func(id, self.builder.func);
+        let inst = self.builder.ins().call(func, &args);
+        let results = self.builder.inst_results(inst);
+        self.alloc_ssa(SSAValue::Split(results.to_owned()))
     }
 
     fn ret(&mut self, value: ob::SSAValue) {

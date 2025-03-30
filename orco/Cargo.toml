@@ -6,3 +6,5 @@ edition = "2024"
 [dependencies]
 miette = { version = "7.5.0", features = ["fancy"] }
 thiserror = "2.0.12"
+
+indexland = { workspace = true }

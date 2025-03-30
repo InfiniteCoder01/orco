@@ -9,9 +9,13 @@ pub use literal::Literal;
 pub mod operator;
 pub use operator::Operator;
 
+pub mod symbol;
+pub use symbol::Symbol;
+
 #[derive(Clone, Debug)]
 pub enum Expression {
     Literal(Literal),
+    Symbol(Symbol),
     Operator(Operator),
     Block(Block),
 }
@@ -44,7 +48,7 @@ impl Expression {
             syn::Expr::Match(_expr_match) => todo!(),
             syn::Expr::MethodCall(_expr_method_call) => todo!(),
             syn::Expr::Paren(_expr_paren) => todo!(),
-            syn::Expr::Path(_expr_path) => todo!(),
+            syn::Expr::Path(path) => Symbol::parse(&path.path).into(),
             syn::Expr::Range(_expr_range) => todo!(),
             syn::Expr::RawAddr(_expr_raw_addr) => todo!(),
             syn::Expr::Reference(_expr_reference) => todo!(),
@@ -63,12 +67,21 @@ impl Expression {
         }
     }
 
+    pub fn resolve(&mut self, ctx: &Context) {
+        match self {
+            Self::Literal(literal) => (),
+            Self::Symbol(symbol) => symbol.resolve(ctx),
+            Self::Operator(operator) => operator.resolve(ctx),
+            Self::Block(block) => block.resolve(ctx),
+        }
+    }
+
     pub fn build(&self, builder: &mut dyn ob::FunctionBuilder) -> ob::SSAValue {
         match self {
             Self::Literal(literal) => literal.build(builder),
             Self::Block(block) => block.build(builder),
-
             Self::Operator(call) => call.build(builder),
+            Self::Symbol(symbol) => symbol.build(builder),
         }
     }
 }
@@ -91,6 +104,12 @@ impl From<Operator> for Expression {
     }
 }
 
+impl From<Symbol> for Expression {
+    fn from(value: Symbol) -> Self {
+        Self::Symbol(value)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Body {
     pub expression: Expression,
@@ -101,5 +120,7 @@ impl Body {
         Self { expression }
     }
 
-    pub fn resolve(&self, _ctx: &Context) {}
+    pub fn resolve(&mut self, ctx: &Context) {
+        self.expression.resolve(ctx);
+    }
 }

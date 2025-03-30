@@ -8,7 +8,7 @@ orco = { workspace = true }
 orco-cranelift = { path = "../orco-cranelift" }
 
 rayon = "1.10.0"
-indexland = "0.2.1"
+indexland = { workspace = true }
 interned-string = "0.3.0"
 
 syn = { version = "2.0.98", features = ["full"] }

@@ -1,7 +1,7 @@
 use indexland::{Idx, IndexVec};
 use orco::backend as ob;
 use rayon::prelude::*;
-use std::sync::RwLock;
+use std::{collections::HashMap, sync::RwLock};
 
 pub mod interner;
 pub use interner::{Ident, Path, Symbol};
@@ -16,14 +16,11 @@ pub mod expression;
 pub use expression::{Block, Body, Expression, Literal};
 
 #[derive(Idx)]
-pub struct FunctionId(usize);
-
-#[derive(Idx)]
 pub struct BodyId(usize);
 
 #[derive(Debug, Default)]
 pub struct Hir {
-    pub functions: IndexVec<FunctionId, RwLock<Function>>,
+    pub functions: HashMap<orco::FunctionId, RwLock<Function>>,
     pub bodies: IndexVec<BodyId, RwLock<Body>>,
 }
 
@@ -39,8 +36,10 @@ impl Hir {
     }
 }
 
+#[derive(Default)]
 pub struct Context {
     pub diag: orco::diagnostic::DiagCtx,
+    pub registry: orco::Registry,
 }
 
 pub fn parse_file(
@@ -76,9 +75,13 @@ pub fn parse_file(
                 let signature = Signature::parse(r#fn.sig);
                 let body = Body::new(Block::parse(&r#fn.block, &path).into());
                 let body = hir.bodies.push_get_id(body.into());
-                hir.functions.push_get_id(
+                let fid = ctx
+                    .registry
+                    .declare_fn(path.to_string(), orco::registry::Signature::default());
+                hir.functions.insert(
+                    fid,
                     Function {
-                        path,
+                        path: path.clone(),
                         signature,
                         body,
                     }
