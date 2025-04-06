@@ -1,10 +1,11 @@
 use interned_string::Intern;
+use orco::diagnostic::Span;
 pub type Symbol = interned_string::IString;
 
 #[derive(Clone)]
 pub struct Ident {
     pub name: Symbol,
-    pub span: orco::diagnostic::Span,
+    pub span: Span,
 }
 
 impl std::fmt::Debug for Ident {
@@ -94,6 +95,12 @@ impl Path {
 
     pub fn parse(path: &str) -> Self {
         Self(path.split("::").map(|segment| segment.into()).collect())
+    }
+
+    pub fn span(&self) -> Span {
+        let first = self.0.first().unwrap().span;
+        let last = self.0.last().unwrap().span;
+        Span::from(first.offset()..last.offset() + last.len())
     }
 }
 

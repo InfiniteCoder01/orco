@@ -12,8 +12,17 @@ use thiserror::Error;
 pub mod syntax_error;
 pub use syntax_error::SyntaxError;
 
+/// See [UnresolvedSymbol]
+pub mod symbol_not_found;
+pub use symbol_not_found::SymbolNotFound;
+
 /// OrCo diagnostic trait
-pub trait Diagnostic: Miette + Send + Sync {}
+pub trait Diagnostic: Miette + Send + Sync {
+    /// If the diagnostic is fatal, compilation process is not gonna continue
+    fn fatal(&self) -> bool {
+        true
+    }
+}
 
 /// Source file
 pub type SourceFile = std::sync::Arc<miette::NamedSource<String>>;
@@ -69,11 +78,25 @@ impl DiagCtx {
         }))
     }
 
-    /// Emit all stored diagnostics
-    pub fn emit(self) {
+    /// Emit a symbol not found
+    pub fn symbol_not_found(&self, symbol: impl ToString) -> DiagnosticBuilder<SymbolNotFound> {
+        self.diagnostic(Box::new(SymbolNotFound {
+            src: self.current_file.clone(),
+            symbol: symbol.to_string(),
+            labels: Vec::new(),
+        }))
+    }
+
+    /// Emit all stored diagnostics, return true if there were any fatal errors
+    pub fn emit(self) -> bool {
+        let mut fatal = false;
         for diagnostic in self.diagnostics.into_inner().unwrap() {
+            if diagnostic.fatal() {
+                fatal = true;
+            }
             println!("{:?}", miette::Report::new_boxed(diagnostic));
         }
+        fatal
     }
 }
 

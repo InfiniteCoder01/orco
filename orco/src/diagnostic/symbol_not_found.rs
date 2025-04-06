@@ -1,15 +1,15 @@
 use super::*;
 
-/// A regular syntax error
+/// A generic "symbol not found" error
 #[derive(Clone, Debug, Error)]
-#[error("{message}")]
-pub struct SyntaxError {
+#[error("{symbol} could not be found")]
+pub struct SymbolNotFound {
     pub(super) src: Option<SourceFile>,
-    pub(super) message: String,
+    pub(super) symbol: String,
     pub(super) labels: Vec<LabeledSpan>,
 }
 
-impl SyntaxError {
+impl SymbolNotFound {
     /// Add a spanned label.
     /// See also [`Self::mark`]
     pub fn label(
@@ -30,7 +30,7 @@ impl SyntaxError {
     }
 }
 
-impl Miette for SyntaxError {
+impl Miette for SymbolNotFound {
     fn severity(&self) -> Option<miette::Severity> {
         Some(miette::Severity::Error)
     }
@@ -44,4 +44,4 @@ impl Miette for SyntaxError {
     }
 }
 
-impl Diagnostic for SyntaxError {}
+impl Diagnostic for SymbolNotFound {}

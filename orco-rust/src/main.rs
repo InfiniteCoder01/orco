@@ -18,6 +18,10 @@ fn main() {
     hir::parse_file(&mut ctx, &mut hir, file, hir::Path::single("sample"));
     hir.resolve(&ctx);
 
+    if ctx.diag.emit() {
+        std::process::exit(-1);
+    }
+
     dbg!(&ctx.registry);
 
     let mut object = orco_cranelift::Object::new("x86_64-unknown-linux-gnu", ctx.registry);
@@ -40,8 +44,6 @@ fn main() {
         builder.ret(value);
         builder.finish();
     }
-
-    ctx.diag.emit();
 
     let object = object.finish();
     std::fs::write("foo.o", object.emit().unwrap()).unwrap();

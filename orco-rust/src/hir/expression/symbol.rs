@@ -13,16 +13,20 @@ impl Symbol {
 
     pub fn resolve(&mut self, ctx: &Context) {
         match self {
-            Self::Unresolved(path) => match ctx
-                .registry
-                .get_symbol(&path.to_string())
-                .expect("TODO: ERROR")
-            {
-                orco::Symbol::Function(id) => {
-                    *self = Self::Function(id);
-                    self.resolve(ctx);
+            Self::Unresolved(path) => {
+                let Some(symbol) = ctx.registry.get_symbol(&path.to_string()) else {
+                    ctx.diag
+                        .symbol_not_found(format!("symbol '{path}'"))
+                        .mark(path.span());
+                    return;
+                };
+                match symbol {
+                    orco::Symbol::Function(id) => {
+                        *self = Self::Function(id);
+                        self.resolve(ctx);
+                    }
                 }
-            },
+            }
             Self::Function(_) => (),
         }
     }
