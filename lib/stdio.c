@@ -21,9 +21,10 @@ int write(int fd, const char *buf, int length) {
 }
 
 void print(int x) {
-    char buff[3];
+    char buff[4];
     buff[0] = (x / 10) % 10 + '0';
     buff[1] = x % 10 + '0';
-    buff[2] = '\0';
+    buff[2] = '\n';
+    buff[3] = '\0';
     write(0, buff, 3);
 }

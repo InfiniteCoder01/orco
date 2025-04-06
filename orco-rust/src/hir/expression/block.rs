@@ -36,6 +36,9 @@ impl Block {
         for statement in &mut self.statements {
             statement.resolve(ctx);
         }
+        if let Some(tail) = &mut self.tail {
+            tail.resolve(ctx);
+        }
     }
 
     pub fn build(&self, builder: &mut dyn ob::FunctionBuilder) -> ob::SSAValue {

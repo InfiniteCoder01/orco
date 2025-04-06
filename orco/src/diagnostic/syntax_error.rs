@@ -10,6 +10,7 @@ pub struct SyntaxError {
 }
 
 impl SyntaxError {
+    /// Add a spanned label
     pub fn label(
         &mut self,
         label: Option<impl ToString>,
