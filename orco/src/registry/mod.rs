@@ -50,11 +50,15 @@ impl Signature {
 /// Function parameter, stores type and optionally name
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Parameter {
+    /// Optional parameter name
     pub name: Option<String>,
+    /// Parameter type
     pub ty: Type,
 }
 
 impl Parameter {
+    /// Create a new parameter with a name.
+    /// Also see [`Parameter::unnamed`]
     pub fn new(name: String, ty: Type) -> Self {
         Self {
             name: Some(name),
@@ -62,6 +66,8 @@ impl Parameter {
         }
     }
 
+    /// Create a new parameter without a name.
+    /// Also see [`Parameter::new`]
     pub fn unnamed(ty: Type) -> Self {
         Self { name: None, ty }
     }
@@ -70,7 +76,9 @@ impl Parameter {
 /// Types
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
+    /// Signed integer type with set bit width
     Int(u16),
+    /// Unsigned integer type with set bit width
     Unsigned(u16),
 }
 

@@ -27,7 +27,7 @@ impl Symbol {
         }
     }
 
-    pub fn build(&self, builder: &mut dyn ob::FunctionBuilder) -> ob::SSAValue {
+    pub fn build(&self, _builder: &mut dyn ob::FunctionBuilder) -> ob::SSAValue {
         todo!()
     }
 }

@@ -39,7 +39,6 @@ impl Operator {
                 if let Expression::Symbol(super::Symbol::Function(id)) = &self.args[0] {
                     self.function = Some(*id);
                     self.args.remove(0);
-                    return;
                 }
             }
         }

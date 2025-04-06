@@ -89,7 +89,7 @@ impl ob::FunctionBuilder for FunctionBuilder<'_> {
 
     fn call(&mut self, id: ob::FunctionId, args: &[ob::SSAValue]) -> ob::SSAValue {
         let args = args
-            .into_iter()
+            .iter()
             .flat_map(
                 |value| match self.ssa.get(value.0).expect("got an invalid SSA id") {
                     SSAValue::Split(values) => values.iter().copied(),

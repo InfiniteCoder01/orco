@@ -69,7 +69,7 @@ impl Expression {
 
     pub fn resolve(&mut self, ctx: &Context) {
         match self {
-            Self::Literal(literal) => (),
+            Self::Literal(_literal) => (),
             Self::Symbol(symbol) => symbol.resolve(ctx),
             Self::Operator(operator) => operator.resolve(ctx),
             Self::Block(block) => block.resolve(ctx),

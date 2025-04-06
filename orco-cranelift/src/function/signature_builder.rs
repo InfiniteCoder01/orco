@@ -62,13 +62,9 @@ impl ob::SignatureBuilder for SignatureBuilder<'_> {
 impl Object {
     pub(crate) fn convert_type(&self, ty: orco::Type) -> cl::AbiParam {
         match ty {
-            orco::Type::Int(8) | orco::Type::Unsigned(8) => cl::AbiParam::new(cl::types::I8),
-            orco::Type::Int(16) | orco::Type::Unsigned(16) => cl::AbiParam::new(cl::types::I16),
-            orco::Type::Int(32) | orco::Type::Unsigned(32) => cl::AbiParam::new(cl::types::I32),
-            orco::Type::Int(64) | orco::Type::Unsigned(64) => cl::AbiParam::new(cl::types::I64),
-            orco::Type::Int(128) | orco::Type::Unsigned(128) => cl::AbiParam::new(cl::types::I128),
-            orco::Type::Int(bits) => panic!("unsupported integer width {bits}"),
-            orco::Type::Unsigned(bits) => panic!("unsupported unsigned integer width {bits}"),
+            orco::Type::Int(bits) | orco::Type::Unsigned(bits) => cl::AbiParam::new(
+                cl::Type::int(bits).unwrap_or_else(|| panic!("unsupported integer width {bits}")),
+            ),
         }
     }
 }
