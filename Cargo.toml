@@ -1,9 +1,10 @@
 [workspace]
 resolver = "1"
-members = [ "orco", "orco-cranelift",
-  "orco-rust"
+members = [
+  "orco",
+  "orco-cranelift",
+  "orco-ra",
 ]
 
 [workspace.dependencies]
 orco = { path = "orco" }
-indexland = "0.2.1"
