@@ -2,8 +2,8 @@
 resolver = "1"
 members = [
   "orco",
-  "orco-cranelift",
-  "orco-ra",
+  "frontends/orco-ra",
+  "backends/orco-cgen", "backends/orco-cranelift",
 ]
 
 [workspace.dependencies]

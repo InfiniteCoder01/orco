@@ -6,18 +6,18 @@ orco is a compiler toolchain focusing on performace and extensibility
 
 ## Goals
 orco development is currently guided by those goals:
-1. LSP features:
-   - Syntax highlighting
-   - Code completion
-   - Hover info
-   - Go to [definition/uses/etc.]
-   - Inline docs
-2. Runtime features such as:
+1. Runtime features such as:
    - Hot code reloading
    - JIT
    - Debugging
    - Interpreting
    - Cross-compilation
+2. LSP features:
+   - Syntax highlighting
+   - Code completion
+   - Hover info
+   - Go to [definition/uses/etc.]
+   - Inline docs
 3. Easy language interop & generation of C (or C-like) headers, transpilation to C
 4. Package/dependency management (to some extent, possibly functional)
 

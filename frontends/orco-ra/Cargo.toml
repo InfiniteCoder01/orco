@@ -5,4 +5,8 @@ edition = "2024"
 
 [dependencies]
 orco = { workspace = true }
+ra_ap_base_db = "0.0.285"
+ra_ap_hir = "0.0.285"
+ra_ap_ide = "0.0.285"
+ra_ap_vfs = "0.0.285"
 
