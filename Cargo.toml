@@ -8,3 +8,4 @@ members = [
 
 [workspace.dependencies]
 orco = { path = "orco" }
+orco-cgen = { path = "backends/orco-cgen" }

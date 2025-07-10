@@ -29,12 +29,15 @@ fn main() {
         }
         .into(),
     );
-    frontend.apply_changes(true);
-    println!("Status: {}", frontend.status(file_id));
 
-    for krate in ra::hir::Crate::all(frontend.db()) {
-        for module in krate.modules(frontend.db()) {
-            dbg!(module.declarations(frontend.db()));
-        }
-    }
+    frontend.apply_changes(true);
+
+    let mut backend = orco_cgen::Backend::new();
+
+    use orco::frontend::Source;
+    let krate = ra::hir::Crate::all(frontend.db())[0];
+    let source = frontend.source(krate);
+    source.declare(&mut backend);
+
+    println!("{}", backend.build());
 }

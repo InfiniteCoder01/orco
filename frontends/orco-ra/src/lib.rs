@@ -3,10 +3,19 @@
 pub mod ra {
     pub use ra_ap_base_db::{CrateOrigin, CrateWorkspaceData};
     pub use ra_ap_hir as hir;
+    pub use ra_ap_hir_def as def;
+    pub use ra_ap_hir_ty as ty;
     pub use ra_ap_ide as ide;
     pub use ra_ap_vfs as vfs;
 }
 
+use orco::backend as ob;
+use orco::frontend as of;
+use ra_ap_hir::db::HirDatabase;
+
+pub mod types;
+
+/// rust-analyzer frontend, uses multiple [Sources], one per crate.
 #[derive(Debug, Default)]
 pub struct RAFrontend {
     pub analysis_host: ra::ide::AnalysisHost,
@@ -60,7 +69,56 @@ impl RAFrontend {
         self.analysis_host.raw_database()
     }
 
-    pub fn status(&self, file_id: ra::vfs::FileId) -> String {
-        self.analysis_host.analysis().status(Some(file_id)).unwrap()
+    pub fn source(&self, krate: ra::hir::Crate) -> Source {
+        Source(self, krate)
+    }
+}
+
+pub struct Source<'a>(&'a RAFrontend, ra::hir::Crate);
+
+impl of::Source for Source<'_> {
+    fn declare<DB: ob::DeclarationBackend>(&self, backend: &mut DB) {
+        let db = self.0.db();
+        for module in self.1.modules(db) {
+            for decl in module.declarations(db) {
+                self.declare_symbol(backend, decl)
+            }
+        }
+    }
+}
+
+impl Source<'_> {
+    fn declare_symbol<DB: ob::DeclarationBackend>(
+        &self,
+        backend: &mut DB,
+        decl: ra::hir::ModuleDef,
+    ) {
+        let db = self.0.db();
+        match decl {
+            ra::hir::ModuleDef::Module(module) => todo!(),
+            ra::hir::ModuleDef::Function(function) => {
+                let params = function
+                    .assoc_fn_params(db)
+                    .iter()
+                    .map(|param| {
+                        (
+                            param.name(db).map(|name| name.as_str().into()),
+                            self.0.convert_type(backend, param.ty()),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                let ret = self.0.convert_type(backend, &function.ret_type(db));
+                backend.function(function.name(db).as_str().into(), &params, &ret)
+            }
+            ra::hir::ModuleDef::Adt(adt) => todo!(),
+            ra::hir::ModuleDef::Variant(variant) => todo!(),
+            ra::hir::ModuleDef::Const(_) => todo!(),
+            ra::hir::ModuleDef::Static(_) => todo!(),
+            ra::hir::ModuleDef::Trait(_) => todo!(),
+            ra::hir::ModuleDef::TraitAlias(trait_alias) => todo!(),
+            ra::hir::ModuleDef::TypeAlias(type_alias) => todo!(),
+            ra::hir::ModuleDef::BuiltinType(builtin_type) => todo!(),
+            ra::hir::ModuleDef::Macro(_) => todo!(),
+        }
     }
 }
