@@ -2,10 +2,10 @@ use crate::{ob, ra};
 
 fn dirty_get_kind<'a>(ty: &'a ra::hir::Type<'a>) -> &'a ra::ty::TyKind {
     pub struct TypeLayout {
-        env: triomphe::Arc<ra::ty::traits::TraitEnvironment>,
+        _env: triomphe::Arc<ra::ty::traits::TraitEnvironment>,
         ty: ra::ty::Ty,
     }
-    unsafe { std::mem::transmute::<_, &TypeLayout>(ty) }
+    unsafe { std::mem::transmute::<&ra::hir::Type, &TypeLayout>(ty) }
         .ty
         .kind(ra::ty::Interner)
 }
@@ -18,16 +18,16 @@ impl crate::RAFrontend {
     ) -> ob::Type {
         let kind = dirty_get_kind(ty);
         if ty.is_unit() {
-            ob::Type::Symbol(backend.unit())
+            backend.unit()
         } else if ty.is_scalar() {
             let scalar = match kind {
                 ra::ty::TyKind::Scalar(scalar) => scalar,
                 _ => unreachable!(),
             };
             use ra_ap_hir_ty::Scalar;
-            use ra_ap_hir_ty::primitive::{IntTy, UintTy};
-            ob::Type::Symbol(match scalar {
-                Scalar::Bool => todo!(),
+            use ra_ap_hir_ty::primitive::{FloatTy, IntTy, UintTy};
+            match scalar {
+                Scalar::Bool => backend.bool(),
                 Scalar::Char => todo!(),
                 Scalar::Int(IntTy::Isize) => backend.size_type(true),
                 Scalar::Int(ty) => backend.int(
@@ -53,10 +53,15 @@ impl crate::RAFrontend {
                     },
                     false,
                 ),
-                Scalar::Float(float_ty) => todo!(),
-            })
+                Scalar::Float(ty) => backend.float(match ty {
+                    FloatTy::F16 => 16,
+                    FloatTy::F32 => 32,
+                    FloatTy::F64 => 64,
+                    FloatTy::F128 => 128,
+                }),
+            }
         } else {
-            panic!("unsupported rust type: {:#?}", ty)
+            panic!("unsupported rust type: {ty:#?}")
         }
     }
 }

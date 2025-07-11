@@ -52,5 +52,5 @@ pub fn escape(symbol: ob::Symbol) -> String {
     symbol
         .as_str()
         .replace("::", "_")
-        .replace(&['.', ':', '/', '-'], "_")
+        .replace(['.', ':', '/', '-'], "_")
 }

@@ -1,1 +1,1 @@
-fn main(a: i128) -> i32 {}
+fn main(a: f32) -> bool {}

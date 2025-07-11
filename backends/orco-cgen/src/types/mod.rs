@@ -1,24 +1,36 @@
 use crate::{Backend, ob, tm};
 
 impl ob::TypeBackend for Backend {
-    fn unit(&self) -> ob::Symbol {
-        ob::Symbol::new_static(&"void")
+    fn unit(&self) -> ob::Type {
+        ob::Type::Symbol(ob::Symbol::new_static(&"void"))
     }
 
-    fn int(&self, size: u16, signed: bool) -> ob::Symbol {
+    fn bool(&self) -> ob::Type {
+        ob::Type::Symbol(ob::Symbol::new_static(&"bool"))
+    }
+
+    fn int(&self, size: u16, signed: bool) -> ob::Type {
         if signed {
-            ob::Symbol::new(format!("int{size}_t"))
+            ob::Type::Symbol(ob::Symbol::new(format!("int{size}_t")))
         } else {
-            ob::Symbol::new(format!("uint{size}_t"))
+            ob::Type::Symbol(ob::Symbol::new(format!("uint{size}_t")))
         }
     }
 
-    fn size_type(&self, signed: bool) -> ob::Symbol {
+    fn size_type(&self, signed: bool) -> ob::Type {
         if signed {
-            ob::Symbol::new_static(&"ssize_t")
+            ob::Type::Symbol(ob::Symbol::new_static(&"ssize_t"))
         } else {
-            ob::Symbol::new_static(&"size_t")
+            ob::Type::Symbol(ob::Symbol::new_static(&"size_t"))
         }
+    }
+
+    fn float(&self, size: u16) -> ob::Type {
+        ob::Type::Symbol(ob::Symbol::new_static(match size {
+            32 => &"float",
+            64 => &"double",
+            _ => panic!("invalid or unsupported floating point type size {size} bits"),
+        }))
     }
 }
 

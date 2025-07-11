@@ -11,7 +11,6 @@ pub mod ra {
 
 use orco::backend as ob;
 use orco::frontend as of;
-use ra_ap_hir::db::HirDatabase;
 
 pub mod types;
 
@@ -95,7 +94,7 @@ impl Source<'_> {
     ) {
         let db = self.0.db();
         match decl {
-            ra::hir::ModuleDef::Module(module) => todo!(),
+            ra::hir::ModuleDef::Module(_) => todo!(),
             ra::hir::ModuleDef::Function(function) => {
                 let params = function
                     .assoc_fn_params(db)
@@ -110,14 +109,14 @@ impl Source<'_> {
                 let ret = self.0.convert_type(backend, &function.ret_type(db));
                 backend.function(function.name(db).as_str().into(), &params, &ret)
             }
-            ra::hir::ModuleDef::Adt(adt) => todo!(),
-            ra::hir::ModuleDef::Variant(variant) => todo!(),
+            ra::hir::ModuleDef::Adt(_) => todo!(),
+            ra::hir::ModuleDef::Variant(_) => todo!(),
             ra::hir::ModuleDef::Const(_) => todo!(),
             ra::hir::ModuleDef::Static(_) => todo!(),
             ra::hir::ModuleDef::Trait(_) => todo!(),
-            ra::hir::ModuleDef::TraitAlias(trait_alias) => todo!(),
-            ra::hir::ModuleDef::TypeAlias(type_alias) => todo!(),
-            ra::hir::ModuleDef::BuiltinType(builtin_type) => todo!(),
+            ra::hir::ModuleDef::TraitAlias(_) => todo!(),
+            ra::hir::ModuleDef::TypeAlias(_) => todo!(),
+            ra::hir::ModuleDef::BuiltinType(_) => todo!(),
             ra::hir::ModuleDef::Macro(_) => todo!(),
         }
     }
