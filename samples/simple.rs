@@ -1,1 +1,3 @@
-fn main(a: f32) -> bool {}
+fn main() -> i32 {
+    0
+}

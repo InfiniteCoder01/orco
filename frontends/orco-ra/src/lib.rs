@@ -14,7 +14,7 @@ use orco::frontend as of;
 
 pub mod types;
 
-/// rust-analyzer frontend, uses multiple [Sources], one per crate.
+/// rust-analyzer frontend, uses multiple [Sources], one per crate
 #[derive(Debug, Default)]
 pub struct RAFrontend {
     pub analysis_host: ra::ide::AnalysisHost,
@@ -68,15 +68,28 @@ impl RAFrontend {
         self.analysis_host.raw_database()
     }
 
-    pub fn source(&self, krate: ra::hir::Crate) -> Source {
+    pub fn source(&self, krate: ra::hir::Crate) -> Source<'_> {
         Source(self, krate)
     }
 }
 
 pub struct Source<'a>(&'a RAFrontend, ra::hir::Crate);
 
+impl Source<'_> {
+    pub fn files(&self) -> Vec<ra::vfs::FileId> {
+        let mut files = Vec::new();
+        let db = self.0.db();
+        for module in self.1.modules(db) {
+            if let Some(file) = module.as_source_file_id(db) {
+                files.push(file.file_id(db));
+            }
+        }
+        files
+    }
+}
+
 impl of::Source for Source<'_> {
-    fn declare<DB: ob::DeclarationBackend>(&self, backend: &mut DB) {
+    fn declare(&self, backend: &mut impl ob::DeclarationBackend) {
         let db = self.0.db();
         for module in self.1.modules(db) {
             for decl in module.declarations(db) {
@@ -84,17 +97,22 @@ impl of::Source for Source<'_> {
             }
         }
     }
+
+    fn define(&self, backend: &mut impl ob::DefinitionBackend) {
+        let db = self.0.db();
+        for module in self.1.modules(db) {
+            for decl in module.declarations(db) {
+                self.build_symbol(backend, decl)
+            }
+        }
+    }
 }
 
 impl Source<'_> {
-    fn declare_symbol<DB: ob::DeclarationBackend>(
-        &self,
-        backend: &mut DB,
-        decl: ra::hir::ModuleDef,
-    ) {
+    fn declare_symbol(&self, backend: &mut impl ob::DeclarationBackend, decl: ra::hir::ModuleDef) {
         let db = self.0.db();
         match decl {
-            ra::hir::ModuleDef::Module(_) => todo!(),
+            ra::hir::ModuleDef::Module(_) => (),
             ra::hir::ModuleDef::Function(function) => {
                 let params = function
                     .assoc_fn_params(db)
@@ -108,6 +126,25 @@ impl Source<'_> {
                     .collect::<Vec<_>>();
                 let ret = self.0.convert_type(backend, &function.ret_type(db));
                 backend.function(function.name(db).as_str().into(), &params, &ret)
+            }
+            ra::hir::ModuleDef::Adt(_) => todo!(),
+            ra::hir::ModuleDef::Variant(_) => todo!(),
+            ra::hir::ModuleDef::Const(_) => todo!(),
+            ra::hir::ModuleDef::Static(_) => todo!(),
+            ra::hir::ModuleDef::Trait(_) => todo!(),
+            ra::hir::ModuleDef::TraitAlias(_) => todo!(),
+            ra::hir::ModuleDef::TypeAlias(_) => todo!(),
+            ra::hir::ModuleDef::BuiltinType(_) => todo!(),
+            ra::hir::ModuleDef::Macro(_) => todo!(),
+        }
+    }
+
+    fn build_symbol(&self, backend: &mut impl ob::DefinitionBackend, decl: ra::hir::ModuleDef) {
+        let db = self.0.db();
+        match decl {
+            ra::hir::ModuleDef::Module(_) => (),
+            ra::hir::ModuleDef::Function(function) => {
+                backend.function(function.name(db).as_str().into());
             }
             ra::hir::ModuleDef::Adt(_) => todo!(),
             ra::hir::ModuleDef::Variant(_) => todo!(),

@@ -11,7 +11,7 @@ fn dirty_get_kind<'a>(ty: &'a ra::hir::Type<'a>) -> &'a ra::ty::TyKind {
 }
 
 impl crate::RAFrontend {
-    pub fn convert_type<TB: ob::TypeBackend>(
+    pub fn convert_type<TB: ob::PrimitiveTypeSource>(
         &self,
         backend: &mut TB,
         ty: &ra::hir::Type,

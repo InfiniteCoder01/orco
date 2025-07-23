@@ -32,12 +32,27 @@ fn main() {
 
     frontend.apply_changes(true);
 
-    let mut backend = orco_cgen::Backend::new();
-
     use orco::frontend::Source;
     let krate = ra::hir::Crate::all(frontend.db())[0];
     let source = frontend.source(krate);
+
+    {
+        // Print diagnostics
+        let config = ra::ide::DiagnosticsConfig::test_sample();
+        for file in source.files() {
+            let diagnostics = frontend
+                .analysis()
+                .full_diagnostics(&config, ra::ide::AssistResolveStrategy::All, file)
+                .unwrap();
+            for diagnostic in diagnostics {
+                println!("[{:?}] {}", diagnostic.severity, diagnostic.message);
+            }
+        }
+    }
+
+    let mut backend = orco_cgen::Backend::new();
     source.declare(&mut backend);
+    source.define(&mut backend);
 
     println!("{}", backend.build());
 }

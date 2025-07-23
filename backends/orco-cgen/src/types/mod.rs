@@ -1,36 +1,27 @@
 use crate::{Backend, ob, tm};
 
-impl ob::TypeBackend for Backend {
-    fn unit(&self) -> ob::Type {
-        ob::Type::Symbol(ob::Symbol::new_static(&"void"))
-    }
+pub mod primitives;
 
-    fn bool(&self) -> ob::Type {
-        ob::Type::Symbol(ob::Symbol::new_static(&"bool"))
-    }
-
-    fn int(&self, size: u16, signed: bool) -> ob::Type {
-        if signed {
-            ob::Type::Symbol(ob::Symbol::new(format!("int{size}_t")))
-        } else {
-            ob::Type::Symbol(ob::Symbol::new(format!("uint{size}_t")))
+impl ob::DeclarationBackend for Backend {
+    fn function(
+        &mut self,
+        name: ob::Symbol,
+        params: &[(Option<ob::Symbol>, ob::Type)],
+        return_type: &ob::Type,
+    ) {
+        let mut function =
+            tm::Function::new(name.to_string(), self.build_type(return_type)).build();
+        for (name, ty) in params {
+            function.params.push(
+                tm::Parameter::new(
+                    name.map_or("", |name| name.as_str()).to_string(),
+                    self.build_type(ty),
+                )
+                .build(),
+            );
         }
-    }
 
-    fn size_type(&self, signed: bool) -> ob::Type {
-        if signed {
-            ob::Type::Symbol(ob::Symbol::new_static(&"ssize_t"))
-        } else {
-            ob::Type::Symbol(ob::Symbol::new_static(&"size_t"))
-        }
-    }
-
-    fn float(&self, size: u16) -> ob::Type {
-        ob::Type::Symbol(ob::Symbol::new_static(match size {
-            32 => &"float",
-            64 => &"double",
-            _ => panic!("invalid or unsupported floating point type size {size} bits"),
-        }))
+        self.function_decls.insert(name, function);
     }
 }
 

@@ -7,10 +7,9 @@ pub enum Type {
     Symbol(Symbol),
 }
 
-/// A backend that can generate types.
-/// Every method here returns an orco [Type] that will
-/// be used in codegen.
-pub trait TypeBackend {
+/// This is a way to get primitive types. Every method returns an
+/// orco [Type] that will be used by frontends
+pub trait PrimitiveTypeSource {
     /// Get the unit type (aka C `void` or Rust `()`)
     fn unit(&self) -> Type;
 
@@ -27,8 +26,22 @@ pub trait TypeBackend {
     fn float(&self, size: u16) -> Type;
 }
 
-/// Root trait for declaring module items, that includes full types.
-pub trait DeclarationBackend: TypeBackend {
+/// Root trait for declaring module items. This is enough to generate C headers
+pub trait DeclarationBackend: PrimitiveTypeSource {
     /// Declare a function
     fn function(&mut self, name: Symbol, params: &[(Option<Symbol>, Type)], return_type: &Type);
 }
+
+/// Root trait for defining module items
+pub trait DefinitionBackend: PrimitiveTypeSource {
+    /// See [FunctionCodegen]
+    type FunctionCodegen<'a>: FunctionCodegen<'a>
+    where
+        Self: 'a;
+
+    /// Define a function
+    fn function(&mut self, name: Symbol) -> Self::FunctionCodegen<'_>;
+}
+
+/// Trait for generating code of a single function
+pub trait FunctionCodegen<'a> {}
