@@ -1,67 +1,56 @@
 use crate::{ob, ra};
+use ra::ty::Scalar;
+use ra::ty::Ty;
+use ra::ty::TyKind;
 
-fn dirty_get_kind<'a>(ty: &'a ra::hir::Type<'a>) -> &'a ra::ty::TyKind {
-    pub struct TypeLayout {
-        _env: triomphe::Arc<ra::ty::traits::TraitEnvironment>,
-        ty: ra::ty::Ty,
+fn convert_scalar(pts: &impl ob::PrimitiveTypeSource, scalar: Scalar) -> ob::Type {
+    use ra::ty::primitive::{FloatTy, IntTy, UintTy};
+    match scalar {
+        Scalar::Bool => pts.bool(),
+        Scalar::Char => todo!(),
+        Scalar::Int(IntTy::Isize) => pts.size_type(true),
+        Scalar::Int(IntTy::I8) => pts.int(8, true),
+        Scalar::Int(IntTy::I16) => pts.int(16, true),
+        Scalar::Int(IntTy::I32) => pts.int(32, true),
+        Scalar::Int(IntTy::I64) => pts.int(64, true),
+        Scalar::Int(IntTy::I128) => pts.int(128, true),
+        Scalar::Uint(UintTy::Usize) => pts.size_type(false),
+        Scalar::Uint(UintTy::U8) => pts.int(8, false),
+        Scalar::Uint(UintTy::U16) => pts.int(16, false),
+        Scalar::Uint(UintTy::U32) => pts.int(32, false),
+        Scalar::Uint(UintTy::U64) => pts.int(64, false),
+        Scalar::Uint(UintTy::U128) => pts.int(128, false),
+        Scalar::Float(FloatTy::F16) => pts.float(16),
+        Scalar::Float(FloatTy::F32) => pts.float(32),
+        Scalar::Float(FloatTy::F64) => pts.float(64),
+        Scalar::Float(FloatTy::F128) => pts.float(128),
     }
-    unsafe { std::mem::transmute::<&ra::hir::Type, &TypeLayout>(ty) }
-        .ty
-        .kind(ra::ty::Interner)
 }
 
-impl crate::RAFrontend {
-    pub fn convert_type<TB: ob::PrimitiveTypeSource>(
-        &self,
-        backend: &mut TB,
-        ty: &ra::hir::Type,
-    ) -> ob::Type {
-        let kind = dirty_get_kind(ty);
-        if ty.is_unit() {
-            backend.unit()
-        } else if ty.is_scalar() {
-            let scalar = match kind {
-                ra::ty::TyKind::Scalar(scalar) => scalar,
-                _ => unreachable!(),
-            };
-            use ra_ap_hir_ty::Scalar;
-            use ra_ap_hir_ty::primitive::{FloatTy, IntTy, UintTy};
-            match scalar {
-                Scalar::Bool => backend.bool(),
-                Scalar::Char => todo!(),
-                Scalar::Int(IntTy::Isize) => backend.size_type(true),
-                Scalar::Int(ty) => backend.int(
-                    match ty {
-                        IntTy::Isize => unreachable!(),
-                        IntTy::I8 => 8,
-                        IntTy::I16 => 16,
-                        IntTy::I32 => 32,
-                        IntTy::I64 => 64,
-                        IntTy::I128 => 128,
-                    },
-                    true,
-                ),
-                Scalar::Uint(UintTy::Usize) => backend.size_type(false),
-                Scalar::Uint(ty) => backend.int(
-                    match ty {
-                        UintTy::Usize => unreachable!(),
-                        UintTy::U8 => 8,
-                        UintTy::U16 => 16,
-                        UintTy::U32 => 32,
-                        UintTy::U64 => 64,
-                        UintTy::U128 => 128,
-                    },
-                    false,
-                ),
-                Scalar::Float(ty) => backend.float(match ty {
-                    FloatTy::F16 => 16,
-                    FloatTy::F32 => 32,
-                    FloatTy::F64 => 64,
-                    FloatTy::F128 => 128,
-                }),
-            }
-        } else {
-            panic!("unsupported rust type: {ty:#?}")
-        }
+pub fn convert(pts: &impl ob::PrimitiveTypeSource, ty: &Ty) -> ob::Type {
+    match ty.kind(ra::ty::Interner) {
+        TyKind::Adt(..) => todo!(),
+        TyKind::AssociatedType(..) => todo!(),
+        TyKind::Scalar(scalar) => convert_scalar(pts, *scalar),
+        TyKind::Tuple(..) => todo!(),
+        TyKind::Array(..) => todo!(),
+        TyKind::Slice(..) => todo!(),
+        TyKind::Raw(..) => todo!(),
+        TyKind::Ref(..) => todo!(),
+        TyKind::OpaqueType(..) => todo!(),
+        TyKind::FnDef(..) => todo!(),
+        TyKind::Str => todo!(),
+        TyKind::Never => todo!(),
+        TyKind::Closure(..) => todo!(),
+        TyKind::Coroutine(..) => todo!(),
+        TyKind::CoroutineWitness(..) => todo!(),
+        TyKind::Foreign(..) => todo!(),
+        TyKind::Error => todo!(),
+        TyKind::Placeholder(..) => todo!(),
+        TyKind::Dyn(..) => todo!(),
+        TyKind::Alias(..) => todo!(),
+        TyKind::Function(..) => todo!(),
+        TyKind::BoundVar(..) => todo!(),
+        TyKind::InferenceVar(..) => todo!(),
     }
 }

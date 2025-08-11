@@ -3,7 +3,7 @@ use crate::{Backend, ob, tm};
 pub mod primitives;
 
 impl ob::DeclarationBackend for Backend {
-    fn function(
+    fn declare_function(
         &mut self,
         name: ob::Symbol,
         params: &[(Option<ob::Symbol>, ob::Type)],

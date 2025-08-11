@@ -29,7 +29,7 @@ impl ob::PrimitiveTypeSource for Backend {
         ob::Type::Symbol(ob::Symbol::new_static(match size {
             32 => &"float",
             64 => &"double",
-            _ => panic!("invalid or unsupported floating point type size {size} bits"),
+            size => panic!("invalid or unsupported floating point type size {size} bits"),
         }))
     }
 }

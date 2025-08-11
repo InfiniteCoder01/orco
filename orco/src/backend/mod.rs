@@ -29,19 +29,37 @@ pub trait PrimitiveTypeSource {
 /// Root trait for declaring module items. This is enough to generate C headers
 pub trait DeclarationBackend: PrimitiveTypeSource {
     /// Declare a function
-    fn function(&mut self, name: Symbol, params: &[(Option<Symbol>, Type)], return_type: &Type);
+    fn declare_function(
+        &mut self,
+        name: Symbol,
+        params: &[(Option<Symbol>, Type)],
+        return_type: &Type,
+    );
 }
 
 /// Root trait for defining module items
 pub trait DefinitionBackend: PrimitiveTypeSource {
-    /// See [FunctionCodegen]
-    type FunctionCodegen<'a>: FunctionCodegen<'a>
+    /// See [Codegen]
+    type Codegen<'a>: Codegen<'a>
     where
         Self: 'a;
 
     /// Define a function
-    fn function(&mut self, name: Symbol) -> Self::FunctionCodegen<'_>;
+    fn define_function(&mut self, name: Symbol) -> Self::Codegen<'_>;
 }
 
-/// Trait for generating code of a single function
-pub trait FunctionCodegen<'a> {}
+/// Trait for generating code
+pub trait Codegen<'a> {
+    /// See [PrimitiveTypeSource]
+    type PTS: PrimitiveTypeSource;
+    /// A value of an operation. An SSA value
+    type Value;
+
+    /// Return the primitive type source for this codegen,
+    /// see [PrimitiveTypeSource] for more
+    fn pts(&self) -> &Self::PTS;
+
+    fn iconst(&mut self, ty: Type, value: i128) -> Self::Value;
+    fn uconst(&mut self, ty: Type, value: u128) -> Self::Value;
+    fn return_(&mut self, value: Option<Self::Value>);
+}

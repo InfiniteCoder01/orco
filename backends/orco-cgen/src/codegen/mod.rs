@@ -1,25 +1,46 @@
 use crate::{Backend, ob, tm};
 
 impl ob::DefinitionBackend for Backend {
-    type FunctionCodegen<'a> = Function<'a>;
+    type Codegen<'a> = Codegen<'a>;
 
-    fn function(&mut self, name: ob::Symbol) -> Self::FunctionCodegen<'_> {
+    fn define_function(&mut self, name: ob::Symbol) -> Self::Codegen<'_> {
         let function = self.function_decls[&name].clone();
-        Function {
+        Codegen {
             backend: self,
             function,
         }
     }
 }
 
-pub struct Function<'a> {
+pub struct Codegen<'a> {
     backend: &'a mut Backend,
     function: tm::Function,
 }
 
-impl<'a> ob::FunctionCodegen<'a> for Function<'a> {}
+impl<'a> ob::Codegen<'a> for Codegen<'a> {
+    type PTS = Backend;
+    type Value = tm::Expr;
 
-impl Drop for Function<'_> {
+    fn pts(&self) -> &Self::PTS {
+        &self.backend
+    }
+
+    fn iconst(&mut self, _ty: ob::Type, value: i128) -> Self::Value {
+        // TODO: Use size
+        tm::Expr::Int(value as _)
+    }
+
+    fn uconst(&mut self, _ty: ob::Type, value: u128) -> Self::Value {
+        // TODO: Use size
+        tm::Expr::UInt(value as _)
+    }
+
+    fn return_(&mut self, value: Option<Self::Value>) {
+        self.function.body.stmts.push(tm::Statement::Return(value));
+    }
+}
+
+impl Drop for Codegen<'_> {
     fn drop(&mut self) {
         if self.function.body.stmts.is_empty() {
             self.function.body.stmts.push(tamago::Statement::NewLine);

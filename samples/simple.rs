@@ -1,3 +1,3 @@
-fn main() -> i32 {
-    0
+fn main(test: i32) -> i32 {
+    42
 }
