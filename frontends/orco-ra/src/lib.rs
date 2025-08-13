@@ -13,6 +13,7 @@ use orco::backend as ob;
 use orco::frontend as of;
 
 pub mod codegen;
+pub mod defs;
 pub mod types;
 
 /// rust-analyzer frontend, uses multiple [Sources], one per crate
@@ -89,138 +90,16 @@ impl Source<'_> {
     }
 }
 
-fn traverse_defs(
-    db: &impl ra::hir::db::DefDatabase,
-    def_map: &ra::hir::DefMap,
-    callback: &mut impl FnMut(ra::hir::ModuleDefId),
-) {
-    for (_, module) in def_map.modules() {
-        for decl in module.scope.declarations() {
-            callback(decl);
-
-            use ra::def::DefWithBodyId;
-            use ra::hir::ModuleDefId;
-            let decl = match decl {
-                ModuleDefId::FunctionId(id) => DefWithBodyId::FunctionId(id),
-                ModuleDefId::StaticId(id) => DefWithBodyId::StaticId(id),
-                ModuleDefId::ConstId(id) => DefWithBodyId::ConstId(id),
-                ModuleDefId::EnumVariantId(id) => DefWithBodyId::VariantId(id),
-                _ => continue,
-            };
-            for (_, def_map) in db.body(decl).blocks(db) {
-                traverse_defs(db, def_map, callback);
-            }
-        }
-    }
-}
-
 impl of::Source for Source<'_> {
     fn declare(&self, backend: &mut impl ob::DeclarationBackend) {
         let db = self.0.db();
         let def_map = ra::hir::crate_def_map(db, self.1.into());
-        traverse_defs(db, def_map, &mut |decl| declare_symbol(backend, db, decl));
+        defs::traverse(db, def_map, &mut |decl| defs::declare(backend, db, decl));
     }
 
     fn define(&self, backend: &mut impl ob::DefinitionBackend) {
         let db = self.0.db();
         let def_map = ra::hir::crate_def_map(db, self.1.into());
-        traverse_defs(db, def_map, &mut |decl| define_symbol(backend, db, decl));
-    }
-}
-
-fn declare_symbol<DB>(
-    backend: &mut impl ob::DeclarationBackend,
-    db: &DB,
-    decl: ra::hir::ModuleDefId,
-) where
-    DB: ra::hir::db::DefDatabase + ra::hir::db::HirDatabase,
-{
-    use ra::hir::ModuleDefId;
-    match decl {
-        ModuleDefId::ModuleId(..) => (),
-        ModuleDefId::FunctionId(func) => {
-            let sig = db.function_signature(func);
-            let sig_ty = db.callable_item_signature(func.into());
-            let sig_ty = sig_ty.skip_binders(); // TODO: substitution of generics
-
-            let body = db.body(func.into());
-            let cvt_param = |(idx, param)| {
-                (
-                    if let (0, Some(param)) = (idx, body.self_param) {
-                        Some(param)
-                    } else {
-                        let mut pat = body.params[idx - body.self_param.is_some() as usize];
-                        loop {
-                            use ra::def::hir::Pat;
-                            pat = match body[pat] {
-                                Pat::Bind { id, .. } => break Some(id),
-                                Pat::Ref { pat, .. } => pat,
-                                Pat::Box { inner } => inner,
-                                _ => break None,
-                            }
-                        }
-                    }
-                    .map(|binding| body[binding].name.as_str().into()),
-                    types::convert(backend, param),
-                )
-            };
-            let params = sig_ty
-                .params()
-                .iter()
-                .enumerate()
-                .map(cvt_param)
-                .collect::<Vec<_>>();
-            let ret = types::convert(backend, sig_ty.ret());
-            backend.declare_function(sig.name.as_str().into(), &params, &ret)
-        }
-        ModuleDefId::AdtId(..) => todo!(),
-        ModuleDefId::EnumVariantId(..) => todo!(),
-        ModuleDefId::ConstId(..) => todo!(),
-        ModuleDefId::StaticId(..) => todo!(),
-        ModuleDefId::TraitId(..) => todo!(),
-        ModuleDefId::TraitAliasId(..) => todo!(),
-        ModuleDefId::TypeAliasId(..) => todo!(),
-        ModuleDefId::BuiltinType(..) => todo!(),
-        ModuleDefId::MacroId(..) => todo!(),
-    }
-}
-
-fn define_symbol<DB>(backend: &mut impl ob::DefinitionBackend, db: &DB, decl: ra::hir::ModuleDefId)
-where
-    DB: ra::hir::db::DefDatabase + ra::hir::db::HirDatabase,
-{
-    match decl {
-        ra_ap_hir::ModuleDefId::ModuleId(..) => (),
-        ra_ap_hir::ModuleDefId::FunctionId(func) => {
-            let id = ra::def::DefWithBodyId::FunctionId(func);
-            let sig = db.function_signature(func);
-            let body = db.body(id);
-            let mut codegen = backend.define_function(sig.name.as_str().into());
-
-            let mut ctx = codegen::CodegenCtx {
-                codegen: &mut codegen,
-                store: &body.store,
-                inference: db.infer(id),
-            };
-
-            let value = ctx.build_expr(body.body_expr);
-
-            // Implicit return
-            use ob::Codegen;
-            match value {
-                codegen::Value::Value(value) => ctx.codegen.return_(Some(value)),
-                codegen::Value::Unit => ctx.codegen.return_(None),
-                codegen::Value::Never => (),
-            }
-        }
-        ra_ap_hir::ModuleDefId::AdtId(..) => todo!(),
-        ra_ap_hir::ModuleDefId::EnumVariantId(..) => todo!(),
-        ra_ap_hir::ModuleDefId::ConstId(..) => todo!(),
-        ra_ap_hir::ModuleDefId::StaticId(..) => todo!(),
-        ra_ap_hir::ModuleDefId::TraitId(..) => todo!(),
-        ra_ap_hir::ModuleDefId::TraitAliasId(..) => todo!(),
-        ra_ap_hir::ModuleDefId::TypeAliasId(..) => todo!(),
-        ra_ap_hir::ModuleDefId::BuiltinType(..) => todo!(),
-        ra_ap_hir::ModuleDefId::MacroId(..) => todo!(),
+        defs::traverse(db, def_map, &mut |decl| defs::define(backend, db, decl));
     }
 }

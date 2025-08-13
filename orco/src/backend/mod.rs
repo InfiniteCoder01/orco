@@ -40,16 +40,16 @@ pub trait DeclarationBackend: PrimitiveTypeSource {
 /// Root trait for defining module items
 pub trait DefinitionBackend: PrimitiveTypeSource {
     /// See [Codegen]
-    type Codegen<'a>: Codegen<'a>
+    type FunctionCodegen<'a>: FunctionCodegen<'a>
     where
         Self: 'a;
 
     /// Define a function
-    fn define_function(&mut self, name: Symbol) -> Self::Codegen<'_>;
+    fn define_function(&mut self, name: Symbol) -> Self::FunctionCodegen<'_>;
 }
 
-/// Trait for generating code
-pub trait Codegen<'a> {
+/// Trait for generating code within a function
+pub trait FunctionCodegen<'a> {
     /// See [PrimitiveTypeSource]
     type PTS: PrimitiveTypeSource;
     /// A value of an operation. An SSA value
@@ -59,7 +59,25 @@ pub trait Codegen<'a> {
     /// see [PrimitiveTypeSource] for more
     fn pts(&self) -> &Self::PTS;
 
+    /// Get function parameter symbol by index
+    fn param(&self, idx: usize) -> Symbol;
+
+    /// Create an integer constant value
     fn iconst(&mut self, ty: Type, value: i128) -> Self::Value;
+    /// Create an unsigned integer constant value
     fn uconst(&mut self, ty: Type, value: u128) -> Self::Value;
+
+    /// Create a variable
+    fn define_variable(
+        &mut self,
+        name: Symbol,
+        ty: Type,
+        mutable: bool,
+        value: Option<Self::Value>,
+    );
+    /// Access a variable (function parameters are also added as variables)
+    fn variable(&mut self, symbol: Symbol) -> Self::Value;
+
+    /// Return a value from a function
     fn return_(&mut self, value: Option<Self::Value>);
 }

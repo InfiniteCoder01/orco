@@ -1,29 +1,131 @@
 use crate::{ob, ra};
-use ra::def::hir::{Expr, ExprId};
 
-pub struct CodegenCtx<'a, 'b, CG: ob::Codegen<'a>> {
-    pub codegen: &'b mut CG,
-    pub store: &'a ra::def::expr_store::ExpressionStore,
-    pub inference: triomphe::Arc<ra::ty::InferenceResult>,
+use ra::def::DefWithBodyId;
+use ra::def::hir::{Expr, ExprId};
+use ra::hir::db::HirDatabase;
+use triomphe::Arc;
+
+/// Central code generation context
+pub struct CodegenCtx<'a, 'b, CG, DB>
+where
+    CG: ob::FunctionCodegen<'a>,
+    DB: HirDatabase,
+{
+    codegen: &'b mut CG,
+    db: &'a DB,
+    def: DefWithBodyId,
+    body: Arc<ra::def::expr_store::Body>,
+    inference: Arc<ra::ty::InferenceResult>,
+    variables: std::collections::HashMap<ra::hir::Name, ob::Symbol>,
 }
 
+/// Codegen backend value, wrapped with Unit and Never added
 pub enum Value<Value> {
     Value(Value),
     Unit,
     Never,
 }
 
-impl<'a, 'b, CG: ob::Codegen<'a>> CodegenCtx<'a, 'b, CG> {
+impl<'a, 'b, CG, DB> CodegenCtx<'a, 'b, CG, DB>
+where
+    CG: ob::FunctionCodegen<'a>,
+    DB: HirDatabase,
+{
+    pub fn new(codegen: &'b mut CG, db: &'a DB, def: DefWithBodyId) -> Self {
+        let mut ctx = Self {
+            codegen,
+            db,
+            def,
+            body: db.body(def),
+            inference: db.infer(def),
+            variables: std::collections::HashMap::new(),
+        };
+
+        // Insert params
+        if let Some(param) = ctx.body.self_param {
+            ctx.variables
+                .insert(ctx.body[param].name.clone(), ctx.codegen.param(0));
+        }
+        for (idx, pat) in ctx.body.clone().params.iter().enumerate() {
+            let symbol = ctx
+                .codegen
+                .param(idx - ctx.body.self_param.is_some() as usize);
+            ctx.generate_bindings(*pat, symbol);
+        }
+        ctx
+    }
+
+    // Getters
+    pub fn codegen(&mut self) -> &mut CG {
+        self.codegen
+    }
+
+    pub fn db(&self) -> &DB {
+        self.db
+    }
+
+    pub fn def(&self) -> DefWithBodyId {
+        self.def
+    }
+
+    pub fn body(&self) -> &ra::def::expr_store::Body {
+        &self.body
+    }
+
+    // Functions
     pub fn expr_ty(&self, id: ExprId) -> &ra::ty::Ty {
         self.inference
             .type_of_expr_or_pat(ra::def::hir::ExprOrPatId::ExprId(id))
             .expect("type inference did not provide the type")
     }
 
+    /// Generate bindings as if we were destructuring sybmol
+    fn generate_bindings(&mut self, pat: ra::def::hir::PatId, symbol: ob::Symbol) {
+        use ra::def::hir::Pat;
+        match self.body[pat] {
+            Pat::Bind { id, subpat } => {
+                let binding = &self.body[id];
+                // TODO: handle binding modes
+                self.variables.insert(binding.name.clone(), symbol);
+                if let Some(_) = subpat {
+                    todo!()
+                }
+            }
+            _ => todo!(),
+        }
+    }
+
     pub fn build_expr(&mut self, id: ExprId) -> Value<CG::Value> {
-        match &self.store[id] {
+        match &self.body.clone()[id] {
             Expr::Missing => panic!("missing expression"),
-            Expr::Path(..) => todo!(),
+            Expr::Path(path) => {
+                use ra::def::resolver::HasResolver as _;
+                let mut resolver = self.def.resolver(self.db);
+                let g = resolver.update_to_inner_scope(self.db, self.def, id);
+                let hygiene = self.body.expr_path_hygiene(id);
+                let value_ns = resolver
+                    .resolve_path_in_value_ns_fully(self.db, path, hygiene)
+                    .unwrap_or_else(|| panic!("unresolved path '{:?}'", path));
+                resolver.reset_to_guard(g);
+
+                use ra::def::resolver::ValueNs;
+                match value_ns {
+                    ValueNs::ImplSelf(..) => todo!(),
+                    ValueNs::LocalBinding(id) => {
+                        let binding = self.body[id].clone();
+                        let &symbol = self.variables.get(&binding.name).unwrap_or_else(|| {
+                            panic!("binding '{}' not found", binding.name.as_str())
+                        });
+                        Value::Value(self.codegen.variable(symbol))
+                    }
+                    ValueNs::FunctionId(..) => todo!(),
+                    ValueNs::ConstId(..) => todo!(),
+                    ValueNs::StaticId(..) => todo!(),
+                    ValueNs::StructId(..) => todo!(),
+                    ValueNs::EnumVariantId(..) => todo!(),
+                    ValueNs::GenericParam(..) => todo!(),
+                }
+            }
             Expr::If { .. } => todo!(),
             Expr::Let { .. } => todo!(),
             Expr::Block {
@@ -82,7 +184,7 @@ impl<'a, 'b, CG: ob::Codegen<'a>> CodegenCtx<'a, 'b, CG> {
         }
     }
 
-    pub fn build_literal(&mut self, id: ExprId, lit: &ra::def::hir::Literal) -> CG::Value {
+    fn build_literal(&mut self, id: ExprId, lit: &ra::def::hir::Literal) -> CG::Value {
         use ra::def::hir::Literal;
         let ty = || super::types::convert(self.codegen.pts(), self.expr_ty(id));
 
