@@ -48,12 +48,16 @@ pub trait DefinitionBackend: PrimitiveTypeSource {
     fn define_function(&mut self, name: Symbol) -> Self::FunctionCodegen<'_>;
 }
 
+/// A unique label ID
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Label(usize);
+
 /// Trait for generating code within a function
 pub trait FunctionCodegen<'a> {
     /// See [PrimitiveTypeSource]
     type PTS: PrimitiveTypeSource;
-    /// A value of an operation. An SSA value
-    type Value;
+    /// A value of an operation
+    type Value: Copy;
 
     /// Return the primitive type source for this codegen,
     /// see [PrimitiveTypeSource] for more
@@ -80,4 +84,12 @@ pub trait FunctionCodegen<'a> {
 
     /// Return a value from a function
     fn return_(&mut self, value: Option<Self::Value>);
+
+    /// Create a new label
+    fn new_label(&mut self) -> usize;
+    /// Place the label into the program,
+    /// can only be used ONCE per label
+    fn label(&mut self, label: Label);
+    /// Jump to label
+    fn jump(&mut self, label: Label);
 }
