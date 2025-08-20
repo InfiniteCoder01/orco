@@ -70,6 +70,8 @@ pub trait Codegen<'a> {
 
     /// Create a variable
     fn define_variable(&mut self, name: Symbol, ty: Type, mutable: bool, value: Option<Value>);
+    /// Assign a value to variable
+    fn assign_variable(&mut self, name: Symbol, value: Value);
     /// Access a variable (function parameters are also added as variables)
     fn variable(&mut self, symbol: Symbol) -> Value;
     /// Create a slot (aka an anonymous variable).
@@ -79,8 +81,11 @@ pub trait Codegen<'a> {
     /// Return a value from a function
     fn return_(&mut self, value: Option<Value>);
 
-    /// If statement. Immediately starts "then" block
+    /// If statement, immediately starts then block.
+    /// Must be terminated with [`Codegen::end`]
     fn if_(&mut self, cond: Value);
-    /// End current control flow block
+    /// Add else block to the if statement and switch to it
+    fn else_(&mut self);
+    /// End current control flow construct
     fn end(&mut self);
 }

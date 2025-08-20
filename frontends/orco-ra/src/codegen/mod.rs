@@ -20,10 +20,20 @@ where
 }
 
 /// Codegen backend value, wrapped with Unit and Never added
-pub enum Value<Value> {
-    Value(Value),
+pub enum Value<V> {
+    Value(V),
     Unit,
     Never,
+}
+
+impl<V> Value<V> {
+    pub fn unwrap(self) -> V {
+        match self {
+            Value::Value(value) => value,
+            Value::Unit => panic!("called 'unwrap' on a unit value"),
+            Value::Never => panic!("called 'unwrap' on a never value"),
+        }
+    }
 }
 
 impl<'a, 'b, CG, DB> CodegenCtx<'a, 'b, CG, DB>
@@ -150,14 +160,25 @@ where
                 };
 
                 let cond = self.build_expr(*condition);
-                self.codegen.if_(cond);
-                let never = match self.build_expr(then_branch) {
-                    Value(value) => {
-                        todo!()
+                self.codegen.if_(cond.unwrap());
+                let mut never = match self.build_expr(*then_branch) {
+                    Value::Value(value) => {
+                        self.codegen.assign_variable(slot.unwrap(), value);
+                        false
                     }
                     Value::Never => true,
                     _ => false,
                 };
+                if let Some(else_branch) = *else_branch {
+                    self.codegen.else_();
+                    match self.build_expr(else_branch) {
+                        Value::Value(value) => {
+                            self.codegen.assign_variable(slot.unwrap(), value);
+                        }
+                        Value::Never => never = true,
+                        _ => (),
+                    };
+                }
                 self.codegen.end();
                 // let l = self.codegen.new_label();
                 // // self.codegen.branch(condition);
@@ -168,7 +189,13 @@ where
                 // self.codegen.if_(cond);
                 // self.build_expr(then_branch);
                 // self.codegen.end();
-                Value::Never
+                if never {
+                    Value::Never
+                } else {
+                    slot.map_or(Value::Unit, |slot| {
+                        Value::Value(self.codegen.variable(slot))
+                    })
+                }
             }
             Expr::Let { .. } => todo!(),
             Expr::Block {

@@ -6,20 +6,37 @@ impl ob::DefinitionBackend for Backend {
         Codegen {
             backend: self,
             function,
+            blocks: Vec::new(),
             next_value_id: 0,
             next_label_id: 0,
         }
     }
 }
 
+/// A block where current codegen takes place
+enum Block {
+    If(tm::If),
+}
+
 pub struct Codegen<'a> {
     backend: &'a mut Backend,
     function: tm::Function,
+    blocks: Vec<Block>,
     next_value_id: usize,
     next_label_id: usize,
 }
 
 impl Codegen<'_> {
+    fn stmt(&mut self, stmt: tm::Statement) {
+        let mut block =
+            self.blocks
+                .last_mut()
+                .map_or(&mut self.function.body, |block| match block {
+                    Block::If(if_) => if_.other.as_mut().unwrap_or(&mut if_.then),
+                });
+        block.stmts.push(stmt);
+    }
+
     fn new_value(&mut self, expr: tm::Expr, mut ty: tm::Type) -> ob::Value {
         use ob::Codegen as _;
         let symbol = self.new_slot();
@@ -28,7 +45,7 @@ impl Codegen<'_> {
         let decl = tm::Variable::new(symbol.to_string(), ty)
             .value(expr)
             .build();
-        self.function.body.stmts.push(tm::Statement::Variable(decl));
+        self.stmt(tm::Statement::Variable(decl));
 
         ob::Value(symbol.to_ffi() as _)
     }
@@ -74,7 +91,7 @@ impl<'a> ob::Codegen<'a> for Codegen<'a> {
         name: ob::Symbol,
         ty: ob::Type,
         mutable: bool,
-        _value: Option<ob::Value>,
+        value: Option<ob::Value>,
     ) {
         let mut ty = self.backend.convert_type(&ty).build();
         if !mutable {
@@ -82,9 +99,16 @@ impl<'a> ob::Codegen<'a> for Codegen<'a> {
         }
 
         let mut decl = tm::Variable::new(name.to_string(), ty).build();
-        // decl.value = value;
-        self.function.body.stmts.push(tm::Statement::Variable(decl));
-        todo!()
+        decl.value = value.map(|value| self.use_value(value));
+        self.stmt(tm::Statement::Variable(decl));
+    }
+
+    fn assign_variable(&mut self, name: ob::Symbol, value: ob::Value) {
+        self.stmt(tm::Statement::Expr(tm::Expr::new_assign(
+            tm::Expr::new_ident_with_str(name.as_str()),
+            tm::AssignOp::Assign,
+            self.use_value(value),
+        )));
     }
 
     fn variable(&mut self, symbol: ob::Symbol) -> ob::Value {
@@ -98,9 +122,32 @@ impl<'a> ob::Codegen<'a> for Codegen<'a> {
     }
 
     fn return_(&mut self, value: Option<ob::Value>) {
-        self.function.body.stmts.push(tm::Statement::Return(
+        self.stmt(tm::Statement::Return(
             value.map(|value| self.use_value(value)),
         ));
+    }
+
+    fn if_(&mut self, cond: ob::Value) {
+        self.blocks
+            .push(Block::If(tm::If::new(self.use_value(cond)).build()));
+    }
+
+    fn else_(&mut self) {
+        match self.blocks.last_mut() {
+            Some(Block::If(if_)) => {
+                if_.other = Some(tm::Block::new().build());
+            }
+            _ => panic!("tried to add else to a different kind of block"),
+        }
+    }
+
+    fn end(&mut self) {
+        match self.blocks.pop() {
+            Some(Block::If(if_)) => {
+                self.stmt(tm::Statement::If(if_));
+            }
+            None => panic!("tried to use end without a block"),
+        }
     }
 }
 
