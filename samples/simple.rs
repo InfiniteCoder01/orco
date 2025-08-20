@@ -1,6 +1,7 @@
-fn main(argc: i32, argv: i32) -> i32 {
-    // if argc < argv {
-    //     argc
-    // }
-    0
+fn main(c: bool, x: i32) -> i32 {
+    if c {
+        x
+    } else {
+        0
+    }
 }

@@ -98,7 +98,7 @@ pub(crate) fn define(
 
             // Implicit return
             use crate::codegen::Value;
-            use ob::FunctionCodegen as _;
+            use ob::Codegen as _;
             match value {
                 Value::Value(value) => codegen.return_(Some(value)),
                 Value::Unit => codegen.return_(None),

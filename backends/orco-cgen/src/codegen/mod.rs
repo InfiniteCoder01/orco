@@ -1,14 +1,13 @@
 use crate::{Backend, ob, tm};
 
 impl ob::DefinitionBackend for Backend {
-    type FunctionCodegen<'a> = Codegen<'a>;
-
-    fn define_function(&mut self, name: ob::Symbol) -> Self::FunctionCodegen<'_> {
+    fn define_function(&mut self, name: ob::Symbol) -> impl ob::Codegen<'_> {
         let function = self.function_decls[&name].clone();
         Codegen {
             backend: self,
             function,
             next_value_id: 0,
+            next_label_id: 0,
         }
     }
 }
@@ -17,23 +16,34 @@ pub struct Codegen<'a> {
     backend: &'a mut Backend,
     function: tm::Function,
     next_value_id: usize,
+    next_label_id: usize,
 }
 
 impl Codegen<'_> {
-    fn new_value(&mut self, value: tm::Expr, mut ty: tm::Type) -> ob::Symbol {
-        let name = ob::Symbol::new(format!("__v{}", self.next_value_id));
-        ty.qualifiers.insert(0, tm::TypeQualifier::Const);
+    fn new_value(&mut self, expr: tm::Expr, mut ty: tm::Type) -> ob::Value {
+        use ob::Codegen as _;
+        let symbol = self.new_slot();
 
-        let decl = tm::Variable::new(name.to_string(), ty).value(value).build();
+        ty.qualifiers.insert(0, tm::TypeQualifier::Const);
+        let decl = tm::Variable::new(symbol.to_string(), ty)
+            .value(expr)
+            .build();
         self.function.body.stmts.push(tm::Statement::Variable(decl));
-        self.next_value_id += 1;
-        return name;
+
+        ob::Value(symbol.to_ffi() as _)
+    }
+
+    fn use_value(&self, value: ob::Value) -> tm::Expr {
+        tm::Expr::new_ident_with_str(
+            ob::Symbol::try_from_ffi(value.0 as _)
+                .unwrap_or_else(|| panic!("invalid value {:?}", value))
+                .as_str(),
+        )
     }
 }
 
-impl<'a> ob::FunctionCodegen<'a> for Codegen<'a> {
+impl<'a> ob::Codegen<'a> for Codegen<'a> {
     type PTS = Backend;
-    type Value = ob::Symbol; // Values are just variables here
 
     fn pts(&self) -> &Self::PTS {
         &self.backend
@@ -43,7 +53,7 @@ impl<'a> ob::FunctionCodegen<'a> for Codegen<'a> {
         self.function.params[idx].name.as_str().into()
     }
 
-    fn iconst(&mut self, ty: ob::Type, value: i128) -> Self::Value {
+    fn iconst(&mut self, ty: ob::Type, value: i128) -> ob::Value {
         // TODO: Size literals
         self.new_value(
             tm::Expr::Int(value as _),
@@ -51,7 +61,7 @@ impl<'a> ob::FunctionCodegen<'a> for Codegen<'a> {
         )
     }
 
-    fn uconst(&mut self, ty: ob::Type, value: u128) -> Self::Value {
+    fn uconst(&mut self, ty: ob::Type, value: u128) -> ob::Value {
         // TODO: Size literals
         self.new_value(
             tm::Expr::UInt(value as _),
@@ -64,7 +74,7 @@ impl<'a> ob::FunctionCodegen<'a> for Codegen<'a> {
         name: ob::Symbol,
         ty: ob::Type,
         mutable: bool,
-        value: Option<Self::Value>,
+        _value: Option<ob::Value>,
     ) {
         let mut ty = self.backend.convert_type(&ty).build();
         if !mutable {
@@ -77,13 +87,19 @@ impl<'a> ob::FunctionCodegen<'a> for Codegen<'a> {
         todo!()
     }
 
-    fn variable(&mut self, symbol: ob::Symbol) -> Self::Value {
+    fn variable(&mut self, symbol: ob::Symbol) -> ob::Value {
+        ob::Value(symbol.to_ffi() as _)
+    }
+
+    fn new_slot(&mut self) -> ob::Symbol {
+        let symbol = ob::Symbol::new(format!("__v{}", self.next_value_id));
+        self.next_value_id += 1;
         symbol
     }
 
-    fn return_(&mut self, value: Option<Self::Value>) {
+    fn return_(&mut self, value: Option<ob::Value>) {
         self.function.body.stmts.push(tm::Statement::Return(
-            value.map(|value| tm::Expr::new_ident_with_str(value.as_str())),
+            value.map(|value| self.use_value(value)),
         ));
     }
 }

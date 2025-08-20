@@ -8,7 +8,7 @@ use triomphe::Arc;
 /// Central code generation context
 pub struct CodegenCtx<'a, 'b, CG, DB>
 where
-    CG: ob::FunctionCodegen<'a>,
+    CG: ob::Codegen<'a>,
     DB: HirDatabase,
 {
     codegen: &'b mut CG,
@@ -28,7 +28,7 @@ pub enum Value<Value> {
 
 impl<'a, 'b, CG, DB> CodegenCtx<'a, 'b, CG, DB>
 where
-    CG: ob::FunctionCodegen<'a>,
+    CG: ob::Codegen<'a>,
     DB: HirDatabase,
 {
     pub fn new(codegen: &'b mut CG, db: &'a DB, def: DefWithBodyId) -> Self {
@@ -95,7 +95,7 @@ where
         }
     }
 
-    pub fn build_expr(&mut self, id: ExprId) -> Value<CG::Value> {
+    pub fn build_expr(&mut self, id: ExprId) -> Value<ob::Value> {
         match &self.body.clone()[id] {
             Expr::Missing => panic!("missing expression"),
             Expr::Path(path) => {
@@ -126,7 +126,50 @@ where
                     ValueNs::GenericParam(..) => todo!(),
                 }
             }
-            Expr::If { .. } => todo!(),
+            Expr::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                let no_value = matches!(
+                    self.expr_ty(id).kind(ra::ty::Interner),
+                    ra::ty::TyKind::Tuple(0, _) | ra::ty::TyKind::Never
+                );
+
+                let slot = if no_value {
+                    None
+                } else {
+                    let slot = self.codegen.new_slot();
+                    self.codegen.define_variable(
+                        slot,
+                        super::types::convert(self.codegen.pts(), self.expr_ty(id)),
+                        true,
+                        None,
+                    );
+                    Some(slot)
+                };
+
+                let cond = self.build_expr(*condition);
+                self.codegen.if_(cond);
+                let never = match self.build_expr(then_branch) {
+                    Value(value) => {
+                        todo!()
+                    }
+                    Value::Never => true,
+                    _ => false,
+                };
+                self.codegen.end();
+                // let l = self.codegen.new_label();
+                // // self.codegen.branch(condition);
+                // self.build_expr(*then_branch);
+                // self.codegen.jump(l);
+                // let else_block
+                // let merge_block = self.codegen.new_label();
+                // self.codegen.if_(cond);
+                // self.build_expr(then_branch);
+                // self.codegen.end();
+                Value::Never
+            }
             Expr::Let { .. } => todo!(),
             Expr::Block {
                 statements, tail, ..
@@ -184,7 +227,7 @@ where
         }
     }
 
-    fn build_literal(&mut self, id: ExprId, lit: &ra::def::hir::Literal) -> CG::Value {
+    fn build_literal(&mut self, id: ExprId, lit: &ra::def::hir::Literal) -> ob::Value {
         use ra::def::hir::Literal;
         let ty = || super::types::convert(self.codegen.pts(), self.expr_ty(id));
 
