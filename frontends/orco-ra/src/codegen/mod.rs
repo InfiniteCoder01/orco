@@ -5,6 +5,9 @@ use ra::def::hir::{Expr, ExprId};
 use ra::hir::db::HirDatabase;
 use triomphe::Arc;
 
+mod value;
+pub use value::AType;
+
 /// Central code generation context
 pub struct CodegenCtx<'a, 'b, CG, DB>
 where
@@ -17,23 +20,6 @@ where
     body: Arc<ra::def::expr_store::Body>,
     inference: Arc<ra::ty::InferenceResult>,
     variables: std::collections::HashMap<ra::hir::Name, ob::Symbol>,
-}
-
-/// Codegen backend value, wrapped with Unit and Never added
-pub enum Value<V> {
-    Value(V),
-    Unit,
-    Never,
-}
-
-impl<V> Value<V> {
-    pub fn unwrap(self) -> V {
-        match self {
-            Value::Value(value) => value,
-            Value::Unit => panic!("called 'unwrap' on a unit value"),
-            Value::Never => panic!("called 'unwrap' on a never value"),
-        }
-    }
 }
 
 impl<'a, 'b, CG, DB> CodegenCtx<'a, 'b, CG, DB>
@@ -97,7 +83,7 @@ where
                 let binding = &self.body[id];
                 // TODO: handle binding modes
                 self.variables.insert(binding.name.clone(), symbol);
-                if let Some(_) = subpat {
+                if let Some(_pat) = subpat {
                     todo!()
                 }
             }
@@ -105,7 +91,7 @@ where
         }
     }
 
-    pub fn build_expr(&mut self, id: ExprId) -> Value<ob::Value> {
+    pub fn build_expr(&mut self, id: ExprId) -> AType<ob::Value> {
         match &self.body.clone()[id] {
             Expr::Missing => panic!("missing expression"),
             Expr::Path(path) => {
@@ -115,7 +101,7 @@ where
                 let hygiene = self.body.expr_path_hygiene(id);
                 let value_ns = resolver
                     .resolve_path_in_value_ns_fully(self.db, path, hygiene)
-                    .unwrap_or_else(|| panic!("unresolved path '{:?}'", path));
+                    .unwrap_or_else(|| panic!("unresolved path '{path:?}'"));
                 resolver.reset_to_guard(g);
 
                 use ra::def::resolver::ValueNs;
@@ -126,7 +112,7 @@ where
                         let &symbol = self.variables.get(&binding.name).unwrap_or_else(|| {
                             panic!("binding '{}' not found", binding.name.as_str())
                         });
-                        Value::Value(self.codegen.variable(symbol))
+                        AType::Value(self.codegen.variable(symbol))
                     }
                     ValueNs::FunctionId(..) => todo!(),
                     ValueNs::ConstId(..) => todo!(),
@@ -141,61 +127,36 @@ where
                 then_branch,
                 else_branch,
             } => {
-                let no_value = matches!(
-                    self.expr_ty(id).kind(ra::ty::Interner),
-                    ra::ty::TyKind::Tuple(0, _) | ra::ty::TyKind::Never
-                );
-
-                let slot = if no_value {
-                    None
-                } else {
-                    let slot = self.codegen.new_slot();
-                    self.codegen.define_variable(
-                        slot,
-                        super::types::convert(self.codegen.pts(), self.expr_ty(id)),
-                        true,
-                        None,
-                    );
-                    Some(slot)
+                let ty = self.expr_ty(id);
+                let ty = match ty.kind(ra::ty::Interner) {
+                    ra::ty::TyKind::Tuple(0, _) => AType::Unit,
+                    ra::ty::TyKind::Never => AType::Never,
+                    _ => AType::Value(super::types::convert(self.codegen.backend(), ty)),
                 };
+
+                let slot = ty.map(|ty| {
+                    let slot = self.codegen.new_slot();
+                    self.codegen.define_variable(slot, ty, true, None);
+                    slot
+                });
 
                 let cond = self.build_expr(*condition);
                 self.codegen.if_(cond.unwrap());
-                let mut never = match self.build_expr(*then_branch) {
-                    Value::Value(value) => {
-                        self.codegen.assign_variable(slot.unwrap(), value);
-                        false
-                    }
-                    Value::Never => true,
-                    _ => false,
-                };
+
+                if let AType::Value(value) = self.build_expr(*then_branch) {
+                    self.codegen.assign_variable(slot.unwrap(), value);
+                }
+
                 if let Some(else_branch) = *else_branch {
                     self.codegen.else_();
-                    match self.build_expr(else_branch) {
-                        Value::Value(value) => {
-                            self.codegen.assign_variable(slot.unwrap(), value);
-                        }
-                        Value::Never => never = true,
-                        _ => (),
-                    };
+                    if let AType::Value(value) = self.build_expr(else_branch) {
+                        self.codegen.assign_variable(slot.unwrap(), value);
+                    }
                 }
+
                 self.codegen.end();
-                // let l = self.codegen.new_label();
-                // // self.codegen.branch(condition);
-                // self.build_expr(*then_branch);
-                // self.codegen.jump(l);
-                // let else_block
-                // let merge_block = self.codegen.new_label();
-                // self.codegen.if_(cond);
-                // self.build_expr(then_branch);
-                // self.codegen.end();
-                if never {
-                    Value::Never
-                } else {
-                    slot.map_or(Value::Unit, |slot| {
-                        Value::Value(self.codegen.variable(slot))
-                    })
-                }
+
+                slot.map(|slot| self.codegen.variable(slot))
             }
             Expr::Let { .. } => todo!(),
             Expr::Block {
@@ -207,8 +168,8 @@ where
                         Statement::Let { .. } => todo!(),
                         Statement::Expr { expr, .. } => {
                             let value = self.build_expr(*expr);
-                            if matches!(value, Value::Never) {
-                                return Value::Never;
+                            if matches!(value, AType::Never) {
+                                return AType::Never;
                             }
                         }
                         Statement::Item(..) => (),
@@ -217,7 +178,7 @@ where
                 if let Some(tail) = tail {
                     self.build_expr(*tail)
                 } else {
-                    Value::Unit
+                    AType::Unit
                 }
             }
             Expr::Async { .. } => todo!(),
@@ -247,7 +208,7 @@ where
             Expr::Closure { .. } => todo!(),
             Expr::Tuple { .. } => todo!(),
             Expr::Array(..) => todo!(),
-            Expr::Literal(lit) => Value::Value(self.build_literal(id, &lit)),
+            Expr::Literal(lit) => AType::Value(self.build_literal(id, lit)),
             Expr::Underscore => todo!(),
             Expr::OffsetOf(..) => todo!(),
             Expr::InlineAsm(..) => todo!(),
@@ -256,7 +217,7 @@ where
 
     fn build_literal(&mut self, id: ExprId, lit: &ra::def::hir::Literal) -> ob::Value {
         use ra::def::hir::Literal;
-        let ty = || super::types::convert(self.codegen.pts(), self.expr_ty(id));
+        let ty = || super::types::convert(self.codegen.backend(), self.expr_ty(id));
 
         match lit {
             Literal::String(..) => todo!(),

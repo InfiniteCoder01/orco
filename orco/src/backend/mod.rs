@@ -40,7 +40,7 @@ pub trait DeclarationBackend: PrimitiveTypeSource {
 /// Root trait for defining module items
 pub trait DefinitionBackend: PrimitiveTypeSource {
     /// Define a function, see [Codegen]
-    fn define_function(&mut self, name: Symbol) -> impl Codegen<'_>;
+    fn define_function(&self, name: Symbol) -> impl Codegen<'_>;
 }
 
 /// A block label
@@ -53,12 +53,8 @@ pub struct Value(pub usize);
 
 /// Trait for generating code within a function
 pub trait Codegen<'a> {
-    /// See [PrimitiveTypeSource]
-    type PTS: PrimitiveTypeSource;
-
-    /// Return the primitive type source for this codegen,
-    /// see [PrimitiveTypeSource] for more
-    fn pts(&self) -> &Self::PTS;
+    /// Get the definition backend for this codegen
+    fn backend(&self) -> &impl DefinitionBackend;
 
     /// Get function parameter symbol by index
     fn param(&self, idx: usize) -> Symbol;

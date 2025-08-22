@@ -1,14 +1,14 @@
 use crate::{Backend, ob, tm};
 
 impl ob::DefinitionBackend for Backend {
-    fn define_function(&mut self, name: ob::Symbol) -> impl ob::Codegen<'_> {
+    fn define_function(&self, name: ob::Symbol) -> impl ob::Codegen<'_> {
         let function = self.function_decls[&name].clone();
         Codegen {
             backend: self,
             function,
             blocks: Vec::new(),
             next_value_id: 0,
-            next_label_id: 0,
+            _next_label_id: 0,
         }
     }
 }
@@ -19,21 +19,21 @@ enum Block {
 }
 
 pub struct Codegen<'a> {
-    backend: &'a mut Backend,
+    backend: &'a Backend,
     function: tm::Function,
     blocks: Vec<Block>,
     next_value_id: usize,
-    next_label_id: usize,
+    _next_label_id: usize,
 }
 
 impl Codegen<'_> {
     fn stmt(&mut self, stmt: tm::Statement) {
-        let mut block =
-            self.blocks
-                .last_mut()
-                .map_or(&mut self.function.body, |block| match block {
-                    Block::If(if_) => if_.other.as_mut().unwrap_or(&mut if_.then),
-                });
+        let block = self
+            .blocks
+            .last_mut()
+            .map_or(&mut self.function.body, |block| match block {
+                Block::If(if_) => if_.other.as_mut().unwrap_or(&mut if_.then),
+            });
         block.stmts.push(stmt);
     }
 
@@ -53,37 +53,29 @@ impl Codegen<'_> {
     fn use_value(&self, value: ob::Value) -> tm::Expr {
         tm::Expr::new_ident_with_str(
             ob::Symbol::try_from_ffi(value.0 as _)
-                .unwrap_or_else(|| panic!("invalid value {:?}", value))
+                .unwrap_or_else(|| panic!("invalid value {value:?}"))
                 .as_str(),
         )
     }
 }
 
 impl<'a> ob::Codegen<'a> for Codegen<'a> {
-    type PTS = Backend;
-
-    fn pts(&self) -> &Self::PTS {
-        &self.backend
+    fn backend(&self) -> &impl ob::DefinitionBackend {
+        self.backend
     }
 
     fn param(&self, idx: usize) -> ob::Symbol {
         self.function.params[idx].name.as_str().into()
     }
 
-    fn iconst(&mut self, ty: ob::Type, value: i128) -> ob::Value {
+    fn iconst(&mut self, _ty: ob::Type, value: i128) -> ob::Value {
         // TODO: Size literals
-        self.new_value(
-            tm::Expr::Int(value as _),
-            self.backend.convert_type(&ty).build(),
-        )
+        self.variable(value.to_string().into())
     }
 
-    fn uconst(&mut self, ty: ob::Type, value: u128) -> ob::Value {
+    fn uconst(&mut self, _ty: ob::Type, value: u128) -> ob::Value {
         // TODO: Size literals
-        self.new_value(
-            tm::Expr::UInt(value as _),
-            self.backend.convert_type(&ty).build(),
-        )
+        self.variable(value.to_string().into())
     }
 
     fn define_variable(
@@ -156,9 +148,13 @@ impl Drop for Codegen<'_> {
         if self.function.body.stmts.is_empty() {
             self.function.body.stmts.push(tamago::Statement::NewLine);
         }
-        self.backend.function_defs.push(std::mem::replace(
-            &mut self.function,
-            tm::Function::new(String::new(), tm::Type::new(tm::BaseType::Void).build()).build(),
-        ));
+        self.backend
+            .function_defs
+            .lock()
+            .unwrap()
+            .push(std::mem::replace(
+                &mut self.function,
+                tm::Function::new(String::new(), tm::Type::new(tm::BaseType::Void).build()).build(),
+            ));
     }
 }

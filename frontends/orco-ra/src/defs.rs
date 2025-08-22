@@ -97,12 +97,12 @@ pub(crate) fn define(
             let value = ctx.build_expr(ctx.body().body_expr);
 
             // Implicit return
-            use crate::codegen::Value;
+            use crate::codegen::AType;
             use ob::Codegen as _;
             match value {
-                Value::Value(value) => codegen.return_(Some(value)),
-                Value::Unit => codegen.return_(None),
-                Value::Never => (),
+                AType::Value(value) => codegen.return_(Some(value)),
+                AType::Unit => codegen.return_(None),
+                AType::Never => (),
             }
         }
         ra_ap_hir::ModuleDefId::AdtId(..) => todo!(),

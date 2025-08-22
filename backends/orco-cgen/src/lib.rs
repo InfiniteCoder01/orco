@@ -12,14 +12,15 @@ pub mod types;
 
 pub struct Backend {
     pub function_decls: HashMap<ob::Symbol, tm::Function>,
-    pub function_defs: Vec<tm::Function>,
+    // TODO: Find a better datatype for this
+    pub function_defs: std::sync::Mutex<Vec<tm::Function>>,
 }
 
 impl Backend {
     pub fn new() -> Self {
         Self {
             function_decls: HashMap::new(),
-            function_defs: Vec::new(),
+            function_defs: Vec::new().into(),
         }
     }
 
@@ -38,7 +39,7 @@ impl Backend {
             scope.global_stmts.push(tm::GlobalStatement::Function(decl));
         }
 
-        for def in self.function_defs {
+        for def in self.function_defs.into_inner().unwrap() {
             scope.global_stmts.push(tm::GlobalStatement::Function(def));
         }
 
