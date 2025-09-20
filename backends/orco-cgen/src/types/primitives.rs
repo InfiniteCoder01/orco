@@ -1,35 +1,38 @@
-use crate::{Backend, ob};
+use crate::Backend;
 
-impl ob::PrimitiveTypeSource for Backend {
-    fn unit(&self) -> ob::Type {
-        ob::Type::Symbol(ob::Symbol::new_static(&"void"))
+impl orco::PrimitiveTypeSource for Backend {
+    fn unit(&self) -> orco::Type {
+        orco::Type::Symbol("void".into())
     }
 
-    fn bool(&self) -> ob::Type {
-        ob::Type::Symbol(ob::Symbol::new_static(&"bool"))
+    fn bool(&self) -> orco::Type {
+        orco::Type::Symbol("bool".into())
     }
 
-    fn int(&self, size: u16, signed: bool) -> ob::Type {
+    fn int(&self, size: u16, signed: bool) -> orco::Type {
         if signed {
-            ob::Type::Symbol(ob::Symbol::new(format!("int{size}_t")))
+            orco::Type::Symbol(format!("int{size}_t").into())
         } else {
-            ob::Type::Symbol(ob::Symbol::new(format!("uint{size}_t")))
+            orco::Type::Symbol(format!("uint{size}_t").into())
         }
     }
 
-    fn size_type(&self, signed: bool) -> ob::Type {
+    fn size_type(&self, signed: bool) -> orco::Type {
         if signed {
-            ob::Type::Symbol(ob::Symbol::new_static(&"ssize_t"))
+            orco::Type::Symbol("ssize_t".into())
         } else {
-            ob::Type::Symbol(ob::Symbol::new_static(&"size_t"))
+            orco::Type::Symbol("size_t".into())
         }
     }
 
-    fn float(&self, size: u16) -> ob::Type {
-        ob::Type::Symbol(ob::Symbol::new_static(match size {
-            32 => &"float",
-            64 => &"double",
-            size => panic!("invalid or unsupported floating point type size {size} bits"),
-        }))
+    fn float(&self, size: u16) -> orco::Type {
+        orco::Type::Symbol(
+            match size {
+                32 => "float",
+                64 => "double",
+                size => panic!("invalid or unsupported floating point type size {size} bits"),
+            }
+            .into(),
+        )
     }
 }

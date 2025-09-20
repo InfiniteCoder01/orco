@@ -1,40 +1,54 @@
-use crate::{Backend, ob, tm};
+use crate::Backend;
 
 pub mod primitives;
 
-impl ob::DeclarationBackend for Backend {
+fn write_type(to: &mut impl std::fmt::Write, ty: &orco::Type) {
+    use orco::Type;
+    match ty {
+        Type::Symbol(sym) => write!(to, "{}", sym).unwrap(),
+        Type::Error => write!(to, "<error>").unwrap(),
+    }
+}
+
+impl orco::DeclarationBackend for Backend {
     fn declare_function(
         &mut self,
-        name: ob::Symbol,
-        params: &[(Option<ob::Symbol>, ob::Type)],
-        return_type: &ob::Type,
+        name: orco::Symbol,
+        params: &[(Option<orco::Symbol>, orco::Type)],
+        return_type: &orco::Type,
     ) {
-        let mut function =
-            tm::Function::new(name.to_string(), self.build_type(return_type)).build();
+        use std::fmt::Write;
+        let mut decl = String::new();
+
+        write_type(&mut decl, return_type);
+        write!(decl, " {}(", crate::escape(name)).unwrap();
+        let mut first = true;
         for (name, ty) in params {
-            function.params.push(
-                tm::Parameter::new(
-                    name.map_or("", |name| name.as_str()).to_string(),
-                    self.build_type(ty),
-                )
-                .build(),
-            );
-        }
-
-        self.function_decls.insert(name, function);
-    }
-}
-
-impl Backend {
-    pub fn convert_type(&self, ty: &ob::Type) -> tm::TypeBuilder {
-        match ty {
-            ob::Type::Symbol(symbol) => {
-                tm::Type::new(tamago::BaseType::TypeDef(symbol.as_str().to_owned()))
+            if !first {
+                write!(decl, ", ").unwrap();
+            } else {
+                first = false;
+            }
+            write_type(&mut decl, ty);
+            if let Some(name) = name {
+                write!(decl, " {}", crate::escape(*name)).unwrap();
             }
         }
-    }
-
-    pub fn build_type(&self, ty: &ob::Type) -> tm::Type {
-        self.convert_type(ty).build()
+        write!(decl, ")").unwrap();
+        self.decls.insert(name, decl);
     }
 }
+
+// impl Backend {
+//     pub fn convert_type(&self, ty: &ob::Type) -> tm::TypeBuilder {
+//         match ty {
+//             ob::Type::Symbol(symbol) => {
+//                 tm::Type::new(tamago::BaseType::TypeDef(symbol.as_str().to_owned()))
+//             }
+//         }
+//     }
+
+//     pub fn build_type(&self, ty: &ob::Type) -> tm::Type {
+//         self.convert_type(ty).build()
+//     }
+// }

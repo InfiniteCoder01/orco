@@ -2,7 +2,7 @@
 resolver = "1"
 members = [
   "orco",
-  "frontends/orco-ra",
+  "frontends/orco-rustc",
   "backends/orco-cgen", "backends/orco-cranelift",
 ]
 

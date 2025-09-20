@@ -5,4 +5,3 @@ edition = "2024"
 
 [dependencies]
 orco = { workspace = true }
-tamago = "0.2.0"

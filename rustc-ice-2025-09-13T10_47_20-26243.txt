@@ -1,0 +1,29 @@
+thread 'rustc' panicked at frontends/orco-rustc/src/lib.rs:51:9:
+Everything else will not work
+stack backtrace:
+   0:     0x7fc87eb78ef5 - std::backtrace::Backtrace::create::h9ccdac06a889bf04
+   1:     0x7fc87eb78e45 - std::backtrace::Backtrace::force_capture::hcb23a8f89a8cf73e
+   2:     0x7fc87dbdc8a2 - std[57c1393ad41bbbfd]::panicking::update_hook::<alloc[7d9612ffe8b8ee55]::boxed::Box<rustc_driver_impl[902c67247d8c741]::install_ice_hook::{closure#1}>>::{closure#0}
+   3:     0x7fc87eb79e1f - std::panicking::panic_with_hook::ha6b5140b25841651
+   4:     0x7fc87eb79ba6 - std::panicking::panic_handler::{{closure}}::h0dee07c74bc57a6d
+   5:     0x7fc87eb73bb9 - std::sys::backtrace::__rust_end_short_backtrace::hf5c7a0ee0072f6ae
+   6:     0x7fc87eb5445d - __rustc[4dd267c369f14767]::rust_begin_unwind
+   7:     0x7fc87b2cae30 - core::panicking::panic_fmt::h61140a6577667985
+   8:     0x7fc879ed9622 - <orco_rustc::OrcoCodegenBackend as rustc_codegen_ssa::traits::backend::CodegenBackend>::codegen_crate::hd4b2df4967b92fd3
+                               at /mnt/Dev/Tools/orco/frontends/orco-rustc/src/lib.rs:51:9
+   9:     0x7fc880418070 - <rustc_interface[afaa10d6c1afcef4]::queries::Linker>::codegen_and_build_linker
+  10:     0x7fc880415b95 - rustc_interface[afaa10d6c1afcef4]::passes::create_and_enter_global_ctxt::<core[b6b5f5c4688e0f5a]::option::Option<rustc_interface[afaa10d6c1afcef4]::queries::Linker>, rustc_driver_impl[902c67247d8c741]::run_compiler::{closure#0}::{closure#2}>::{closure#2}::{closure#0}
+  11:     0x7fc8803c313e - rustc_interface[afaa10d6c1afcef4]::interface::run_compiler::<(), rustc_driver_impl[902c67247d8c741]::run_compiler::{closure#0}>::{closure#1}
+  12:     0x7fc880314b78 - std[57c1393ad41bbbfd]::sys::backtrace::__rust_begin_short_backtrace::<rustc_interface[afaa10d6c1afcef4]::util::run_in_thread_with_globals<rustc_interface[afaa10d6c1afcef4]::util::run_in_thread_pool_with_globals<rustc_interface[afaa10d6c1afcef4]::interface::run_compiler<(), rustc_driver_impl[902c67247d8c741]::run_compiler::{closure#0}>::{closure#1}, ()>::{closure#0}, ()>::{closure#0}::{closure#0}, ()>
+  13:     0x7fc88031485c - <<std[57c1393ad41bbbfd]::thread::Builder>::spawn_unchecked_<rustc_interface[afaa10d6c1afcef4]::util::run_in_thread_with_globals<rustc_interface[afaa10d6c1afcef4]::util::run_in_thread_pool_with_globals<rustc_interface[afaa10d6c1afcef4]::interface::run_compiler<(), rustc_driver_impl[902c67247d8c741]::run_compiler::{closure#0}>::{closure#1}, ()>::{closure#0}, ()>::{closure#0}::{closure#0}, ()>::{closure#1} as core[b6b5f5c4688e0f5a]::ops::function::FnOnce<()>>::call_once::{shim:vtable#0}
+  14:     0x7fc88031a5cd - std::sys::pal::unix::thread::Thread::new::thread_start::h45368d2ed0fa04a8
+  15:     0x7fc879c978ee - start_thread
+  16:     0x7fc879d1b9bc - __GI___clone3
+  17:                0x0 - <unknown>
+
+
+rustc version: 1.91.0-nightly (a1208bf76 2025-09-03)
+platform: x86_64-unknown-linux-gnu
+
+query stack during panic:
+end of query stack

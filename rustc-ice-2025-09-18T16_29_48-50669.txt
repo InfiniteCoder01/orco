@@ -1,0 +1,36 @@
+thread 'rustc' panicked at backends/orco-cgen/src/types/mod.rs:29:9:
+not yet implemented
+stack backtrace:
+   0:     0x7f3895378ef5 - std::backtrace::Backtrace::create::h9ccdac06a889bf04
+   1:     0x7f3895378e45 - std::backtrace::Backtrace::force_capture::hcb23a8f89a8cf73e
+   2:     0x7f38943dc8a2 - std[57c1393ad41bbbfd]::panicking::update_hook::<alloc[7d9612ffe8b8ee55]::boxed::Box<rustc_driver_impl[902c67247d8c741]::install_ice_hook::{closure#1}>>::{closure#0}
+   3:     0x7f3895379e1f - std::panicking::panic_with_hook::ha6b5140b25841651
+   4:     0x7f3895379ba6 - std::panicking::panic_handler::{{closure}}::h0dee07c74bc57a6d
+   5:     0x7f3895373bb9 - std::sys::backtrace::__rust_end_short_backtrace::hf5c7a0ee0072f6ae
+   6:     0x7f389535445d - __rustc[4dd267c369f14767]::rust_begin_unwind
+   7:     0x7f3891acae30 - core::panicking::panic_fmt::h61140a6577667985
+   8:     0x7f3891b5dc5c - core::panicking::panic::hc2bedefadb28c7cb
+   9:     0x7f38906ed752 - orco_cgen::types::<impl orco::DeclarationBackend for orco_cgen::Backend>::declare_function::hb21c03bc40bd3e9d
+                               at /mnt/Dev/Tools/orco/backends/orco-cgen/src/types/mod.rs:29:9
+  10:     0x7f38906d4f22 - orco_rustc::declare::declare_function::h7861e35179bf0cea
+                               at /mnt/Dev/Tools/orco/frontends/orco-rustc/src/declare/mod.rs:50:13
+  11:     0x7f38906d50cd - orco_rustc::declare::declare::h2bd0efb7f047b144
+                               at /mnt/Dev/Tools/orco/frontends/orco-rustc/src/declare/mod.rs:28:35
+  12:     0x7f38906bf46f - <orco_rustc::OrcoCodegenBackend as rustc_codegen_ssa::traits::backend::CodegenBackend>::codegen_crate::h363a77b80af3360c
+                               at /mnt/Dev/Tools/orco/frontends/orco-rustc/src/lib.rs:55:9
+  13:     0x7f3896c18070 - <rustc_interface[afaa10d6c1afcef4]::queries::Linker>::codegen_and_build_linker
+  14:     0x7f3896c15b95 - rustc_interface[afaa10d6c1afcef4]::passes::create_and_enter_global_ctxt::<core[b6b5f5c4688e0f5a]::option::Option<rustc_interface[afaa10d6c1afcef4]::queries::Linker>, rustc_driver_impl[902c67247d8c741]::run_compiler::{closure#0}::{closure#2}>::{closure#2}::{closure#0}
+  15:     0x7f3896bc313e - rustc_interface[afaa10d6c1afcef4]::interface::run_compiler::<(), rustc_driver_impl[902c67247d8c741]::run_compiler::{closure#0}>::{closure#1}
+  16:     0x7f3896b14b78 - std[57c1393ad41bbbfd]::sys::backtrace::__rust_begin_short_backtrace::<rustc_interface[afaa10d6c1afcef4]::util::run_in_thread_with_globals<rustc_interface[afaa10d6c1afcef4]::util::run_in_thread_pool_with_globals<rustc_interface[afaa10d6c1afcef4]::interface::run_compiler<(), rustc_driver_impl[902c67247d8c741]::run_compiler::{closure#0}>::{closure#1}, ()>::{closure#0}, ()>::{closure#0}::{closure#0}, ()>
+  17:     0x7f3896b1485c - <<std[57c1393ad41bbbfd]::thread::Builder>::spawn_unchecked_<rustc_interface[afaa10d6c1afcef4]::util::run_in_thread_with_globals<rustc_interface[afaa10d6c1afcef4]::util::run_in_thread_pool_with_globals<rustc_interface[afaa10d6c1afcef4]::interface::run_compiler<(), rustc_driver_impl[902c67247d8c741]::run_compiler::{closure#0}>::{closure#1}, ()>::{closure#0}, ()>::{closure#0}::{closure#0}, ()>::{closure#1} as core[b6b5f5c4688e0f5a]::ops::function::FnOnce<()>>::call_once::{shim:vtable#0}
+  18:     0x7f3896b1a5cd - std::sys::pal::unix::thread::Thread::new::thread_start::h45368d2ed0fa04a8
+  19:     0x7f38904978ee - start_thread
+  20:     0x7f389051b9bc - __GI___clone3
+  21:                0x0 - <unknown>
+
+
+rustc version: 1.91.0-nightly (a1208bf76 2025-09-03)
+platform: x86_64-unknown-linux-gnu
+
+query stack during panic:
+end of query stack

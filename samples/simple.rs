@@ -1,7 +1,5 @@
-fn main(c: bool, x: i32) -> i32 {
-    if c {
-        x
-    } else {
-        0
-    }
+fn main2(x: i32) -> f32 {
+    0.0
 }
+
+fn main() {}
