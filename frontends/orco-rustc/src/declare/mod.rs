@@ -83,11 +83,11 @@ pub fn declare(tcx: TyCtxt, backend: &mut impl Backend, items: &rustc_middle::hi
 pub fn declare_function(
     tcx: TyCtxt,
     backend: &mut impl Backend,
-    id: rustc_hir::def_id::LocalDefId,
+    key: rustc_hir::def_id::LocalDefId,
 ) {
-    let path = convert_path(tcx, id);
-    let sig = tcx.fn_sig(id).skip_binder().skip_binder();
-    let body = tcx.hir_body_owned_by(id);
+    let name = convert_path(tcx, key);
+    let sig = tcx.fn_sig(key).skip_binder().skip_binder();
+    let body = tcx.hir_body_owned_by(key);
 
     let mut params = Vec::with_capacity(sig.inputs().len());
     for (i, ty) in sig.inputs().iter().enumerate() {
@@ -95,5 +95,5 @@ pub fn declare_function(
         params.push((name, convert_type(backend, *ty)));
     }
 
-    backend.declare_function(path, &params, &convert_type(backend, sig.output()));
+    backend.declare_function(name, &params, &convert_type(backend, sig.output()));
 }

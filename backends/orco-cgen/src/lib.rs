@@ -1,13 +1,15 @@
 //! C transpilation backend for orco
+#![warn(missing_docs)]
 
 use std::collections::HashMap;
 
-// pub mod codegen;
-pub mod types;
+pub mod codegen;
+pub mod declare;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
 pub struct Backend {
     pub decls: HashMap<orco::Symbol, String>,
+    pub defs: std::sync::RwLock<Vec<String>>, // TODO: update
 }
 
 impl Backend {
@@ -25,6 +27,10 @@ impl std::fmt::Display for Backend {
 
         for (_, decl) in &self.decls {
             writeln!(f, "{decl};")?;
+        }
+        writeln!(f).unwrap();
+        for def in self.defs.read().unwrap().iter() {
+            writeln!(f, "{def}\n")?;
         }
         Ok(())
     }

@@ -1,10 +1,14 @@
+//! rustc frontend for orco
 #![feature(rustc_private)]
+#![warn(missing_docs)]
 
 extern crate rustc_ast;
 extern crate rustc_codegen_ssa;
+extern crate rustc_const_eval;
 extern crate rustc_data_structures;
 extern crate rustc_errors;
 extern crate rustc_hir;
+extern crate rustc_metadata;
 extern crate rustc_middle;
 extern crate rustc_session;
 extern crate rustc_span;
@@ -31,21 +35,8 @@ impl CodegenBackend for OrcoCodegenBackend {
         ""
     }
 
-    fn init(&self, sess: &Session) {}
-
-    fn target_config(&self, sess: &Session) -> rustc_codegen_ssa::TargetConfig {
-        rustc_codegen_ssa::TargetConfig {
-            target_features: vec![],
-            unstable_target_features: vec![],
-            has_reliable_f16: false,
-            has_reliable_f16_math: false,
-            has_reliable_f128: false,
-            has_reliable_f128_math: false,
-        }
-    }
-
-    fn print_version(&self) {
-        todo!("Codegen Version")
+    fn name(&self) -> &'static str {
+        "orco codegen"
     }
 
     fn codegen_crate(&self, tcx: TyCtxt<'_>) -> Box<dyn Any> {
@@ -53,6 +44,7 @@ impl CodegenBackend for OrcoCodegenBackend {
         let items = tcx.hir_crate_items(());
         let mut backend = orco_cgen::Backend::new();
         declare::declare(tcx, &mut backend, items);
+        codegen::define(tcx, &mut backend, items);
         println!("{backend}");
         std::process::exit(0)
     }
@@ -60,8 +52,8 @@ impl CodegenBackend for OrcoCodegenBackend {
     fn join_codegen(
         &self,
         ongoing_codegen: Box<dyn Any>,
-        sess: &Session,
-        outputs: &rustc_session::config::OutputFilenames,
+        _sess: &Session,
+        _outputs: &rustc_session::config::OutputFilenames,
     ) -> (
         rustc_codegen_ssa::CodegenResults,
         rustc_data_structures::fx::FxIndexMap<
