@@ -70,6 +70,10 @@ impl oc::Codegen<'_> for Codegen<'_> {
         var
     }
 
+    fn arg_var(&self, idx: usize) -> oc::Variable {
+        oc::Variable(idx)
+    }
+
     fn cast(&mut self, value: oc::Operand, result: oc::Variable) {
         if self.is_void(value) {
             self.comment(&format!(
@@ -98,17 +102,28 @@ impl oc::Codegen<'_> for Codegen<'_> {
 
 impl orco::DefinitionBackend for Backend {
     fn define_function(&self, name: orco::Symbol) -> impl oc::Codegen<'_> {
-        let decl = self
-            .decls
+        use std::fmt::Write;
+        let sig = self
+            .sigs
             .get(&name)
             .unwrap_or_else(|| panic!("tried to define undeclared function '{name}'"));
 
-        Codegen {
+        let mut codegen = Codegen {
             backend: self,
-            code: decl.clone() + " {\n",
+            code: format!("{ret} {name}(", ret = sig.ret, name = sig.name),
             indent: 4,
             variables: Vec::new(),
+        };
+
+        for (idx, ty) in sig.params.iter().enumerate() {
+            if idx > 0 {
+                codegen.code.push_str(", ");
+            }
+            write!(codegen.code, "{ty} _{idx}",).unwrap();
+            codegen.variables.push(VariableInfo { ty: ty.clone() });
         }
+        codegen.code.push_str(") {\n");
+        codegen
     }
 }
 

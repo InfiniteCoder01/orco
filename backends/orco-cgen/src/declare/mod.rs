@@ -4,6 +4,13 @@ pub mod primitives;
 pub mod ty;
 pub use ty::Type;
 
+#[derive(Clone, Debug)]
+pub struct FunctionSignature {
+    pub name: String,
+    pub params: Vec<Type>,
+    pub ret: Type,
+}
+
 impl orco::DeclarationBackend for Backend {
     fn declare_function(
         &mut self,
@@ -18,21 +25,26 @@ impl orco::DeclarationBackend for Backend {
 
         use std::fmt::Write as _;
         let mut decl = String::new();
+        let mut sig = FunctionSignature {
+            name: crate::escape(name),
+            params: Vec::with_capacity(params.len()),
+            ret: Type::from(return_type),
+        };
 
-        write!(decl, "{} {}(", Type::from(return_type), crate::escape(name)).unwrap();
-        let mut first = true;
-        for (name, ty) in params {
-            if !first {
-                write!(decl, ", ").unwrap();
-            } else {
-                first = false;
+        write!(decl, "{} {}(", sig.ret, sig.name).unwrap();
+        for (idx, (name, ty)) in params.iter().enumerate() {
+            if idx > 0 {
+                decl.push_str(", ");
             }
-            write!(decl, "{}", Type::from(ty)).unwrap();
+            let ty = Type::from(ty);
+            write!(decl, "{ty}",).unwrap();
+            sig.params.push(ty);
             if let Some(name) = name {
                 write!(decl, " {}", crate::escape(*name)).unwrap();
             }
         }
-        write!(decl, ")").unwrap();
+        decl.push_str(")");
         self.decls.insert(name, decl);
+        self.sigs.insert(name, sig);
     }
 }

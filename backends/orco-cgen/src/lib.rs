@@ -9,7 +9,9 @@ pub mod declare;
 #[derive(Debug, Default)]
 pub struct Backend {
     pub decls: HashMap<orco::Symbol, String>,
-    pub defs: std::sync::RwLock<Vec<String>>, // TODO: update
+    /// Function signatures, Used for function definitions
+    pub sigs: HashMap<orco::Symbol, declare::FunctionSignature>,
+    pub defs: std::sync::RwLock<Vec<String>>, // TODO: use a lock-free data struct
 }
 
 impl Backend {

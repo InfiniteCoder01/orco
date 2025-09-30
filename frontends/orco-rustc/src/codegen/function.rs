@@ -87,20 +87,27 @@ pub fn define(tcx: TyCtxt, backend: &mut impl Backend, key: rustc_hir::def_id::L
     use oc::Codegen as _;
 
     let name = crate::declare::convert_path(tcx, key);
+    let body = tcx.optimized_mir(key);
     let mut ctx = CodegenCtx {
         codegen: backend.define_function(name),
-        variables: Vec::new(),
+        variables: Vec::with_capacity(body.local_decls.len()),
     };
 
-    let body = tcx.optimized_mir(key);
     rustc_middle::mir::pretty::MirWriter::new(tcx)
         .write_mir_fn(body, &mut std::io::stdout().lock())
         .unwrap();
 
     // TODO: debug variable names
-    for local in &body.local_decls {
-        let ty = crate::declare::convert_type(backend, local.ty);
-        ctx.variables.push(ctx.codegen.declare_var(&ty));
+    for (idx, local) in body.local_decls.iter_enumerated() {
+        let idx = idx.index();
+        let var = if idx > 0 && idx - 1 < body.arg_count {
+            // An argument
+            ctx.codegen.arg_var(idx - 1)
+        } else {
+            let ty = crate::declare::convert_type(backend, local.ty);
+            ctx.codegen.declare_var(&ty)
+        };
+        ctx.variables.push(var);
     }
 
     for block in body.basic_blocks.reverse_postorder() {
