@@ -1,14 +1,24 @@
 use crate::TyCtxt;
 
 /// Convert path to [`orco::Symbol`]
-pub fn convert_path(tcx: TyCtxt, def_id: rustc_hir::def_id::LocalDefId) -> orco::Symbol {
+pub fn convert_path(tcx: TyCtxt, def_id: rustc_hir::def_id::DefId) -> orco::Symbol {
     use std::fmt::Write;
-    let path = tcx.hir_def_path(def_id);
+    let path = tcx.def_path(def_id);
     let mut s = tcx.crate_name(path.krate).to_string();
     s.reserve(path.data.len() * 16 + 16);
 
     for component in &path.data {
-        write!(s, "::{}", component.as_sym(true)).unwrap();
+        if matches!(
+            component.data,
+            rustc_hir::definitions::DefPathData::ForeignMod
+        ) {
+            s.clear()
+        } else {
+            if !s.is_empty() {
+                s.push_str("::")
+            }
+            s.push_str(component.as_sym(true).as_str());
+        }
     }
 
     s.into()

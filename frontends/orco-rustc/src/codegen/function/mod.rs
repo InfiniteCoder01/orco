@@ -2,45 +2,23 @@ use crate::TyCtxt;
 use orco::DefinitionBackend as Backend;
 use orco::codegen as oc;
 
-struct CodegenCtx<CG> {
+mod operand;
+
+struct CodegenCtx<'tcx, CG> {
+    tcx: TyCtxt<'tcx>,
     codegen: CG,
     variables: Vec<oc::Variable>,
 }
 
-impl<'a, CG: oc::Codegen<'a>> CodegenCtx<CG> {
-    fn var(&self, place: rustc_middle::mir::Place) -> oc::Variable {
-        self.variables[place.local.index()] // TODO: projection
-    }
-
-    fn op(&self, op: &rustc_middle::mir::Operand) -> oc::Operand {
-        use rustc_const_eval::interpret::Scalar;
-        use rustc_middle::mir::{Const, ConstValue, Operand};
-        match op {
-            Operand::Copy(place) => oc::Operand::Variable(self.var(*place)),
-            Operand::Move(place) => oc::Operand::Variable(self.var(*place)),
-            Operand::Constant(value) => match value.const_ {
-                Const::Ty(..) => todo!(),
-                Const::Unevaluated(uc, ..) => {
-                    panic!("unevaluated const encountered ({uc:?})")
-                }
-                Const::Val(value, ..) => match value {
-                    ConstValue::Scalar(scalar) => match scalar {
-                        Scalar::Int(value) => oc::Operand::UConst(value.to_bits(value.size())),
-                        Scalar::Ptr(..) => todo!(),
-                    },
-                    ConstValue::ZeroSized => todo!(),
-                    ConstValue::Slice { .. } => todo!(),
-                    ConstValue::Indirect { .. } => todo!(),
-                },
-            },
-        }
-    }
-
+impl<'tcx, 'a, CG: oc::Codegen<'a>> CodegenCtx<'tcx, CG> {
     fn codegen_statement(&mut self, stmt: &rustc_middle::mir::Statement) {
         use rustc_middle::mir::StatementKind;
         let (place, rvalue) = match &stmt.kind {
             StatementKind::Assign(assign) => assign.as_ref(),
+            StatementKind::SetDiscriminant { .. } => todo!(),
+            StatementKind::Intrinsic(..) => todo!(),
             stmt => {
+                // TODO: Some of them are worth implementing
                 self.codegen.comment(&format!("{stmt:?}"));
                 return;
             }
@@ -68,7 +46,16 @@ impl<'a, CG: oc::Codegen<'a>> CodegenCtx<CG> {
                 .return_(oc::Operand::Variable(self.variables[0])),
             TerminatorKind::Unreachable => todo!(),
             TerminatorKind::Drop { .. } => todo!(),
-            TerminatorKind::Call { .. } => todo!(),
+            TerminatorKind::Call {
+                func,
+                args,
+                destination,
+                ..
+            } => self.codegen.call(
+                self.op(func),
+                args.iter().map(|arg| self.op(&arg.node)).collect(),
+                self.var(*destination),
+            ),
             TerminatorKind::TailCall { .. } => todo!(),
             TerminatorKind::Assert { .. } => todo!(),
             TerminatorKind::Yield { .. } => todo!(),
@@ -83,12 +70,13 @@ impl<'a, CG: oc::Codegen<'a>> CodegenCtx<CG> {
 /// Define a function specified by key.
 /// Uses MIR under the hood.
 /// See also [`crate::declare::declare_function`]
-pub fn define(tcx: TyCtxt, backend: &mut impl Backend, key: rustc_hir::def_id::LocalDefId) {
+pub fn define(tcx: TyCtxt, backend: &impl Backend, key: rustc_hir::def_id::DefId) {
     use oc::Codegen as _;
 
     let name = crate::declare::convert_path(tcx, key);
     let body = tcx.optimized_mir(key);
     let mut ctx = CodegenCtx {
+        tcx,
         codegen: backend.define_function(name),
         variables: Vec::with_capacity(body.local_decls.len()),
     };

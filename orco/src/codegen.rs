@@ -1,4 +1,4 @@
-use crate::Type;
+use crate::{Symbol, Type};
 
 /// A variable ID.
 /// Variables are the only thing that can store information
@@ -8,6 +8,9 @@ pub struct Variable(pub usize);
 /// An operand
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Operand {
+    /// A global symbol, such as a function
+    /// or a global variable/constant
+    Global(Symbol),
     /// A variable, see [Variable]
     Variable(Variable),
     /// A signed integer constant
@@ -28,9 +31,12 @@ pub trait Codegen<'a> {
     /// Get the variable representing an argument
     fn arg_var(&self, idx: usize) -> Variable;
 
-    /// Cast a value to result's type.
+    /// Cast a value to `destination`'s type.
     /// Bascially any standard integer-float-char-bool cast.
-    fn cast(&mut self, value: Operand, result: Variable);
+    fn cast(&mut self, value: Operand, destination: Variable);
+
+    /// Call a function and put return value into `destination`
+    fn call(&mut self, function: Operand, args: Vec<Operand>, destination: Variable);
 
     /// Return a value from this function.
     /// Use [`Operand::Unit`] if no return value is required.

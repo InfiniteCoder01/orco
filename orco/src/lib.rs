@@ -46,7 +46,7 @@ pub trait DeclarationBackend: PrimitiveTypeSource {
 }
 
 /// Root trait for defining module items
-pub trait DefinitionBackend: PrimitiveTypeSource {
+pub trait DefinitionBackend: PrimitiveTypeSource + Sync {
     /// Define a function, see [Codegen]
     fn define_function(&self, name: Symbol) -> impl codegen::Codegen<'_>;
 }

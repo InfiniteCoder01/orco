@@ -30,9 +30,10 @@ impl Codegen<'_> {
 
     fn op(&self, op: oc::Operand) -> String {
         match op {
+            oc::Operand::Global(symbol) => crate::escape(symbol),
             oc::Operand::Variable(var) => self.var_name(var),
-            oc::Operand::IConst(val) => val.to_string(), // TODO: Size suffix
-            oc::Operand::UConst(val) => val.to_string(), // TODO: Size suffix
+            oc::Operand::IConst(val) => val.to_string(),
+            oc::Operand::UConst(val) => val.to_string(),
             oc::Operand::Unit => "<unit operand>".to_owned(),
         }
     }
@@ -74,21 +75,38 @@ impl oc::Codegen<'_> for Codegen<'_> {
         oc::Variable(idx)
     }
 
-    fn cast(&mut self, value: oc::Operand, result: oc::Variable) {
+    fn cast(&mut self, value: oc::Operand, destination: oc::Variable) {
         if self.is_void(value) {
             self.comment(&format!(
                 "{name} = ({ty}){op};",
-                name = self.var_name(result),
-                ty = &self.var(result).ty,
+                name = self.var_name(destination),
+                ty = &self.var(destination).ty,
                 op = self.op(value),
             ));
         }
         self.line(&format!(
             "{name} = ({ty}){op};",
-            name = self.var_name(result),
-            ty = &self.var(result).ty,
+            name = self.var_name(destination),
+            ty = &self.var(destination).ty,
             op = self.op(value),
         ));
+    }
+
+    fn call(&mut self, function: oc::Operand, args: Vec<oc::Operand>, destination: oc::Variable) {
+        let function = self.op(function);
+        let args = args
+            .into_iter()
+            .map(|arg| self.op(arg))
+            .collect::<Vec<_>>()
+            .join(", ");
+        if self.var(destination).ty.is_void() {
+            self.line(&format!("{function}({args});"));
+        } else {
+            self.line(&format!(
+                "{name} = {function}({args});",
+                name = self.var_name(destination),
+            ));
+        }
     }
 
     fn return_(&mut self, value: oc::Operand) {

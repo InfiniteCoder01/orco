@@ -78,14 +78,28 @@ pub fn declare(tcx: TyCtxt, backend: &mut impl Backend, items: &rustc_middle::hi
             IK::Impl(..) => (),
         }
     }
+    for item in items.impl_items() {
+        todo!()
+    }
+    for item in items.foreign_items() {
+        let item = tcx.hir_foreign_item(item);
+        use rustc_hir::ForeignItemKind as FIK;
+        match item.kind {
+            FIK::Fn(_, idents, _) => {
+                declare_foreign_function(tcx, backend, item.owner_id.to_def_id(), idents)
+            }
+            FIK::Static(..) => todo!(),
+            FIK::Type => todo!(),
+        }
+    }
 }
 
 pub fn declare_function(
     tcx: TyCtxt,
     backend: &mut impl Backend,
-    key: rustc_hir::def_id::LocalDefId,
+    key: rustc_hir::def_id::LocalDefId, // TODO: non-local?
 ) {
-    let name = convert_path(tcx, key);
+    let name = convert_path(tcx, key.to_def_id());
     let sig = tcx.fn_sig(key).skip_binder().skip_binder();
     let body = tcx.hir_body_owned_by(key);
 
@@ -93,6 +107,26 @@ pub fn declare_function(
     for (i, ty) in sig.inputs().iter().enumerate() {
         let name = pat_name(body.params[i].pat);
         params.push((name, convert_type(backend, *ty)));
+    }
+
+    backend.declare_function(name, &params, &convert_type(backend, sig.output()));
+}
+
+pub fn declare_foreign_function(
+    tcx: TyCtxt,
+    backend: &mut impl Backend,
+    key: rustc_hir::def_id::DefId,
+    idents: &[Option<rustc_span::Ident>],
+) {
+    let name = convert_path(tcx, key);
+    let sig = tcx.fn_sig(key).skip_binder().skip_binder();
+
+    let mut params = Vec::with_capacity(sig.inputs().len());
+    for (i, ty) in sig.inputs().iter().enumerate() {
+        params.push((
+            idents[i].map(|ident| ident.as_str().into()),
+            convert_type(backend, *ty),
+        ));
     }
 
     backend.declare_function(name, &params, &convert_type(backend, sig.output()));

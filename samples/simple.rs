@@ -1,6 +1,7 @@
-fn main2(x: i32) -> f32 {
-    let y = x as _;
-    y
+unsafe extern "C" {
+    safe fn print(value: i32);
 }
 
-fn main() {}
+fn main() {
+    print(42);
+}
