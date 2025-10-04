@@ -32,8 +32,15 @@ impl Codegen<'_> {
         match op {
             oc::Operand::Global(symbol) => crate::escape(symbol),
             oc::Operand::Variable(var) => self.var_name(var),
-            oc::Operand::IConst(val) => val.to_string(),
-            oc::Operand::UConst(val) => val.to_string(),
+            oc::Operand::IConst(val, _size) => format!("{val}ll"),
+            oc::Operand::UConst(val, _size) => format!("{val}ull"),
+            oc::Operand::FConst(val, _size) => {
+                if val.fract() == 0.0 {
+                    format!("{val:.01}")
+                } else {
+                    val.to_string()
+                }
+            }
             oc::Operand::Unit => "<unit operand>".to_owned(),
         }
     }
@@ -50,7 +57,7 @@ impl Codegen<'_> {
 impl oc::Codegen<'_> for Codegen<'_> {
     fn comment(&mut self, comment: &str) {
         for line in comment.split('\n') {
-            self.line(line);
+            self.line(&format!("// {line}"));
         }
     }
 
@@ -75,19 +82,17 @@ impl oc::Codegen<'_> for Codegen<'_> {
         oc::Variable(idx)
     }
 
-    fn cast(&mut self, value: oc::Operand, destination: oc::Variable) {
-        if self.is_void(value) || self.var(destination).ty.is_void() {
+    fn assign(&mut self, value: oc::Operand, destination: oc::Variable) {
+        if self.is_void(value) {
             self.comment(&format!(
-                "{name} = ({ty}){op};",
+                "{name} = {op};",
                 name = self.var_name(destination),
-                ty = &self.var(destination).ty,
                 op = self.op(value),
             ));
         }
         self.line(&format!(
-            "{name} = ({ty}){op};",
+            "{name} = {op};",
             name = self.var_name(destination),
-            ty = &self.var(destination).ty,
             op = self.op(value),
         ));
     }

@@ -26,7 +26,8 @@ impl<'tcx, 'a, CG: oc::Codegen<'a>> CodegenCtx<'tcx, CG> {
 
         use rustc_middle::mir::Rvalue;
         match rvalue {
-            Rvalue::Cast(_, op, _) => self.codegen.cast(self.op(op), self.var(*place)),
+            // Rvalue::Cast(_, op, _) => self.codegen.assign(self.op(op), self.var(*place)),
+            Rvalue::Use(op) => self.codegen.assign(self.op(op), self.var(*place)),
             _ => self.codegen.comment(&format!("{stmt:?}")), // TODO
         }
     }

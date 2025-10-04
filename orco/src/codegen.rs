@@ -5,8 +5,17 @@ use crate::{Symbol, Type};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Variable(pub usize);
 
-/// An operand
+/// Integer size
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum IntegerSize {
+    /// Number of bits
+    Bits(u16),
+    /// Kinda like `usize`/`isize` in rust or `size_t`/`ssize_t` in C
+    Size,
+}
+
+/// An operand
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub enum Operand {
     /// A global symbol, such as a function
     /// or a global variable/constant
@@ -14,9 +23,11 @@ pub enum Operand {
     /// A variable, see [Variable]
     Variable(Variable),
     /// A signed integer constant
-    IConst(i128), // TODO: size
+    IConst(i128, IntegerSize),
     /// An unsigned integer constant
-    UConst(u128), // TODO: size
+    UConst(u128, IntegerSize),
+    /// A floating point constant (value, size) where size is specified in bits
+    FConst(f64, u16),
     /// Unit value
     Unit,
 }
@@ -31,11 +42,8 @@ pub trait Codegen<'a> {
     /// Get the variable representing an argument
     fn arg_var(&self, idx: usize) -> Variable;
 
-    // TODO
-    /// Cast a value to `destination`'s type.
-    /// Bascially any standard integer-float-char-bool cast.
-    /// Might be removed in favor of [`Codegen::call`] & intrinsics
-    fn cast(&mut self, value: Operand, destination: Variable);
+    /// Assign a value to a variable
+    fn assign(&mut self, value: Operand, destination: Variable);
 
     /// Call a function and put return value into `destination`
     fn call(&mut self, function: Operand, args: Vec<Operand>, destination: Variable);
