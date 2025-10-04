@@ -76,7 +76,7 @@ impl oc::Codegen<'_> for Codegen<'_> {
     }
 
     fn cast(&mut self, value: oc::Operand, destination: oc::Variable) {
-        if self.is_void(value) {
+        if self.is_void(value) || self.var(destination).ty.is_void() {
             self.comment(&format!(
                 "{name} = ({ty}){op};",
                 name = self.var_name(destination),

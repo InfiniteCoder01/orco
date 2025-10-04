@@ -31,8 +31,10 @@ pub trait Codegen<'a> {
     /// Get the variable representing an argument
     fn arg_var(&self, idx: usize) -> Variable;
 
+    // TODO
     /// Cast a value to `destination`'s type.
     /// Bascially any standard integer-float-char-bool cast.
+    /// Might be removed in favor of [`Codegen::call`] & intrinsics
     fn cast(&mut self, value: Operand, destination: Variable);
 
     /// Call a function and put return value into `destination`
