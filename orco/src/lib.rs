@@ -4,6 +4,7 @@
 pub use sinter;
 pub use sinter::IStr as Symbol;
 
+/// Code generation APIs, used to actually define functions and generate code.
 pub mod codegen;
 
 /// Type of a variable, constant, part of a function signature, etc.

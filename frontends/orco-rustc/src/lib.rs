@@ -19,7 +19,10 @@ extern crate tracing;
 #[allow(unused_extern_crates)]
 extern crate rustc_driver;
 
+/// Code generation is used to define functions and other items
 pub mod codegen;
+/// Declaration is used to declare functions and other items,
+/// useful for generating bindings
 pub mod declare;
 
 use std::any::Any;
@@ -28,6 +31,7 @@ use rustc_codegen_ssa::traits::CodegenBackend;
 use rustc_middle::ty::TyCtxt;
 use rustc_session::Session;
 
+/// rustc_ssa_codegen backend for orco
 pub struct OrcoCodegenBackend;
 
 impl CodegenBackend for OrcoCodegenBackend {

@@ -1,8 +1,11 @@
 use crate::TyCtxt;
 use orco::DefinitionBackend as Backend;
 
+/// Function code generation. This is the majority of codegen
 pub mod function;
 
+/// Define all the items using the backend provided.
+/// See [`TyCtxt::hir_crate_items`]
 pub fn define(tcx: TyCtxt<'_>, backend: &impl Backend, items: &rustc_middle::hir::ModuleItems) {
     let backend = rustc_data_structures::sync::IntoDynSyncSend(backend);
     items

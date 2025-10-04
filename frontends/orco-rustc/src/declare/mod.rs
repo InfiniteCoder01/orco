@@ -5,6 +5,8 @@ use orco::DeclarationBackend as Backend;
 pub mod names;
 pub use names::{convert_path, pat_name};
 
+/// Convert a type from rust MIR to orco.
+/// Pass your backend as the type source
 pub fn convert_type(pts: &impl orco::PrimitiveTypeSource, ty: rustc_middle::ty::Ty) -> orco::Type {
     use rustc_middle::ty::{FloatTy, IntTy, TyKind, UintTy};
     match ty.kind() {
@@ -54,6 +56,8 @@ pub fn convert_type(pts: &impl orco::PrimitiveTypeSource, ty: rustc_middle::ty::
     }
 }
 
+/// Declare all the items using the backend provided.
+/// See [`TyCtxt::hir_crate_items`]
 pub fn declare(tcx: TyCtxt, backend: &mut impl Backend, items: &rustc_middle::hir::ModuleItems) {
     for item in items.free_items() {
         let item = tcx.hir_item(item);
@@ -78,7 +82,7 @@ pub fn declare(tcx: TyCtxt, backend: &mut impl Backend, items: &rustc_middle::hi
             IK::Impl(..) => (),
         }
     }
-    for item in items.impl_items() {
+    for _item in items.impl_items() {
         todo!()
     }
     for item in items.foreign_items() {
@@ -94,6 +98,7 @@ pub fn declare(tcx: TyCtxt, backend: &mut impl Backend, items: &rustc_middle::hi
     }
 }
 
+/// Declare a function by def_id. The function MUST have a body.
 pub fn declare_function(
     tcx: TyCtxt,
     backend: &mut impl Backend,
@@ -112,6 +117,9 @@ pub fn declare_function(
     backend.declare_function(name, &params, &convert_type(backend, sig.output()));
 }
 
+/// Declare a foregin function
+/// Pulls argument names from the slice,
+/// since foreign functions don't have a body.
 pub fn declare_foreign_function(
     tcx: TyCtxt,
     backend: &mut impl Backend,
