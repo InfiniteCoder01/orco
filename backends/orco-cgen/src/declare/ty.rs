@@ -20,13 +20,19 @@ impl Default for Type {
     }
 }
 
-impl From<&orco::Type> for Type {
-    fn from(ty: &orco::Type) -> Self {
-        use orco::Type;
+impl crate::Backend {
+    /// Convert [`orco::Type`] to [Type]
+    pub fn convert_type(&self, ty: &orco::Type) -> Type {
+        use orco::Type as OT;
         match ty {
-            Type::Symbol(sym) => Self(sym.to_string()),
-            Type::Array(ty, size) => Self(format!("{ty}[{size}]", ty = Self::from(ty.as_ref()))),
-            Type::Error => Self::error(),
+            OT::Symbol(sym) => Type(sym.to_string()),
+            OT::Array(ty, size) => {
+                let ty = self.convert_type(ty);
+                let symbol = format!("array_{ty}_{size}");
+                let _ = self.arrays.insert_sync((ty, *size));
+                Type(symbol)
+            }
+            OT::Error => Type::error(),
         }
     }
 }

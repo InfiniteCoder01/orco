@@ -1,21 +1,25 @@
 //! C transpilation backend for orco
 //! See [Backend]
+// TODO: ABI
 #![warn(missing_docs)]
 
 /// Code generation, used to generate function bodies.
 pub mod codegen;
 /// Declaration, enough to create headers
 pub mod declare;
-pub use declare::{Declaration, DeclarationKind};
+pub use declare::{Declaration, DeclarationKind, Type};
 
 /// Central declaration & codegen backend
 #[derive(Debug, Default)]
 pub struct Backend {
     /// A map from symbol to a declaration
     pub decls: scc::HashMap<orco::Symbol, Declaration>,
-    /// Al definitions, in no particular order
-    /// TODO: Unordered container would work better
+    /// All definitions, in no particular order
+    // TODO: Unordered container would work better
     pub defs: scc::Stack<String>,
+    /// All instances of array types
+    // TODO: Use generics system
+    pub arrays: scc::HashSet<(declare::Type, usize)>,
 }
 
 impl Backend {
@@ -33,6 +37,13 @@ impl std::fmt::Display for Backend {
         writeln!(f)?;
 
         let mut result = Ok(());
+        self.arrays.iter_sync(|(ty, size)| {
+            let symbol = format!("array_{ty}_{size}");
+            result = writeln!(f, "typedef struct {{ {ty} arr[{size}]; }} {symbol};");
+            result.is_ok()
+        });
+        result?;
+
         self.decls.iter_sync(|_, decl| {
             result = writeln!(f, "{decl}");
             result.is_ok()

@@ -3,7 +3,7 @@ use orco::codegen as oc;
 
 /// Info about a variable within [Codegen] session
 struct VariableInfo {
-    ty: crate::declare::Type,
+    ty: crate::Type,
 }
 
 /// Hidden struct for code generation session of a single function
@@ -64,7 +64,7 @@ impl oc::Codegen<'_> for Codegen<'_> {
     }
 
     fn declare_var(&mut self, ty: &orco::Type) -> oc::Variable {
-        let ty = ty.into();
+        let ty = self.backend.convert_type(ty);
         let var = oc::Variable(self.variables.len());
         self.variables.push(VariableInfo { ty });
 

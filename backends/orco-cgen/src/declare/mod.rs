@@ -8,7 +8,7 @@ mod function;
 pub use function::FunctionSignature;
 
 /// A single item declaration
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Declaration {
     /// Name for the symbol, escaped using [`crate::escape`]
     pub name: String,
@@ -53,9 +53,9 @@ impl orco::DeclarationBackend for Backend {
         let sig = FunctionSignature {
             params: params
                 .into_iter()
-                .map(|(name, ty)| (ty.into(), (*name).map(crate::escape)))
+                .map(|(name, ty)| (self.convert_type(ty), (*name).map(crate::escape)))
                 .collect(),
-            ret: Type::from(return_type),
+            ret: self.convert_type(&return_type),
         };
 
         self.decls
