@@ -1,20 +1,25 @@
 //! C transpilation backend for orco
+//! See [Backend]
 #![warn(missing_docs)]
 
-use std::collections::HashMap;
-
+/// Code generation, used to generate function bodies.
 pub mod codegen;
+/// Declaration, enough to create headers
 pub mod declare;
+pub use declare::{Declaration, DeclarationKind};
 
+/// Central declaration & codegen backend
 #[derive(Debug, Default)]
 pub struct Backend {
-    pub decls: HashMap<orco::Symbol, String>,
-    /// Function signatures, Used for function definitions
-    pub sigs: HashMap<orco::Symbol, declare::FunctionSignature>,
-    pub defs: std::sync::RwLock<Vec<String>>, // TODO: use a lock-free data struct
+    /// A map from symbol to a declaration
+    pub decls: scc::HashMap<orco::Symbol, Declaration>,
+    /// Al definitions, in no particular order
+    /// TODO: Unordered container would work better
+    pub defs: scc::Stack<String>,
 }
 
 impl Backend {
+    #[allow(missing_docs)]
     pub fn new() -> Self {
         Self::default()
     }
@@ -27,17 +32,23 @@ impl std::fmt::Display for Backend {
         writeln!(f, "#include <stdbool.h>")?;
         writeln!(f)?;
 
-        for (_, decl) in &self.decls {
-            writeln!(f, "{decl};")?;
-        }
+        let mut result = Ok(());
+        self.decls.iter_sync(|_, decl| {
+            result = writeln!(f, "{decl}");
+            result.is_ok()
+        });
+        result?;
+
         writeln!(f).unwrap();
-        for def in self.defs.read().unwrap().iter() {
+        let guard = scc::Guard::new();
+        for def in self.defs.iter(&guard) {
             writeln!(f, "{def}\n")?;
         }
         Ok(())
     }
 }
 
+/// Escape the symbol to be a valid C identifier. Possibly does mangling
 pub fn escape(symbol: orco::Symbol) -> String {
     symbol
         .as_str()

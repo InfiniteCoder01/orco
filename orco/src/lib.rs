@@ -12,6 +12,8 @@ pub mod codegen;
 pub enum Type {
     /// Just a symbol
     Symbol(Symbol),
+    /// An array type (`Type[size]`)
+    Array(Box<Type>, usize),
     /// An error type
     Error,
 }
@@ -36,14 +38,9 @@ pub trait PrimitiveTypeSource {
 }
 
 /// Root trait for declaring module items. This is enough to generate C headers
-pub trait DeclarationBackend: PrimitiveTypeSource {
+pub trait DeclarationBackend: PrimitiveTypeSource + Sync {
     /// Declare a function
-    fn declare_function(
-        &mut self,
-        name: Symbol,
-        params: &[(Option<Symbol>, Type)],
-        return_type: &Type,
-    );
+    fn declare_function(&self, name: Symbol, params: &[(Option<Symbol>, Type)], return_type: &Type);
 }
 
 /// Root trait for defining module items

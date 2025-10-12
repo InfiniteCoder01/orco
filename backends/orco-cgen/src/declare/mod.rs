@@ -1,50 +1,69 @@
 use crate::Backend;
 
-pub mod primitives;
-pub mod ty;
+mod primitives;
+mod ty;
 pub use ty::Type;
 
-#[derive(Clone, Debug)]
-pub struct FunctionSignature {
+mod function;
+pub use function::FunctionSignature;
+
+/// A single item declaration
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Declaration {
+    /// Name for the symbol, escaped using [`crate::escape`]
     pub name: String,
-    pub params: Vec<Type>,
-    pub ret: Type,
+    /// See [DeclarationKind]
+    pub kind: DeclarationKind,
+}
+
+impl std::fmt::Display for Declaration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.kind {
+            DeclarationKind::Function(sig) => {
+                write!(f, "{ret} {name}(", ret = sig.ret, name = self.name)?;
+                for (idx, (ty, name)) in sig.params.iter().enumerate() {
+                    if idx > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{ty}",)?;
+                    if let Some(name) = name {
+                        write!(f, " {name}")?;
+                    }
+                }
+                write!(f, ");")
+            }
+        }
+    }
+}
+
+/// All kinds of declarations
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum DeclarationKind {
+    /// Function decl, see [FunctionSignature]
+    Function(FunctionSignature),
 }
 
 impl orco::DeclarationBackend for Backend {
     fn declare_function(
-        &mut self,
+        &self,
         name: orco::Symbol,
         params: &[(Option<orco::Symbol>, orco::Type)],
         return_type: &orco::Type,
     ) {
-        assert!(
-            !self.decls.contains_key(&name),
-            "function {name:?} is already declared!"
-        );
-
-        use std::fmt::Write as _;
-        let mut decl = String::new();
-        let mut sig = FunctionSignature {
-            name: crate::escape(name),
-            params: Vec::with_capacity(params.len()),
+        let sig = FunctionSignature {
+            params: params
+                .into_iter()
+                .map(|(name, ty)| (ty.into(), (*name).map(crate::escape)))
+                .collect(),
             ret: Type::from(return_type),
         };
 
-        write!(decl, "{} {}(", sig.ret, sig.name).unwrap();
-        for (idx, (name, ty)) in params.iter().enumerate() {
-            if idx > 0 {
-                decl.push_str(", ");
-            }
-            let ty = Type::from(ty);
-            write!(decl, "{ty}",).unwrap();
-            sig.params.push(ty);
-            if let Some(name) = name {
-                write!(decl, " {}", crate::escape(*name)).unwrap();
-            }
-        }
-        decl.push_str(")");
-        self.decls.insert(name, decl);
-        self.sigs.insert(name, sig);
+        self.decls
+            .entry_sync(name)
+            .and_modify(|_| panic!("function {name:?} is already declared!"))
+            .or_insert(Declaration {
+                name: crate::escape(name),
+                kind: DeclarationKind::Function(sig),
+            });
     }
 }

@@ -31,7 +31,7 @@ pub fn convert_type(pts: &impl orco::PrimitiveTypeSource, ty: rustc_middle::ty::
         TyKind::Adt(..) => todo!(),
         TyKind::Foreign(..) => todo!(),
         TyKind::Str => todo!(),
-        TyKind::Array(..) => todo!(),
+        TyKind::Array(ty, size) => orco::Type::Array(Box::new(convert_type(pts, *ty)), 42), // TODO: Use size!
         TyKind::Pat(..) => todo!(),
         TyKind::Slice(..) => todo!(),
         TyKind::RawPtr(..) => todo!(),
@@ -58,50 +58,57 @@ pub fn convert_type(pts: &impl orco::PrimitiveTypeSource, ty: rustc_middle::ty::
 
 /// Declare all the items using the backend provided.
 /// See [`TyCtxt::hir_crate_items`]
-pub fn declare(tcx: TyCtxt, backend: &mut impl Backend, items: &rustc_middle::hir::ModuleItems) {
-    for item in items.free_items() {
-        let item = tcx.hir_item(item);
+pub fn declare(tcx: TyCtxt, backend: &impl Backend, items: &rustc_middle::hir::ModuleItems) {
+    let backend = rustc_data_structures::sync::IntoDynSyncSend(backend);
+    items
+        .par_items(|item| {
+            let item = tcx.hir_item(item);
 
-        use rustc_hir::ItemKind as IK;
-        match item.kind {
-            IK::ExternCrate(..) => (),
-            IK::Use(..) => (),
-            IK::Static(..) => (),
-            IK::Const(..) => (),
-            IK::Fn { .. } => declare_function(tcx, backend, item.owner_id.def_id),
-            IK::Macro(..) => (),
-            IK::Mod(..) => (),
-            IK::ForeignMod { .. } => (),
-            IK::GlobalAsm { .. } => (),
-            IK::TyAlias(..) => (),
-            IK::Enum(..) => (),
-            IK::Struct(..) => (),
-            IK::Union(..) => (),
-            IK::Trait(..) => (),
-            IK::TraitAlias(..) => (),
-            IK::Impl(..) => (),
-        }
-    }
-    for _item in items.impl_items() {
-        todo!()
-    }
-    for item in items.foreign_items() {
-        let item = tcx.hir_foreign_item(item);
-        use rustc_hir::ForeignItemKind as FIK;
-        match item.kind {
-            FIK::Fn(_, idents, _) => {
-                declare_foreign_function(tcx, backend, item.owner_id.to_def_id(), idents)
+            use rustc_hir::ItemKind as IK;
+            match item.kind {
+                IK::ExternCrate(..) => (),
+                IK::Use(..) => (),
+                IK::Static(..) => (),
+                IK::Const(..) => (),
+                IK::Fn { .. } => declare_function(tcx, *backend, item.owner_id.def_id),
+                IK::Macro(..) => (),
+                IK::Mod(..) => (),
+                IK::ForeignMod { .. } => (),
+                IK::GlobalAsm { .. } => (),
+                IK::TyAlias(..) => (),
+                IK::Enum(..) => (),
+                IK::Struct(..) => (),
+                IK::Union(..) => (),
+                IK::Trait(..) => (),
+                IK::TraitAlias(..) => (),
+                IK::Impl(..) => (),
             }
-            FIK::Static(..) => todo!(),
-            FIK::Type => todo!(),
-        }
-    }
+            Ok(())
+        })
+        .unwrap();
+
+    items.par_impl_items(|_item| todo!()).unwrap();
+
+    items
+        .par_foreign_items(|item| {
+            let item = tcx.hir_foreign_item(item);
+            use rustc_hir::ForeignItemKind as FIK;
+            match item.kind {
+                FIK::Fn(_, idents, _) => {
+                    declare_foreign_function(tcx, *backend, item.owner_id.to_def_id(), idents)
+                }
+                FIK::Static(..) => todo!(),
+                FIK::Type => todo!(),
+            }
+            Ok(())
+        })
+        .unwrap();
 }
 
 /// Declare a function by def_id. The function MUST have a body.
 pub fn declare_function(
     tcx: TyCtxt,
-    backend: &mut impl Backend,
+    backend: &impl Backend,
     key: rustc_hir::def_id::LocalDefId, // TODO: non-local?
 ) {
     let name = convert_path(tcx, key.to_def_id());
@@ -122,7 +129,7 @@ pub fn declare_function(
 /// since foreign functions don't have a body.
 pub fn declare_foreign_function(
     tcx: TyCtxt,
-    backend: &mut impl Backend,
+    backend: &impl Backend,
     key: rustc_hir::def_id::DefId,
     idents: &[Option<rustc_span::Ident>],
 ) {
