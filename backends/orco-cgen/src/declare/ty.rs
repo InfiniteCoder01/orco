@@ -8,7 +8,18 @@ impl std::fmt::Display for FmtType<'_> {
         match self.0 {
             OT::Symbol(sym) => write!(f, "{}", crate::escape(*sym)),
             OT::Array(ty, size) => todo!(),
-            OT::Struct(fields) => todo!(),
+            OT::Struct(fields) => {
+                writeln!(f, "struct {{")?;
+                for (name, ty) in fields {
+                    writeln!(
+                        f,
+                        "  {ty} {name};",
+                        name = crate::escape(*name),
+                        ty = FmtType(&ty)
+                    )?;
+                }
+                write!(f, "}}")
+            }
             OT::Error => write!(f, "<error-type>"),
         }
     }
