@@ -2,11 +2,12 @@
 //! Also used to generate C headers and is generally the reference for other backends
 //! See [Backend]
 // TODO: ABI
+// TODO: Extra type interning
 #![warn(missing_docs)]
 
 /// Declaration, enough to create headers
 pub mod declare;
-pub use declare::{Declaration, DeclarationKind, Type};
+pub use declare::{Declaration, DeclarationKind, FmtType};
 
 /// Code generation, used to generate function bodies.
 pub mod codegen;

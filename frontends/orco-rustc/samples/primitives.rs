@@ -1,3 +1,7 @@
+fn test(a: i32) {
+    drop(a);
+}
+
 fn main() {
     drop(3.1415926);
     drop('a');

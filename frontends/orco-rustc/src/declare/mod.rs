@@ -125,7 +125,7 @@ pub fn declare_function(
         params.push((name, convert_type(tcx, backend, *ty)));
     }
 
-    backend.declare_function(name, &params, &convert_type(tcx, backend, sig.output()));
+    backend.declare_function(name, params, convert_type(tcx, backend, sig.output()));
 }
 
 /// Declare a foregin function
@@ -148,7 +148,7 @@ pub fn declare_foreign_function(
         ));
     }
 
-    backend.declare_function(name, &params, &convert_type(tcx, backend, sig.output()))
+    backend.declare_function(name, params, convert_type(tcx, backend, sig.output()))
 }
 
 /// Declare a function by def_id. The function MUST have a body.

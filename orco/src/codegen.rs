@@ -39,7 +39,7 @@ pub trait Codegen<'a> {
     fn comment(&mut self, comment: &str);
 
     /// Declare a variable, see [Variable]
-    fn declare_var(&mut self, ty: &Type) -> Variable;
+    fn declare_var(&mut self, ty: Type) -> Variable;
     /// Get the variable representing an argument
     fn arg_var(&self, idx: usize) -> Variable;
 

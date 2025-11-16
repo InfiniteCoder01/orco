@@ -41,7 +41,12 @@ pub trait PrimitiveTypeSource {
 /// Root trait for declaring module items. This is enough to generate C headers
 pub trait DeclarationBackend: PrimitiveTypeSource + Sync {
     /// Declare a function
-    fn declare_function(&self, name: Symbol, params: &[(Option<Symbol>, Type)], return_type: &Type);
+    fn declare_function(
+        &self,
+        name: Symbol,
+        params: Vec<(Option<Symbol>, Type)>,
+        return_type: Type,
+    );
     /// Declare a type alias, should be used to declare composite data types as well
     fn declare_type(&self, name: Symbol, ty: Type);
 }

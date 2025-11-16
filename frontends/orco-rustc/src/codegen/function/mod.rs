@@ -96,7 +96,7 @@ pub fn define(tcx: TyCtxt, backend: &impl Backend, key: rustc_hir::def_id::DefId
             ctx.codegen.arg_var(idx - 1)
         } else {
             let ty = crate::declare::convert_type(tcx, backend, local.ty);
-            ctx.codegen.declare_var(&ty)
+            ctx.codegen.declare_var(ty)
         };
         ctx.variables.push(var);
     }

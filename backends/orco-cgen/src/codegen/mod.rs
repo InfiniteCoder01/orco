@@ -1,9 +1,18 @@
-use crate::Backend;
+use crate::{Backend, FmtType};
 use orco::codegen as oc;
 
 /// Info about a variable within [Codegen] session
 struct VariableInfo {
-    ty: crate::Type,
+    ty: orco::Type,
+    /// Variable name, for debugging purpuses
+    name: Option<String>,
+}
+
+fn is_void(ty: &orco::Type) -> bool {
+    match ty {
+        orco::Type::Symbol(sym) => *sym == "void",
+        _ => false,
+    }
 }
 
 /// Hidden struct for code generation session of a single function
@@ -27,7 +36,10 @@ impl Codegen<'_> {
     }
 
     fn var_name(&self, var: oc::Variable) -> String {
-        format!("_{}", var.0)
+        match &self.var(var).name {
+            Some(name) => name.clone(),
+            _ => format!("_{}", var.0),
+        }
     }
 
     fn op(&self, op: oc::Operand) -> String {
@@ -49,7 +61,7 @@ impl Codegen<'_> {
 
     fn is_void(&self, op: oc::Operand) -> bool {
         match op {
-            oc::Operand::Variable(var) => self.var(var).ty.is_void(),
+            oc::Operand::Variable(var) => is_void(&self.var(var).ty),
             oc::Operand::Unit => true,
             _ => false,
         }
@@ -63,18 +75,17 @@ impl oc::Codegen<'_> for Codegen<'_> {
         }
     }
 
-    fn declare_var(&mut self, ty: &orco::Type) -> oc::Variable {
-        let ty = self.backend.convert_type(ty);
+    fn declare_var(&mut self, ty: orco::Type) -> oc::Variable {
         let var = oc::Variable(self.variables.len());
-        self.variables.push(VariableInfo { ty });
+        self.variables.push(VariableInfo { ty, name: None });
 
-        if self.var(var).ty.is_void() {
+        if self.var(var).ty == orco::Type::Symbol("void".into()) {
             return var;
         }
 
         self.line(&format!(
             "{ty} {name};",
-            ty = &self.var(var).ty,
+            ty = FmtType(&self.var(var).ty),
             name = self.var_name(var)
         ));
         var
@@ -106,7 +117,7 @@ impl oc::Codegen<'_> for Codegen<'_> {
             .map(|arg| self.op(arg))
             .collect::<Vec<_>>()
             .join(", ");
-        if self.var(destination).ty.is_void() {
+        if is_void(&self.var(destination).ty) {
             self.line(&format!("{function}({args});"));
         } else {
             self.line(&format!(
@@ -138,17 +149,30 @@ impl orco::DefinitionBackend for Backend {
 
         let mut codegen = Codegen {
             backend: self,
-            code: format!("{ret} {name}(", ret = sig.ret, name = decl.name),
+            code: format!(
+                "{ret} {name}(",
+                ret = FmtType(&sig.return_type),
+                name = crate::escape(decl.name)
+            ),
             indent: 4,
             variables: Vec::new(),
         };
 
-        for (idx, (ty, _)) in sig.params.iter().enumerate() {
+        for (idx, (name, ty)) in sig.params.iter().enumerate() {
             if idx > 0 {
                 codegen.code.push_str(", ");
             }
-            write!(codegen.code, "{ty} _{idx}",).unwrap();
-            codegen.variables.push(VariableInfo { ty: ty.clone() });
+            write!(
+                codegen.code,
+                "{ty} {name}",
+                ty = FmtType(ty),
+                name = name.map(crate::escape).unwrap_or_else(|| format!("_{idx}"))
+            )
+            .unwrap();
+            codegen.variables.push(VariableInfo {
+                ty: ty.clone(),
+                name: name.map(crate::escape),
+            });
         }
         codegen.code.push_str(") {\n");
         codegen
