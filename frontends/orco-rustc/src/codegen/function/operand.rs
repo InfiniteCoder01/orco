@@ -57,10 +57,11 @@ impl<'tcx, 'a, CG: oc::Codegen<'a>> CodegenCtx<'tcx, CG> {
                     },
                     ConstValue::ZeroSized => match ty.kind() {
                         // TODO: We might need to do more
+                        // TODO: Generics
                         rustc_middle::ty::TyKind::FnDef(func, ..) => {
-                            // TODO: Generics
                             oc::Operand::Global(crate::declare::convert_path(self.tcx, *func))
                         }
+                        rustc_middle::ty::TyKind::Adt(adt, ..) => oc::Operand::Unit,
                         _ => panic!("Unknown zero-sized const {op:?}"),
                     },
                     ConstValue::Slice { .. } => todo!(),

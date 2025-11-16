@@ -25,13 +25,9 @@ impl crate::Backend {
     pub fn convert_type(&self, ty: &orco::Type) -> Type {
         use orco::Type as OT;
         match ty {
-            OT::Symbol(sym) => Type(sym.to_string()),
-            OT::Array(ty, size) => {
-                let ty = self.convert_type(ty);
-                let symbol = format!("array_{ty}_{size}");
-                let _ = self.arrays.insert_sync((ty, *size));
-                Type(symbol)
-            }
+            OT::Symbol(sym) => Type(crate::escape(*sym)),
+            OT::Array(ty, size) => todo!(),
+            OT::Struct(fields) => todo!(),
             OT::Error => Type::error(),
         }
     }

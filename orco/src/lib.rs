@@ -4,7 +4,6 @@
 pub use sinter;
 pub use sinter::IStr as Symbol;
 
-/// Code generation APIs, used to actually define functions and generate code.
 pub mod codegen;
 
 /// Type of a variable, constant, part of a function signature, etc.
@@ -14,6 +13,8 @@ pub enum Type {
     Symbol(Symbol),
     /// An array type (`Type[size]`)
     Array(Box<Type>, usize),
+    /// A struct, aka a collection of field-type pairs
+    Struct(Vec<(Symbol, Type)>),
     /// An error type
     Error,
 }
@@ -41,6 +42,8 @@ pub trait PrimitiveTypeSource {
 pub trait DeclarationBackend: PrimitiveTypeSource + Sync {
     /// Declare a function
     fn declare_function(&self, name: Symbol, params: &[(Option<Symbol>, Type)], return_type: &Type);
+    /// Declare a type alias, should be used to declare composite data types as well
+    fn declare_type(&self, name: Symbol, ty: Type);
 }
 
 /// Root trait for defining module items

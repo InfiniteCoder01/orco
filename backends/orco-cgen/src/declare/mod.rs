@@ -4,8 +4,15 @@ mod primitives;
 mod ty;
 pub use ty::Type;
 
-mod function;
-pub use function::FunctionSignature;
+/// Function signature using C [Type]s without a name
+/// (see [`super::Declaration`] for name and generics).
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FunctionSignature {
+    /// Parameter types with optional names
+    pub params: Vec<(Type, Option<String>)>,
+    /// Return type
+    pub ret: Type,
+}
 
 /// A single item declaration
 #[derive(Clone, Debug, PartialEq)]
@@ -25,12 +32,15 @@ impl std::fmt::Display for Declaration {
                     if idx > 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{ty}",)?;
+                    write!(f, "{ty}")?;
                     if let Some(name) = name {
                         write!(f, " {name}")?;
                     }
                 }
                 write!(f, ");")
+            }
+            DeclarationKind::Type(ty) => {
+                write!(f, "typedef {ty} {name};", name = self.name)
             }
         }
     }
@@ -41,6 +51,8 @@ impl std::fmt::Display for Declaration {
 pub enum DeclarationKind {
     /// Function decl, see [FunctionSignature]
     Function(FunctionSignature),
+    /// Typedef
+    Type(Type),
 }
 
 impl orco::DeclarationBackend for Backend {
@@ -60,10 +72,20 @@ impl orco::DeclarationBackend for Backend {
 
         self.decls
             .entry_sync(name)
-            .and_modify(|_| panic!("function {name:?} is already declared!"))
+            .and_modify(|_| panic!("symbol {name:?} is already declared"))
             .or_insert(Declaration {
                 name: crate::escape(name),
                 kind: DeclarationKind::Function(sig),
+            });
+    }
+
+    fn declare_type(&self, name: orco::Symbol, ty: orco::Type) {
+        self.decls
+            .entry_sync(name)
+            .and_modify(|_| panic!("symbol {name:?} is already declared"))
+            .or_insert(Declaration {
+                name: crate::escape(name),
+                kind: DeclarationKind::Type(self.convert_type(&ty)),
             });
     }
 }

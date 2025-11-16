@@ -1,3 +1,4 @@
+//! Code generation APIs, used to actually define functions and generate code.
 use crate::{Symbol, Type};
 
 /// A variable ID.

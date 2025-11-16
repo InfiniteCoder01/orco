@@ -46,7 +46,9 @@ impl<'tcx, 'a, CG: oc::Codegen<'a>> CodegenCtx<'tcx, CG> {
                 .codegen
                 .return_(oc::Operand::Variable(self.variables[0])),
             TerminatorKind::Unreachable => todo!(),
-            TerminatorKind::Drop { .. } => todo!(),
+            TerminatorKind::Drop { .. } => {
+                // TODO
+            }
             TerminatorKind::Call {
                 func,
                 args,
@@ -93,7 +95,7 @@ pub fn define(tcx: TyCtxt, backend: &impl Backend, key: rustc_hir::def_id::DefId
             // An argument
             ctx.codegen.arg_var(idx - 1)
         } else {
-            let ty = crate::declare::convert_type(backend, local.ty);
+            let ty = crate::declare::convert_type(tcx, backend, local.ty);
             ctx.codegen.declare_var(&ty)
         };
         ctx.variables.push(var);

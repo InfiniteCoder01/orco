@@ -19,11 +19,12 @@ extern crate tracing;
 #[allow(unused_extern_crates)]
 extern crate rustc_driver;
 
-/// Code generation is used to define functions and other items
-pub mod codegen;
 /// Declaration is used to declare functions and other items,
 /// useful for generating bindings
 pub mod declare;
+
+/// Code generation is used to define functions and other items
+pub mod codegen;
 
 use std::any::Any;
 
