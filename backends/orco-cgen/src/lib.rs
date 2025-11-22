@@ -5,9 +5,13 @@
 // TODO: Extra type interning
 #![warn(missing_docs)]
 
-/// Declaration, enough to create headers
-pub mod declare;
-pub use declare::{Declaration, DeclarationKind, FmtType};
+/// Type formatting & other things
+pub mod types;
+use types::FmtType;
+
+/// Symbol container types
+pub mod symbols;
+pub use symbols::SymbolKind;
 
 /// Code generation, used to generate function bodies.
 pub mod codegen;
@@ -15,9 +19,9 @@ pub mod codegen;
 /// Central declaration & codegen backend
 #[derive(Debug, Default)]
 pub struct Backend {
-    /// A map from symbol to a declaration
-    pub decls: scc::HashMap<orco::Symbol, Declaration>,
-    /// All definitions, in no particular order
+    /// A map from symbol to it's definition
+    pub symbols: scc::HashMap<orco::Symbol, SymbolKind>,
+    /// All function defs, in no particular order
     // TODO: Unordered container would work better
     pub defs: scc::Stack<String>,
 }
@@ -29,6 +33,35 @@ impl Backend {
     }
 }
 
+impl orco::Backend for Backend {
+    fn function(
+        &self,
+        name: orco::Symbol,
+        params: Vec<(Option<orco::Symbol>, orco::Type)>,
+        return_type: orco::Type,
+    ) -> impl orco::codegen::BodyCodegen<'_> {
+        let sig = symbols::FunctionSignature {
+            params,
+            return_type,
+        };
+
+        let codegen = codegen::function(self, name, &sig);
+        self.symbols
+            .entry_sync(name)
+            .and_modify(|_| panic!("symbol {name:?} is already declared"))
+            .or_insert(SymbolKind::Function(sig));
+
+        codegen
+    }
+
+    fn type_(&self, name: orco::Symbol, ty: orco::Type) {
+        self.symbols
+            .entry_sync(name)
+            .and_modify(|_| panic!("symbol {name:?} is already declared"))
+            .or_insert(SymbolKind::Type(ty));
+    }
+}
+
 impl std::fmt::Display for Backend {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "#include <stdint.h>")?;
@@ -37,8 +70,14 @@ impl std::fmt::Display for Backend {
         writeln!(f)?;
 
         let mut result = Ok(());
-        self.decls.iter_sync(|_, decl| {
-            result = writeln!(f, "{decl}");
+        self.symbols.iter_sync(|name, sym| {
+            let sym = format!("{}", symbols::FmtSymbol(*name, sym));
+            result = writeln!(
+                f,
+                "{}{}",
+                sym,
+                if sym.lines().count() > 1 { "\n" } else { "" }
+            );
             result.is_ok()
         });
         result?;
@@ -48,7 +87,8 @@ impl std::fmt::Display for Backend {
         for def in self.defs.iter(&guard) {
             writeln!(f, "{def}\n")?;
         }
-        Ok(())
+
+        result
     }
 }
 

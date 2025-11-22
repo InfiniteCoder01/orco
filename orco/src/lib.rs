@@ -4,7 +4,9 @@
 pub use sinter;
 pub use sinter::IStr as Symbol;
 
+/// Code generation, outside of declaration
 pub mod codegen;
+pub use codegen::BodyCodegen;
 
 /// Type of a variable, constant, part of a function signature, etc.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -39,20 +41,15 @@ pub trait PrimitiveTypeSource {
 }
 
 /// Root trait for declaring module items. This is enough to generate C headers
-pub trait DeclarationBackend: PrimitiveTypeSource + Sync {
+pub trait Backend: PrimitiveTypeSource + Sync {
     /// Declare a function
-    fn declare_function(
+    fn function(
         &self,
         name: Symbol,
         params: Vec<(Option<Symbol>, Type)>,
         return_type: Type,
-    );
-    /// Declare a type alias, should be used to declare composite data types as well
-    fn declare_type(&self, name: Symbol, ty: Type);
-}
+    ) -> impl codegen::BodyCodegen<'_>;
 
-/// Root trait for defining module items
-pub trait DefinitionBackend: PrimitiveTypeSource + Sync {
-    /// Define a function, see [Codegen]
-    fn define_function(&self, name: Symbol) -> impl codegen::Codegen<'_>;
+    /// Define a type alias, should be used to declare compound types as well
+    fn type_(&self, name: Symbol, ty: Type);
 }

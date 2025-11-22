@@ -1,7 +1,7 @@
 use super::{CodegenCtx, oc};
 
-impl<'tcx, 'a, CG: oc::Codegen<'a>> CodegenCtx<'tcx, CG> {
-    pub(super) fn var(&self, place: rustc_middle::mir::Place) -> oc::Variable {
+impl<'tcx, 'a, CG: oc::BodyCodegen<'a>> CodegenCtx<'tcx, CG> {
+    pub(super) fn place(&self, place: rustc_middle::mir::Place) -> oc::Variable {
         self.variables[place.local.index()] // TODO: projection
     }
 
@@ -9,8 +9,8 @@ impl<'tcx, 'a, CG: oc::Codegen<'a>> CodegenCtx<'tcx, CG> {
         use rustc_const_eval::interpret::Scalar;
         use rustc_middle::mir::{Const, ConstValue, Operand};
         match op {
-            Operand::Copy(place) => oc::Operand::Variable(self.var(*place)),
-            Operand::Move(place) => oc::Operand::Variable(self.var(*place)),
+            Operand::Copy(place) => oc::Operand::Variable(self.place(*place)),
+            Operand::Move(place) => oc::Operand::Variable(self.place(*place)),
             Operand::Constant(value) => {
                 let (value, ty) = match value.const_ {
                     Const::Ty(..) => todo!(),
@@ -19,6 +19,7 @@ impl<'tcx, 'a, CG: oc::Codegen<'a>> CodegenCtx<'tcx, CG> {
                     }
                     Const::Val(value, ty) => (value, ty),
                 };
+                // TODO: Handle chars & bools
                 match value {
                     ConstValue::Scalar(scalar) => match scalar {
                         Scalar::Int(value) => {
@@ -59,9 +60,9 @@ impl<'tcx, 'a, CG: oc::Codegen<'a>> CodegenCtx<'tcx, CG> {
                         // TODO: We might need to do more
                         // TODO: Generics
                         rustc_middle::ty::TyKind::FnDef(func, ..) => {
-                            oc::Operand::Global(crate::declare::convert_path(self.tcx, *func))
+                            oc::Operand::Global(crate::names::convert_path(self.tcx, *func))
                         }
-                        rustc_middle::ty::TyKind::Adt(adt, ..) => oc::Operand::Unit,
+                        rustc_middle::ty::TyKind::Adt(_, ..) => oc::Operand::Unit,
                         _ => panic!("Unknown zero-sized const {op:?}"),
                     },
                     ConstValue::Slice { .. } => todo!(),

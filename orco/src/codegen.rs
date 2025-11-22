@@ -34,7 +34,12 @@ pub enum Operand {
 }
 
 /// Trait for generating code within a function
-pub trait Codegen<'a> {
+pub trait BodyCodegen<'a> {
+    /// The body generated is external
+    fn external(self)
+    where
+        Self: Sized;
+
     /// Comment (doesn't have to be a comment from the original source code, could be a compiler comment)
     fn comment(&mut self, comment: &str);
 
@@ -52,4 +57,24 @@ pub trait Codegen<'a> {
     /// Return a value from this function.
     /// Use [`Operand::Unit`] if no return value is required.
     fn return_(&mut self, value: Operand);
+}
+
+impl BodyCodegen<'_> for () {
+    fn external(self) {}
+
+    fn comment(&mut self, _: &str) {}
+
+    fn declare_var(&mut self, _: Type) -> Variable {
+        Variable(0)
+    }
+
+    fn arg_var(&self, _: usize) -> Variable {
+        Variable(0)
+    }
+
+    fn assign(&mut self, _: Operand, _: Variable) {}
+
+    fn call(&mut self, _: Operand, _: Vec<Operand>, _: Variable) {}
+
+    fn return_(&mut self, _: Operand) {}
 }

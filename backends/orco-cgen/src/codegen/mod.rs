@@ -15,8 +15,8 @@ fn is_void(ty: &orco::Type) -> bool {
     }
 }
 
-/// Hidden struct for code generation session of a single function
-struct Codegen<'a> {
+/// Code generation session of a single function
+pub struct Codegen<'a> {
     backend: &'a Backend,
     code: String,
     indent: usize,
@@ -68,7 +68,14 @@ impl Codegen<'_> {
     }
 }
 
-impl oc::Codegen<'_> for Codegen<'_> {
+impl oc::BodyCodegen<'_> for Codegen<'_> {
+    fn external(mut self)
+    where
+        Self: Sized,
+    {
+        self.code.clear();
+    }
+
     fn comment(&mut self, comment: &str) {
         for line in comment.split('\n') {
             self.line(&format!("// {line}"));
@@ -136,52 +143,53 @@ impl oc::Codegen<'_> for Codegen<'_> {
     }
 }
 
-impl orco::DefinitionBackend for Backend {
-    fn define_function(&self, name: orco::Symbol) -> impl oc::Codegen<'_> {
-        use std::fmt::Write;
-        let decl = self
-            .decls
-            .get_sync(&name)
-            .unwrap_or_else(|| panic!("tried to define undeclared function '{name}'"));
-        let crate::DeclarationKind::Function(sig) = &decl.kind else {
-            panic!("'{name}' is not a function");
-        };
-
-        let mut codegen = Codegen {
-            backend: self,
-            code: format!(
-                "{ret} {name}(",
-                ret = FmtType(&sig.return_type),
-                name = crate::escape(decl.name)
-            ),
-            indent: 4,
-            variables: Vec::new(),
-        };
-
-        for (idx, (name, ty)) in sig.params.iter().enumerate() {
-            if idx > 0 {
-                codegen.code.push_str(", ");
-            }
-            write!(
-                codegen.code,
-                "{ty} {name}",
-                ty = FmtType(ty),
-                name = name.map(crate::escape).unwrap_or_else(|| format!("_{idx}"))
-            )
-            .unwrap();
-            codegen.variables.push(VariableInfo {
-                ty: ty.clone(),
-                name: name.map(crate::escape),
-            });
-        }
-        codegen.code.push_str(") {\n");
-        codegen
-    }
-}
-
 impl std::ops::Drop for Codegen<'_> {
     fn drop(&mut self) {
+        if self.code.is_empty() {
+            return;
+        }
+
         self.code.push_str("}");
         self.backend.defs.push(std::mem::take(&mut self.code));
     }
+}
+
+/// Start codegen for a function
+pub fn function<'a, 'b>(
+    backend: &'a Backend,
+    name: orco::Symbol,
+    sig: &'b crate::symbols::FunctionSignature,
+) -> Codegen<'a> {
+    use std::fmt::Write;
+
+    let mut codegen = Codegen {
+        backend,
+        code: format!(
+            "{ret} {name}(",
+            ret = FmtType(&sig.return_type),
+            name = crate::escape(name)
+        ),
+        indent: 4,
+        variables: Vec::new(),
+    };
+
+    for (idx, (name, ty)) in sig.params.iter().enumerate() {
+        if idx > 0 {
+            codegen.code.push_str(", ");
+        }
+        write!(
+            codegen.code,
+            "{ty} {name}",
+            ty = FmtType(ty),
+            name = name.map(crate::escape).unwrap_or_else(|| format!("_{idx}"))
+        )
+        .unwrap();
+        codegen.variables.push(VariableInfo {
+            ty: ty.clone(),
+            name: name.map(crate::escape),
+        });
+    }
+
+    codegen.code.push_str(") {\n");
+    codegen
 }

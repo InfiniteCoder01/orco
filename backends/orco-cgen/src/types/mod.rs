@@ -1,3 +1,5 @@
+mod primitives;
+
 /// A thin wrapper around [`orco::Type`] for formatting it as a C type
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FmtType<'a>(pub &'a orco::Type);
