@@ -6,6 +6,17 @@ use crate::{Symbol, Type};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Variable(pub usize);
 
+/// A variable ([Variable]) with projection (aka field access, dereferences, etc.)
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Place {
+    /// Just variable access
+    Variable(Variable),
+    /// Pointer dereference
+    Deref(Box<Place>),
+    /// Field access
+    Field(Box<Place>, Symbol),
+}
+
 /// Integer size
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum IntegerSize {
@@ -16,13 +27,13 @@ pub enum IntegerSize {
 }
 
 /// An operand
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum Operand {
     /// A global symbol, such as a function
     /// or a global variable/constant
     Global(Symbol),
-    /// A variable, see [Variable]
-    Variable(Variable),
+    /// A place, see [Place]
+    Place(Place),
     /// A signed integer constant
     IConst(i128, IntegerSize),
     /// An unsigned integer constant
@@ -49,32 +60,12 @@ pub trait BodyCodegen<'a> {
     fn arg_var(&self, idx: usize) -> Variable;
 
     /// Assign a value to a variable
-    fn assign(&mut self, value: Operand, destination: Variable);
+    fn assign(&mut self, value: Operand, destination: Place);
 
     /// Call a function and put return value into `destination`
-    fn call(&mut self, function: Operand, args: Vec<Operand>, destination: Variable);
+    fn call(&mut self, function: Operand, args: Vec<Operand>, destination: Place);
 
     /// Return a value from this function.
     /// Use [`Operand::Unit`] if no return value is required.
     fn return_(&mut self, value: Operand);
-}
-
-impl BodyCodegen<'_> for () {
-    fn external(self) {}
-
-    fn comment(&mut self, _: &str) {}
-
-    fn declare_var(&mut self, _: Type) -> Variable {
-        Variable(0)
-    }
-
-    fn arg_var(&self, _: usize) -> Variable {
-        Variable(0)
-    }
-
-    fn assign(&mut self, _: Operand, _: Variable) {}
-
-    fn call(&mut self, _: Operand, _: Vec<Operand>, _: Variable) {}
-
-    fn return_(&mut self, _: Operand) {}
 }

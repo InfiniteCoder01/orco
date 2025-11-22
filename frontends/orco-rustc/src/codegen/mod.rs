@@ -7,11 +7,12 @@ mod operand;
 struct CodegenCtx<'tcx, CG> {
     tcx: TyCtxt<'tcx>,
     codegen: CG,
+    body: &'tcx rustc_middle::mir::Body<'tcx>,
     variables: Vec<oc::Variable>,
 }
 
 impl<'tcx, 'a, CG: oc::BodyCodegen<'a>> CodegenCtx<'tcx, CG> {
-    fn codegen_statement(&mut self, stmt: &rustc_middle::mir::Statement) {
+    fn codegen_statement(&mut self, stmt: &rustc_middle::mir::Statement<'tcx>) {
         use rustc_middle::mir::StatementKind;
         let (place, rvalue) = match &stmt.kind {
             StatementKind::Assign(assign) => assign.as_ref(),
@@ -28,23 +29,39 @@ impl<'tcx, 'a, CG: oc::BodyCodegen<'a>> CodegenCtx<'tcx, CG> {
         match rvalue {
             // Rvalue::Cast(_, op, _) => self.codegen.assign(self.op(op), self.var(*place)),
             Rvalue::Use(op) => self.codegen.assign(self.op(op), self.place(*place)),
-            // Rvalue::Aggregate(kind, fields) => {
-            //     use rustc_middle::mir::AggregateKind as AK;
-            //     match kind.as_ref() {
-            //         AK::Array(..) => todo!(),
-            //         AK::Tuple => todo!(),
-            //         AK::Adt(..) => todo!(),
-            //         AK::Closure(..) => todo!(),
-            //         AK::Coroutine(..) => todo!(),
-            //         AK::CoroutineClosure(..) => todo!(),
-            //         AK::RawPtr(..) => todo!(),
-            //     }
-            // }
+            Rvalue::Aggregate(kind, fields) => {
+                use rustc_middle::mir::AggregateKind as AK;
+                match kind.as_ref() {
+                    AK::Array(..) => todo!(),
+                    AK::Tuple => todo!(),
+                    AK::Adt(key, variant, ..) => {
+                        let adt = self.tcx.adt_def(key);
+                        let variant = &adt.variants()[*variant];
+                        for (idx, op) in fields.iter_enumerated() {
+                            let field = &variant.fields[idx];
+                            self.codegen.assign(
+                                self.op(op),
+                                self.place(place.project_deeper(
+                                    &[rustc_middle::mir::PlaceElem::Field(
+                                        idx,
+                                        self.tcx.type_of(field.did).skip_binder(), // TODO: Generics?!!!
+                                    )],
+                                    self.tcx,
+                                )),
+                            );
+                        }
+                    }
+                    AK::Closure(..) => todo!(),
+                    AK::Coroutine(..) => todo!(),
+                    AK::CoroutineClosure(..) => todo!(),
+                    AK::RawPtr(..) => todo!(),
+                }
+            }
             _ => self.codegen.comment(&format!("{stmt:?}")), // TODO
         }
     }
 
-    fn codegen_block(&mut self, block: &rustc_middle::mir::BasicBlockData) {
+    fn codegen_block(&mut self, block: &rustc_middle::mir::BasicBlockData<'tcx>) {
         for stmt in &block.statements {
             self.codegen_statement(stmt);
         }
@@ -56,7 +73,7 @@ impl<'tcx, 'a, CG: oc::BodyCodegen<'a>> CodegenCtx<'tcx, CG> {
             TerminatorKind::UnwindTerminate(..) => todo!(),
             TerminatorKind::Return => self
                 .codegen
-                .return_(oc::Operand::Variable(self.variables[0])),
+                .return_(oc::Operand::Place(oc::Place::Variable(self.variables[0]))),
             TerminatorKind::Unreachable => todo!(),
             TerminatorKind::Drop { .. } => {
                 // TODO
@@ -87,11 +104,12 @@ pub fn body<'a, 'b>(
     tcx: TyCtxt<'b>,
     backend: &impl Backend,
     codegen: impl orco::BodyCodegen<'a>,
-    body: &rustc_middle::mir::Body<'b>,
+    body: &'b rustc_middle::mir::Body<'b>,
 ) {
     let mut ctx = CodegenCtx {
         tcx,
         codegen,
+        body,
         variables: Vec::with_capacity(body.local_decls.len()),
     };
 

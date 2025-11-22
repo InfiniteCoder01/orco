@@ -42,10 +42,20 @@ impl Codegen<'_> {
         }
     }
 
+    fn fmt_place(&self, place: oc::Place) -> String {
+        match place {
+            oc::Place::Variable(variable) => self.var_name(variable),
+            oc::Place::Deref(place) => format!("(*{})", self.fmt_place(*place)),
+            oc::Place::Field(place, field) => {
+                format!("{}.{}", self.fmt_place(*place), crate::escape(field))
+            }
+        }
+    }
+
     fn op(&self, op: oc::Operand) -> String {
         match op {
             oc::Operand::Global(symbol) => crate::escape(symbol),
-            oc::Operand::Variable(var) => self.var_name(var),
+            oc::Operand::Place(var) => self.fmt_place(var),
             oc::Operand::IConst(val, _size) => format!("{val}ll"),
             oc::Operand::UConst(val, _size) => format!("{val}ull"),
             oc::Operand::FConst(val, _size) => {
@@ -59,9 +69,9 @@ impl Codegen<'_> {
         }
     }
 
-    fn is_void(&self, op: oc::Operand) -> bool {
+    fn is_void(&self, op: &oc::Operand) -> bool {
         match op {
-            oc::Operand::Variable(var) => is_void(&self.var(var).ty),
+            // oc::Operand::Place(var) => is_void(&self.var(var).ty),
             oc::Operand::Unit => true,
             _ => false,
         }
@@ -102,40 +112,41 @@ impl oc::BodyCodegen<'_> for Codegen<'_> {
         oc::Variable(idx)
     }
 
-    fn assign(&mut self, value: oc::Operand, destination: oc::Variable) {
-        if self.is_void(value) {
+    fn assign(&mut self, value: oc::Operand, destination: oc::Place) {
+        if self.is_void(&value) {
             self.comment(&format!(
                 "{name} = {op};",
-                name = self.var_name(destination),
+                name = self.fmt_place(destination),
                 op = self.op(value),
             ));
+            return;
         }
         self.line(&format!(
             "{name} = {op};",
-            name = self.var_name(destination),
+            name = self.fmt_place(destination),
             op = self.op(value),
         ));
     }
 
-    fn call(&mut self, function: oc::Operand, args: Vec<oc::Operand>, destination: oc::Variable) {
+    fn call(&mut self, function: oc::Operand, args: Vec<oc::Operand>, destination: oc::Place) {
         let function = self.op(function);
         let args = args
             .into_iter()
             .map(|arg| self.op(arg))
             .collect::<Vec<_>>()
             .join(", ");
-        if is_void(&self.var(destination).ty) {
-            self.line(&format!("{function}({args});"));
-        } else {
-            self.line(&format!(
-                "{name} = {function}({args});",
-                name = self.var_name(destination),
-            ));
-        }
+        // if is_void(&self.var(destination).ty) {
+        //     self.line(&format!("{function}({args});"));
+        // } else {
+        self.line(&format!(
+            "{dst} = {function}({args});",
+            dst = self.fmt_place(destination),
+        ));
+        // }
     }
 
     fn return_(&mut self, value: oc::Operand) {
-        if self.is_void(value) {
+        if self.is_void(&value) {
             self.line("return;");
         } else {
             self.line(&format!("return {op};", op = self.op(value)));

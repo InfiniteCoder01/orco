@@ -1,16 +1,41 @@
 use super::{CodegenCtx, oc};
 
 impl<'tcx, 'a, CG: oc::BodyCodegen<'a>> CodegenCtx<'tcx, CG> {
-    pub(super) fn place(&self, place: rustc_middle::mir::Place) -> oc::Variable {
-        self.variables[place.local.index()] // TODO: projection
+    pub(super) fn place(&self, place: rustc_middle::mir::Place<'tcx>) -> oc::Place {
+        let mut res = oc::Place::Variable(self.variables[place.local.index()]);
+        for (place, proj) in place.iter_projections() {
+            use rustc_middle::mir::ProjectionElem as PE;
+            match proj {
+                PE::Deref => res = oc::Place::Deref(Box::new(res)),
+                PE::Field(field, _) => {
+                    let ty = place.ty(&self.body.local_decls, self.tcx);
+                    let rustc_middle::ty::TyKind::Adt(adt, _) = ty.ty.kind() else {
+                        panic!("Trying to access field of {ty:?}")
+                    };
+
+                    let field = adt.variants()
+                        [ty.variant_index.or(adt.variants().last_index()).unwrap()] // FIXME: this is a mess
+                    .fields[field]
+                        .name;
+                    res = oc::Place::Field(Box::new(res), field.to_string().into());
+                }
+                PE::Index(_) => todo!(),
+                PE::ConstantIndex { .. } => todo!(),
+                PE::Subslice { .. } => todo!(),
+                PE::Downcast(..) => todo!(),
+                PE::OpaqueCast(..) => todo!(),
+                PE::UnwrapUnsafeBinder(..) => todo!(),
+            }
+        }
+        res
     }
 
-    pub(super) fn op(&self, op: &rustc_middle::mir::Operand) -> oc::Operand {
+    pub(super) fn op(&self, op: &rustc_middle::mir::Operand<'tcx>) -> oc::Operand {
         use rustc_const_eval::interpret::Scalar;
         use rustc_middle::mir::{Const, ConstValue, Operand};
         match op {
-            Operand::Copy(place) => oc::Operand::Variable(self.place(*place)),
-            Operand::Move(place) => oc::Operand::Variable(self.place(*place)),
+            Operand::Copy(place) => oc::Operand::Place(self.place(*place)),
+            Operand::Move(place) => oc::Operand::Place(self.place(*place)),
             Operand::Constant(value) => {
                 let (value, ty) = match value.const_ {
                     Const::Ty(..) => todo!(),
