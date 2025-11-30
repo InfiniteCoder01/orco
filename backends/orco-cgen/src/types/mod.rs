@@ -9,7 +9,7 @@ impl std::fmt::Display for FmtType<'_> {
         use orco::Type as OT;
         match self.0 {
             OT::Symbol(sym) => write!(f, "{}", crate::escape(*sym)),
-            OT::Array(ty, size) => todo!(),
+            OT::Array(..) => todo!(),
             OT::Struct(fields) => {
                 writeln!(f, "struct {{")?;
                 for (name, ty) in fields {

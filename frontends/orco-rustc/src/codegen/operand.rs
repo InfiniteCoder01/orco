@@ -9,15 +9,20 @@ impl<'tcx, 'a, CG: oc::BodyCodegen<'a>> CodegenCtx<'tcx, CG> {
                 PE::Deref => res = oc::Place::Deref(Box::new(res)),
                 PE::Field(field, _) => {
                     let ty = place.ty(&self.body.local_decls, self.tcx);
-                    let rustc_middle::ty::TyKind::Adt(adt, _) = ty.ty.kind() else {
-                        panic!("Trying to access field of {ty:?}")
+                    use rustc_middle::ty::TyKind as TK;
+                    let field = match ty.ty.kind() {
+                        TK::Adt(adt, _) => {
+                            adt.variants()
+                                [ty.variant_index.or(adt.variants().last_index()).unwrap()] // FIXME: this is a mess
+                            .fields[field]
+                                .name
+                                .to_string()
+                        }
+                        TK::Tuple(_) => field.index().to_string(),
+                        _ => panic!("Trying to access field of {ty:?}"),
                     };
 
-                    let field = adt.variants()
-                        [ty.variant_index.or(adt.variants().last_index()).unwrap()] // FIXME: this is a mess
-                    .fields[field]
-                        .name;
-                    res = oc::Place::Field(Box::new(res), field.to_string().into());
+                    res = oc::Place::Field(Box::new(res), field.into());
                 }
                 PE::Index(_) => todo!(),
                 PE::ConstantIndex { .. } => todo!(),

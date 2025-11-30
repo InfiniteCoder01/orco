@@ -28,8 +28,8 @@ pub struct Backend {
 
 impl Backend {
     #[allow(missing_docs)]
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new() -> orco::type_intern::TypeIntern<Self> {
+        orco::type_intern::TypeIntern::new(Self::default())
     }
 }
 
@@ -97,7 +97,7 @@ pub fn escape(symbol: orco::Symbol) -> String {
     let symbol = symbol
         .as_str()
         .replace("::", "_")
-        .replace(['.', ':', '/', '-'], "_");
+        .replace(['.', ':', '/', '-', ' '], "_");
     if symbol.chars().next().unwrap().is_digit(10) {
         format!("_{symbol}")
     } else {

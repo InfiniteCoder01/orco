@@ -1,10 +1,6 @@
 use crate::Backend;
 
 impl orco::PrimitiveTypeSource for Backend {
-    fn unit(&self) -> orco::Type {
-        orco::Type::Symbol("void".into())
-    }
-
     fn bool(&self) -> orco::Type {
         orco::Type::Symbol("bool".into())
     }

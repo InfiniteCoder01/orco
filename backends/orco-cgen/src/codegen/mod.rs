@@ -69,9 +69,18 @@ impl Codegen<'_> {
         }
     }
 
-    fn is_void(&self, op: &oc::Operand) -> bool {
+    fn is_void(&self, place: &oc::Place) -> bool {
+        match place {
+            oc::Place::Variable(var) => is_void(&self.var(*var).ty),
+            // oc::Place::Deref(place) => todo!(),
+            // oc::Place::Field(place, istr) => todo!(),
+            _ => false,
+        }
+    }
+
+    fn is_op_void(&self, op: &oc::Operand) -> bool {
         match op {
-            // oc::Operand::Place(var) => is_void(&self.var(var).ty),
+            oc::Operand::Place(place) => self.is_void(place),
             oc::Operand::Unit => true,
             _ => false,
         }
@@ -113,7 +122,7 @@ impl oc::BodyCodegen<'_> for Codegen<'_> {
     }
 
     fn assign(&mut self, value: oc::Operand, destination: oc::Place) {
-        if self.is_void(&value) {
+        if self.is_op_void(&value) {
             self.comment(&format!(
                 "{name} = {op};",
                 name = self.fmt_place(destination),
@@ -135,18 +144,18 @@ impl oc::BodyCodegen<'_> for Codegen<'_> {
             .map(|arg| self.op(arg))
             .collect::<Vec<_>>()
             .join(", ");
-        // if is_void(&self.var(destination).ty) {
-        //     self.line(&format!("{function}({args});"));
-        // } else {
-        self.line(&format!(
-            "{dst} = {function}({args});",
-            dst = self.fmt_place(destination),
-        ));
-        // }
+        if self.is_void(&destination) {
+            self.line(&format!("{function}({args});"));
+        } else {
+            self.line(&format!(
+                "{dst} = {function}({args});",
+                dst = self.fmt_place(destination),
+            ));
+        }
     }
 
     fn return_(&mut self, value: oc::Operand) {
-        if self.is_void(&value) {
+        if self.is_op_void(&value) {
             self.line("return;");
         } else {
             self.line(&format!("return {op};", op = self.op(value)));

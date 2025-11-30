@@ -8,6 +8,8 @@ pub use sinter::IStr as Symbol;
 pub mod codegen;
 pub use codegen::BodyCodegen;
 
+pub mod type_intern;
+
 /// Type of a variable, constant, part of a function signature, etc.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
@@ -21,12 +23,26 @@ pub enum Type {
     Error,
 }
 
+impl Type {
+    /// Returns a type name that could be used for hashing, mangling
+    /// and human-facing names
+    pub fn hashable_name(&self) -> String {
+        match self {
+            Type::Symbol(sym) => sym.to_string(),
+            Type::Array(ty, len) => format!("{}[{len}]", ty.hashable_name()),
+            Type::Struct(fields) => fields
+                .iter()
+                .map(|(_, ty)| ty.hashable_name())
+                .collect::<Vec<_>>()
+                .join(" "),
+            Type::Error => "<error>".to_owned(),
+        }
+    }
+}
+
 /// This is a way to get primitive types. Every method returns an
 /// orco [Type] that will be used by frontends
 pub trait PrimitiveTypeSource {
-    /// Get the unit type (aka C `void` or Rust `()`)
-    fn unit(&self) -> Type;
-
     /// Get the boolean type
     fn bool(&self) -> Type;
 

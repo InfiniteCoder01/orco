@@ -33,7 +33,20 @@ impl<'tcx, 'a, CG: oc::BodyCodegen<'a>> CodegenCtx<'tcx, CG> {
                 use rustc_middle::mir::AggregateKind as AK;
                 match kind.as_ref() {
                     AK::Array(..) => todo!(),
-                    AK::Tuple => todo!(),
+                    AK::Tuple => {
+                        for (idx, op) in fields.iter_enumerated() {
+                            self.codegen.assign(
+                                self.op(op),
+                                self.place(place.project_deeper(
+                                    &[rustc_middle::mir::PlaceElem::Field(
+                                        idx,
+                                        op.ty(&self.body.local_decls, self.tcx),
+                                    )],
+                                    self.tcx,
+                                )),
+                            );
+                        }
+                    }
                     AK::Adt(key, variant, ..) => {
                         let adt = self.tcx.adt_def(key);
                         let variant = &adt.variants()[*variant];

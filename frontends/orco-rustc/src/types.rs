@@ -28,10 +28,10 @@ pub fn convert(
         TyKind::Float(FloatTy::F32) => pts.float(32),
         TyKind::Float(FloatTy::F64) => pts.float(64),
         TyKind::Float(FloatTy::F128) => pts.float(128),
-        TyKind::Adt(def, generics) => orco::Type::Symbol(convert_path(tcx, def.did())), // TODO: Generics
+        TyKind::Adt(def, _generics) => orco::Type::Symbol(convert_path(tcx, def.did())), // TODO: Generics
         TyKind::Foreign(..) => todo!(),
         TyKind::Str => todo!(),
-        TyKind::Array(ty, size) => orco::Type::Array(Box::new(convert(tcx, pts, *ty)), 42), // TODO: Use size!
+        TyKind::Array(ty, _size) => orco::Type::Array(Box::new(convert(tcx, pts, *ty)), 42), // TODO: Use size!
         TyKind::Pat(..) => todo!(),
         TyKind::Slice(..) => todo!(),
         TyKind::RawPtr(..) => todo!(),
@@ -45,8 +45,12 @@ pub fn convert(
         TyKind::Coroutine(..) => todo!(),
         TyKind::CoroutineWitness(..) => todo!(),
         TyKind::Never => todo!(),
-        TyKind::Tuple(v) if v.is_empty() => pts.unit(),
-        TyKind::Tuple(..) => todo!(),
+        TyKind::Tuple(v) => orco::Type::Struct(
+            v.iter()
+                .enumerate()
+                .map(|(idx, ty)| (idx.to_string().into(), convert(tcx, pts, ty)))
+                .collect(),
+        ),
         TyKind::Alias(..) => todo!(),
         TyKind::Param(param) => orco::Type::Symbol(param.name.as_str().into()), // TODO: Generics?
         TyKind::Bound(..) => todo!(),
