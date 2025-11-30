@@ -28,8 +28,8 @@ pub struct Backend {
 
 impl Backend {
     #[allow(missing_docs)]
-    pub fn new() -> orco::type_intern::TypeIntern<Self> {
-        orco::type_intern::TypeIntern::new(Self::default())
+    pub fn new() -> orco::Intercept<Backend, impl orco::Middleware> {
+        orco::middleware::Intercept::new(Self::default(), orco::type_intern::TypeIntern::new())
     }
 }
 
