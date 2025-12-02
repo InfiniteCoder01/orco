@@ -15,6 +15,7 @@ impl TypeInterner {
     }
 
     /// Call this method on every type you want interning to happen (including typedefs)
+    /// Will replace this type (but not inner types) by `unit` symbol if it's an anonymous unit struct type
     pub fn on_type(
         &self,
         backend: &impl crate::Backend,
@@ -23,10 +24,10 @@ impl TypeInterner {
         unit: Option<Symbol>,
     ) {
         match ty {
-            Type::Array(ty, _) => self.on_type(backend, ty.as_mut(), true, unit),
+            Type::Array(ty, _) => self.on_type(backend, ty.as_mut(), true, None),
             Type::Struct(fields) if named => {
                 for (_, ty) in fields {
-                    self.on_type(backend, ty, true, unit);
+                    self.on_type(backend, ty, true, None);
                 }
             }
             Type::Struct(fields) => {

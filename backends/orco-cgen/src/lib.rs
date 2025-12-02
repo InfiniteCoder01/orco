@@ -62,8 +62,7 @@ impl orco::Backend for Backend {
     }
 
     fn type_(&self, name: orco::Symbol, mut ty: orco::Type) {
-        self.type_interner
-            .on_type(self, &mut ty, true, Some("void".into()));
+        self.type_interner.on_type(self, &mut ty, true, None);
         self.symbols
             .entry_sync(name)
             .and_modify(|_| panic!("symbol {name:?} is already declared"))
