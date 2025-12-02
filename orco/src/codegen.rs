@@ -17,15 +17,6 @@ pub enum Place {
     Field(Box<Place>, Symbol),
 }
 
-/// Integer size
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum IntegerSize {
-    /// Number of bits
-    Bits(u16),
-    /// Kinda like `usize`/`isize` in rust or `size_t`/`ssize_t` in C
-    Size,
-}
-
 /// An operand
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum Operand {
@@ -35,9 +26,9 @@ pub enum Operand {
     /// A place, see [Place]
     Place(Place),
     /// A signed integer constant
-    IConst(i128, IntegerSize),
+    IConst(i128, crate::IntegerSize),
     /// An unsigned integer constant
-    UConst(u128, IntegerSize),
+    UConst(u128, crate::IntegerSize),
     /// A floating point constant (value, size) where size is specified in bits
     FConst(f64, u16),
     /// Unit value

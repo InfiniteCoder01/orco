@@ -41,6 +41,15 @@ impl Type {
     }
 }
 
+/// Integer size
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum IntegerSize {
+    /// Number of bits
+    Bits(u16),
+    /// Kinda like `usize`/`isize` in rust or `size_t`/`ssize_t` in C
+    Size,
+}
+
 /// This is a way to get primitive types. Every method returns an
 /// orco [Type] that will be used by frontends
 pub trait PrimitiveTypeSource {
@@ -48,10 +57,7 @@ pub trait PrimitiveTypeSource {
     fn bool(&self) -> Type;
 
     /// Get the integer type with the set size and signedness
-    fn int(&self, size: u16, signedness: bool) -> Type;
-
-    /// Get the size_t/usize kind integer type
-    fn size_type(&self, signedness: bool) -> Type;
+    fn int(&self, size: IntegerSize, signed: bool) -> Type;
 
     /// Get the floating point type
     fn float(&self, size: u16) -> Type;

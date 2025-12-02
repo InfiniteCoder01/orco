@@ -68,18 +68,18 @@ impl<'tcx, 'a, CG: oc::BodyCodegen<'a>> CodegenCtx<'tcx, CG> {
                                 oc::Operand::IConst(
                                     value.to_int(value.size()),
                                     if ty.is_ptr_sized_integral() {
-                                        oc::IntegerSize::Size
+                                        orco::IntegerSize::Size
                                     } else {
-                                        oc::IntegerSize::Bits(value.size().bits() as _)
+                                        orco::IntegerSize::Bits(value.size().bits() as _)
                                     },
                                 )
                             } else {
                                 oc::Operand::UConst(
                                     value.to_uint(value.size()),
                                     if ty.is_ptr_sized_integral() {
-                                        oc::IntegerSize::Size
+                                        orco::IntegerSize::Size
                                     } else {
-                                        oc::IntegerSize::Bits(value.size().bits() as _)
+                                        orco::IntegerSize::Bits(value.size().bits() as _)
                                     },
                                 )
                             }

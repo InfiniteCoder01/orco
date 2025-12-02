@@ -8,13 +8,6 @@ struct VariableInfo {
     name: Option<String>,
 }
 
-fn is_void(ty: &orco::Type) -> bool {
-    match ty {
-        orco::Type::Symbol(sym) => *sym == "void",
-        _ => false,
-    }
-}
-
 /// Code generation session of a single function
 pub struct Codegen<'a> {
     backend: &'a Backend,
@@ -65,24 +58,7 @@ impl Codegen<'_> {
                     val.to_string()
                 }
             }
-            oc::Operand::Unit => "<unit operand>".to_owned(),
-        }
-    }
-
-    fn is_void(&self, place: &oc::Place) -> bool {
-        match place {
-            oc::Place::Variable(var) => is_void(&self.var(*var).ty),
-            // oc::Place::Deref(place) => todo!(),
-            // oc::Place::Field(place, istr) => todo!(),
-            _ => false,
-        }
-    }
-
-    fn is_op_void(&self, op: &oc::Operand) -> bool {
-        match op {
-            oc::Operand::Place(place) => self.is_void(place),
-            oc::Operand::Unit => true,
-            _ => false,
+            oc::Operand::Unit => "(s_) {}".to_owned(),
         }
     }
 }
@@ -108,10 +84,6 @@ impl oc::BodyCodegen<'_> for Codegen<'_> {
         let var = oc::Variable(self.variables.len());
         self.variables.push(VariableInfo { ty, name: None });
 
-        if self.var(var).ty == orco::Type::Symbol("void".into()) {
-            return var;
-        }
-
         self.line(&format!(
             "{ty} {name};",
             ty = FmtType(&self.var(var).ty),
@@ -125,14 +97,6 @@ impl oc::BodyCodegen<'_> for Codegen<'_> {
     }
 
     fn assign(&mut self, value: oc::Operand, destination: oc::Place) {
-        if self.is_op_void(&value) {
-            self.comment(&format!(
-                "{name} = {op};",
-                name = self.fmt_place(destination),
-                op = self.op(value),
-            ));
-            return;
-        }
         self.line(&format!(
             "{name} = {op};",
             name = self.fmt_place(destination),
@@ -147,22 +111,17 @@ impl oc::BodyCodegen<'_> for Codegen<'_> {
             .map(|arg| self.op(arg))
             .collect::<Vec<_>>()
             .join(", ");
-        if self.is_void(&destination) {
-            self.line(&format!("{function}({args});"));
-        } else {
-            self.line(&format!(
-                "{dst} = {function}({args});",
-                dst = self.fmt_place(destination),
-            ));
-        }
+        // TODO: Check if destination is void
+        // self.line(&format!("{function}({args});"));
+        self.line(&format!(
+            "{dst} = {function}({args});",
+            dst = self.fmt_place(destination),
+        ));
     }
 
     fn return_(&mut self, value: oc::Operand) {
-        if self.is_op_void(&value) {
-            self.line("return;");
-        } else {
-            self.line(&format!("return {op};", op = self.op(value)));
-        }
+        // self.line("return;");
+        self.line(&format!("return {op};", op = self.op(value)));
     }
 }
 

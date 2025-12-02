@@ -5,24 +5,27 @@ impl orco::PrimitiveTypeSource for Backend {
         orco::Type::Symbol("bool".into())
     }
 
-    fn int(&self, size: u16, signed: bool) -> orco::Type {
-        assert!(
-            [8, 16, 32, 64].contains(&size),
-            "invalid or unsupported integer bit width {size}"
-        );
-        // TODO: __int128_t
-        if signed {
-            orco::Type::Symbol(format!("int{size}_t").into())
-        } else {
-            orco::Type::Symbol(format!("uint{size}_t").into())
-        }
-    }
-
-    fn size_type(&self, signed: bool) -> orco::Type {
-        if signed {
-            orco::Type::Symbol("ssize_t".into())
-        } else {
-            orco::Type::Symbol("size_t".into())
+    fn int(&self, size: orco::IntegerSize, signed: bool) -> orco::Type {
+        match size {
+            orco::IntegerSize::Bits(bits) => {
+                assert!(
+                    [8, 16, 32, 64].contains(&bits),
+                    "invalid or unsupported integer bit width {bits}"
+                );
+                // TODO: __int128_t
+                if signed {
+                    orco::Type::Symbol(format!("int{bits}_t").into())
+                } else {
+                    orco::Type::Symbol(format!("uint{bits}_t").into())
+                }
+            }
+            orco::IntegerSize::Size => {
+                if signed {
+                    orco::Type::Symbol("ssize_t".into())
+                } else {
+                    orco::Type::Symbol("size_t".into())
+                }
+            }
         }
     }
 

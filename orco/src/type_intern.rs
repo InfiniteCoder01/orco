@@ -13,9 +13,7 @@ impl TypeInterner {
     pub fn new() -> Self {
         Self::default()
     }
-}
 
-impl TypeInterner {
     /// Call this method on every type you want interning to happen (including typedefs)
     pub fn on_type(&self, backend: &impl crate::Backend, ty: &mut Type, named: bool) {
         match ty {
@@ -34,5 +32,19 @@ impl TypeInterner {
             }
             _ => (),
         }
+    }
+
+    pub fn unit_sym(&self) -> Symbol {
+        "s ".into()
+    }
+
+    /// Generate a unit type (interned)
+    pub fn unit_ty(&self) -> Type {
+        Type::Symbol(self.unit_sym())
+    }
+
+    /// Check if this type (has been interned before) is a unit type (aka an empty struct)
+    pub fn is_unit(&self, ty: &Type) -> bool {
+        ty == &self.unit_ty()
     }
 }
