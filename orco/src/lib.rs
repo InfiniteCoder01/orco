@@ -8,9 +8,7 @@ pub use sinter::IStr as Symbol;
 pub mod codegen;
 pub use codegen::BodyCodegen;
 
-pub mod middleware;
-pub use middleware::{Intercept, Middleware};
-
+// Utils for making implementations
 pub mod type_intern;
 
 /// Type of a variable, constant, part of a function signature, etc.

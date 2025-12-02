@@ -3,23 +3,24 @@
 use crate::{Symbol, Type};
 
 /// Replaces all occurences of anonymous structs by named structs
-pub struct TypeIntern {
+#[derive(Debug, Default)]
+pub struct TypeInterner {
     interned: scc::HashSet<Symbol>,
 }
 
-impl TypeIntern {
+impl TypeInterner {
+    #[allow(missing_docs)]
     pub fn new() -> Self {
-        Self {
-            interned: scc::HashSet::new(),
-        }
+        Self::default()
     }
 }
 
-impl crate::Middleware for TypeIntern {
-    fn on_type(&self, backend: &impl crate::Backend, ty: &mut Type, anonymous: bool) {
+impl TypeInterner {
+    /// Call this method on every type you want interning to happen (including typedefs)
+    pub fn on_type(&self, backend: &impl crate::Backend, ty: &mut Type, named: bool) {
         match ty {
             Type::Array(ty, _) => self.on_type(backend, ty.as_mut(), true),
-            Type::Struct(fields) if !anonymous => {
+            Type::Struct(fields) if named => {
                 for (_, ty) in fields {
                     self.on_type(backend, ty, true);
                 }

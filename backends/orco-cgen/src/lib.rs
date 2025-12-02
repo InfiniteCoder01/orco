@@ -24,12 +24,13 @@ pub struct Backend {
     /// All function defs, in no particular order
     // TODO: Unordered container would work better
     pub defs: scc::Stack<String>,
+    type_interner: orco::type_intern::TypeInterner,
 }
 
 impl Backend {
     #[allow(missing_docs)]
-    pub fn new() -> orco::Intercept<Backend, impl orco::Middleware> {
-        orco::middleware::Intercept::new(Self::default(), orco::type_intern::TypeIntern::new())
+    pub fn new() -> Backend {
+        Self::default()
     }
 }
 
@@ -37,9 +38,14 @@ impl orco::Backend for Backend {
     fn function(
         &self,
         name: orco::Symbol,
-        params: Vec<(Option<orco::Symbol>, orco::Type)>,
-        return_type: orco::Type,
+        mut params: Vec<(Option<orco::Symbol>, orco::Type)>,
+        mut return_type: orco::Type,
     ) -> impl orco::codegen::BodyCodegen<'_> {
+        for (_, ty) in &mut params {
+            self.type_interner.on_type(self, ty, false);
+        }
+        self.type_interner.on_type(self, &mut return_type, false);
+
         let sig = symbols::FunctionSignature {
             params,
             return_type,
@@ -54,7 +60,8 @@ impl orco::Backend for Backend {
         codegen
     }
 
-    fn type_(&self, name: orco::Symbol, ty: orco::Type) {
+    fn type_(&self, name: orco::Symbol, mut ty: orco::Type) {
+        self.type_interner.on_type(self, &mut ty, true);
         self.symbols
             .entry_sync(name)
             .and_modify(|_| panic!("symbol {name:?} is already declared"))

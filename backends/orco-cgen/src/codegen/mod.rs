@@ -101,7 +101,10 @@ impl oc::BodyCodegen<'_> for Codegen<'_> {
         }
     }
 
-    fn declare_var(&mut self, ty: orco::Type) -> oc::Variable {
+    fn declare_var(&mut self, mut ty: orco::Type) -> oc::Variable {
+        self.backend
+            .type_interner
+            .on_type(self.backend, &mut ty, false);
         let var = oc::Variable(self.variables.len());
         self.variables.push(VariableInfo { ty, name: None });
 

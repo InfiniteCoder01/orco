@@ -25,7 +25,7 @@ impl rustc_codegen_ssa::traits::CodegenBackend for OrcoCodegenBackend {
         let items = tcx.hir_crate_items(());
         let mut backend = orco_cgen::Backend::new();
         crate::define(tcx, &mut backend, items);
-        println!("{}", *backend);
+        println!("{}", backend);
         std::process::exit(0)
     }
 
