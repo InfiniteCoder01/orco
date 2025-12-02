@@ -15,15 +15,27 @@ impl TypeInterner {
     }
 
     /// Call this method on every type you want interning to happen (including typedefs)
-    pub fn on_type(&self, backend: &impl crate::Backend, ty: &mut Type, named: bool) {
+    pub fn on_type(
+        &self,
+        backend: &impl crate::Backend,
+        ty: &mut Type,
+        named: bool,
+        unit: Option<Symbol>,
+    ) {
         match ty {
-            Type::Array(ty, _) => self.on_type(backend, ty.as_mut(), true),
+            Type::Array(ty, _) => self.on_type(backend, ty.as_mut(), true, unit),
             Type::Struct(fields) if named => {
                 for (_, ty) in fields {
-                    self.on_type(backend, ty, true);
+                    self.on_type(backend, ty, true, unit);
                 }
             }
-            Type::Struct(..) => {
+            Type::Struct(fields) => {
+                if fields.is_empty() {
+                    if let Some(unit) = unit {
+                        *ty = Type::Symbol(unit);
+                        return;
+                    }
+                }
                 let sym = Symbol::new(&format!("s {}", ty.hashable_name()));
                 let ty = std::mem::replace(ty, Type::Symbol(sym));
                 if self.interned.insert_sync(sym).is_ok() {
@@ -32,19 +44,5 @@ impl TypeInterner {
             }
             _ => (),
         }
-    }
-
-    pub fn unit_sym(&self) -> Symbol {
-        "s ".into()
-    }
-
-    /// Generate a unit type (interned)
-    pub fn unit_ty(&self) -> Type {
-        Type::Symbol(self.unit_sym())
-    }
-
-    /// Check if this type (has been interned before) is a unit type (aka an empty struct)
-    pub fn is_unit(&self, ty: &Type) -> bool {
-        ty == &self.unit_ty()
     }
 }

@@ -42,9 +42,10 @@ impl orco::Backend for Backend {
         mut return_type: orco::Type,
     ) -> impl orco::codegen::BodyCodegen<'_> {
         for (_, ty) in &mut params {
-            self.type_interner.on_type(self, ty, false);
+            self.type_interner.on_type(self, ty, false, None);
         }
-        self.type_interner.on_type(self, &mut return_type, false);
+        self.type_interner
+            .on_type(self, &mut return_type, false, Some("void".into()));
 
         let sig = symbols::FunctionSignature {
             params,
@@ -61,7 +62,8 @@ impl orco::Backend for Backend {
     }
 
     fn type_(&self, name: orco::Symbol, mut ty: orco::Type) {
-        self.type_interner.on_type(self, &mut ty, true);
+        self.type_interner
+            .on_type(self, &mut ty, true, Some("void".into()));
         self.symbols
             .entry_sync(name)
             .and_modify(|_| panic!("symbol {name:?} is already declared"))

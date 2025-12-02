@@ -14,6 +14,7 @@ pub struct Codegen<'a> {
     code: String,
     indent: usize,
     variables: Vec<VariableInfo>,
+    ret_void: bool,
 }
 
 impl Codegen<'_> {
@@ -61,6 +62,43 @@ impl Codegen<'_> {
             oc::Operand::Unit => "(s_) {}".to_owned(),
         }
     }
+
+    fn is_void(&self, ty: &orco::Type) -> bool {
+        ty == &orco::Type::Symbol("void".into())
+    }
+
+    fn place_ty(&self, place: &oc::Place) -> orco::Type {
+        match place {
+            oc::Place::Variable(var) => self.var(*var).ty.clone(),
+            oc::Place::Deref(..) => todo!(),
+            oc::Place::Field(place, field) => {
+                let mut ty = self.place_ty(&place);
+                while let orco::Type::Symbol(sym) = ty {
+                    let sym = match self.backend.symbols.get_sync(&sym) {
+                        Some(sym) => sym,
+                        None => return orco::Type::Error,
+                    };
+                    ty = match sym.get() {
+                        crate::SymbolKind::Type(ty) => ty.clone(),
+                        _ => return orco::Type::Error,
+                    };
+                }
+                match ty {
+                    orco::Type::Struct(fields) => fields
+                        .iter()
+                        .find_map(|(name, ty)| {
+                            if field == name {
+                                Some(ty.clone())
+                            } else {
+                                None
+                            }
+                        })
+                        .unwrap_or(orco::Type::Error),
+                    _ => orco::Type::Error,
+                }
+            }
+        }
+    }
 }
 
 impl oc::BodyCodegen<'_> for Codegen<'_> {
@@ -80,9 +118,18 @@ impl oc::BodyCodegen<'_> for Codegen<'_> {
     fn declare_var(&mut self, mut ty: orco::Type) -> oc::Variable {
         self.backend
             .type_interner
-            .on_type(self.backend, &mut ty, false);
+            .on_type(self.backend, &mut ty, false, Some("void".into()));
         let var = oc::Variable(self.variables.len());
         self.variables.push(VariableInfo { ty, name: None });
+
+        if self.is_void(&self.var(var).ty) {
+            self.comment(&format!(
+                "{ty} {name};",
+                ty = FmtType(&self.var(var).ty),
+                name = self.var_name(var)
+            ));
+            return var;
+        }
 
         self.line(&format!(
             "{ty} {name};",
@@ -97,6 +144,15 @@ impl oc::BodyCodegen<'_> for Codegen<'_> {
     }
 
     fn assign(&mut self, value: oc::Operand, destination: oc::Place) {
+        if self.is_void(&self.place_ty(&destination)) {
+            self.comment(&format!(
+                "{name} = {op};",
+                name = self.fmt_place(destination),
+                op = self.op(value),
+            ));
+            return;
+        }
+
         self.line(&format!(
             "{name} = {op};",
             name = self.fmt_place(destination),
@@ -111,8 +167,12 @@ impl oc::BodyCodegen<'_> for Codegen<'_> {
             .map(|arg| self.op(arg))
             .collect::<Vec<_>>()
             .join(", ");
-        // TODO: Check if destination is void
-        // self.line(&format!("{function}({args});"));
+
+        if self.is_void(&self.place_ty(&destination)) {
+            self.line(&format!("{function}({args});"));
+            return;
+        }
+
         self.line(&format!(
             "{dst} = {function}({args});",
             dst = self.fmt_place(destination),
@@ -120,7 +180,10 @@ impl oc::BodyCodegen<'_> for Codegen<'_> {
     }
 
     fn return_(&mut self, value: oc::Operand) {
-        // self.line("return;");
+        if self.ret_void {
+            self.line("return;");
+            return;
+        }
         self.line(&format!("return {op};", op = self.op(value)));
     }
 }
@@ -153,6 +216,7 @@ pub fn function<'a, 'b>(
         ),
         indent: 4,
         variables: Vec::new(),
+        ret_void: sig.return_type == orco::Type::Symbol("void".into()),
     };
 
     for (idx, (name, ty)) in sig.params.iter().enumerate() {
