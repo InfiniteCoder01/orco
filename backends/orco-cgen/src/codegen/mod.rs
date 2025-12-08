@@ -121,18 +121,13 @@ impl oc::BodyCodegen<'_> for Codegen<'_> {
         self.variables.push(VariableInfo { ty, name: None });
 
         if self.is_void(&self.var(var).ty) {
-            self.comment(&format!(
-                "{ty} {name};",
-                ty = FmtType(&self.var(var).ty),
-                name = self.var_name(var)
-            ));
+            self.comment(&format!("void {};", self.var_name(var)));
             return var;
         }
 
         self.line(&format!(
-            "{ty} {name};",
-            ty = FmtType(&self.var(var).ty),
-            name = self.var_name(var)
+            "{};",
+            FmtType(&self.var(var).ty, Some(&self.var_name(var))),
         ));
         var
     }
@@ -203,29 +198,28 @@ pub fn function<'a>(
     name: orco::Symbol,
     sig: &crate::symbols::FunctionSignature,
 ) -> Codegen<'a> {
-    use std::fmt::Write;
+    use std::fmt::Write as _;
 
     let mut codegen = Codegen {
         backend,
-        code: format!(
-            "{ret} {name}(",
-            ret = FmtType(&sig.return_type),
-            name = crate::escape(name)
-        ),
+        code: crate::escape(name),
         indent: 4,
         variables: Vec::new(),
         ret_void: sig.return_type == orco::Type::Symbol("void".into()),
     };
 
+    codegen.code.push('(');
     for (idx, (name, ty)) in sig.params.iter().enumerate() {
         if idx > 0 {
             codegen.code.push_str(", ");
         }
         write!(
             codegen.code,
-            "{ty} {name}",
-            ty = FmtType(ty),
-            name = name.map(crate::escape).unwrap_or_else(|| format!("_{idx}"))
+            "{}",
+            FmtType(
+                ty,
+                Some(&name.map(crate::escape).unwrap_or_else(|| format!("_{idx}")))
+            ),
         )
         .unwrap();
         codegen.variables.push(VariableInfo {
@@ -234,6 +228,7 @@ pub fn function<'a>(
         });
     }
 
-    codegen.code.push_str(") {\n");
+    codegen.code.push(')');
+    codegen.code = format!("{} {{\n", FmtType(&sig.return_type, Some(&codegen.code)));
     codegen
 }

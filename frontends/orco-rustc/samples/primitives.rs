@@ -39,7 +39,7 @@ fn main() {
     /* Compound types - Array and Tuple */
 
     // Array signature consists of Type T and length as [T; length].
-    // let my_array: [i32; 5] = [1, 2, 3, 4, 5];
+    let my_array: [i32; 5] = [1, 2, 3, 4, 5];
 
     // Tuple is a collection of values of different types
     // and is constructed using parentheses ().

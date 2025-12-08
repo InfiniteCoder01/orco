@@ -28,30 +28,25 @@ impl std::fmt::Display for FmtSymbol<'_> {
 
         match kind {
             SymbolKind::Function(sig) => {
-                write!(
-                    f,
-                    "{ret} {name}(",
-                    ret = FmtType(&sig.return_type),
-                    name = crate::escape(name),
-                )?;
+                let mut sig_noret = crate::escape(name);
+                use std::fmt::Write as _;
+                write!(&mut sig_noret, "(")?;
                 for (idx, (name, ty)) in sig.params.iter().enumerate() {
                     if idx > 0 {
-                        write!(f, ", ")?;
+                        write!(sig_noret, ", ")?;
                     }
-                    write!(f, "{}", FmtType(ty))?;
-                    if let Some(name) = name {
-                        write!(f, " {}", crate::escape(*name))?;
-                    }
+                    write!(
+                        sig_noret,
+                        "{}",
+                        FmtType(ty, name.map(crate::escape).as_ref().map(String::as_str))
+                    )?;
                 }
-                write!(f, ");")
+                write!(sig_noret, ")")?;
+
+                write!(f, "{};", FmtType(&sig.return_type, Some(&sig_noret)))
             }
             SymbolKind::Type(ty) => {
-                write!(
-                    f,
-                    "typedef {ty} {name};",
-                    ty = FmtType(ty),
-                    name = crate::escape(name),
-                )
+                write!(f, "typedef {};", FmtType(ty, Some(&crate::escape(name))),)
             }
         }
     }
