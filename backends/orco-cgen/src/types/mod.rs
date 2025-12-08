@@ -17,7 +17,7 @@ impl std::fmt::Display for FmtType<'_> {
                         f,
                         "  {ty} {name};",
                         name = crate::escape(*name),
-                        ty = FmtType(&ty)
+                        ty = FmtType(ty)
                     )?;
                 }
                 write!(f, "}}")

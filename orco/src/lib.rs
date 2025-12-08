@@ -8,9 +8,6 @@ pub use sinter::IStr as Symbol;
 pub mod codegen;
 pub use codegen::BodyCodegen;
 
-// Utils for making implementations
-pub mod type_intern;
-
 /// Type of a variable, constant, part of a function signature, etc.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {

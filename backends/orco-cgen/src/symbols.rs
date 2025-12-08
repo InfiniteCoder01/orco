@@ -1,4 +1,4 @@
-use crate::{Backend, FmtType};
+use crate::FmtType;
 
 /// Function signature using C [Type]s without a name
 /// (see [`super::Declaration`] for name and generics).
@@ -19,6 +19,7 @@ pub enum SymbolKind {
     Type(orco::Type),
 }
 
+/// Formats a symbol for display in C language
 pub struct FmtSymbol<'a>(pub orco::Symbol, pub &'a SymbolKind);
 impl std::fmt::Display for FmtSymbol<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

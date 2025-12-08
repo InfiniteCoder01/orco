@@ -24,13 +24,39 @@ pub struct Backend {
     /// All function defs, in no particular order
     // TODO: Unordered container would work better
     pub defs: scc::Stack<String>,
-    type_interner: orco::type_intern::TypeInterner,
+    /// Interned types
+    interned: scc::HashSet<orco::Symbol>,
 }
 
 impl Backend {
     #[allow(missing_docs)]
     pub fn new() -> Backend {
         Self::default()
+    }
+
+    /// Intern the following type and it's insides
+    pub fn intern_type(&self, ty: &mut orco::Type, named: bool, replace_unit: bool) {
+        match ty {
+            orco::Type::Array(ty, _) => self.intern_type(ty.as_mut(), false, false), // TODO: More work on arrays
+            orco::Type::Struct(fields) if named => {
+                for (_, ty) in fields {
+                    self.intern_type(ty, false, false);
+                }
+            }
+            orco::Type::Struct(fields) if !named => {
+                if fields.is_empty() && replace_unit {
+                    *ty = orco::Type::Symbol("void".into());
+                    return;
+                }
+                let sym = orco::Symbol::new(&format!("s {}", ty.hashable_name()));
+                let ty = std::mem::replace(ty, orco::Type::Symbol(sym));
+                if self.interned.insert_sync(sym).is_ok() {
+                    use orco::Backend as _;
+                    self.type_(sym, ty);
+                }
+            }
+            _ => (),
+        }
     }
 }
 
@@ -42,10 +68,9 @@ impl orco::Backend for Backend {
         mut return_type: orco::Type,
     ) -> impl orco::codegen::BodyCodegen<'_> {
         for (_, ty) in &mut params {
-            self.type_interner.on_type(self, ty, false, None);
+            self.intern_type(ty, false, false);
         }
-        self.type_interner
-            .on_type(self, &mut return_type, false, Some("void".into()));
+        self.intern_type(&mut return_type, false, true);
 
         let sig = symbols::FunctionSignature {
             params,
@@ -62,7 +87,7 @@ impl orco::Backend for Backend {
     }
 
     fn type_(&self, name: orco::Symbol, mut ty: orco::Type) {
-        self.type_interner.on_type(self, &mut ty, true, None);
+        self.intern_type(&mut ty, true, false);
         self.symbols
             .entry_sync(name)
             .and_modify(|_| panic!("symbol {name:?} is already declared"))
@@ -106,7 +131,7 @@ pub fn escape(symbol: orco::Symbol) -> String {
         .as_str()
         .replace("::", "_")
         .replace(['.', ':', '/', '-', ' '], "_");
-    if symbol.chars().next().unwrap().is_digit(10) {
+    if symbol.chars().next().unwrap().is_ascii_digit() {
         format!("_{symbol}")
     } else {
         symbol

@@ -72,7 +72,7 @@ impl Codegen<'_> {
             oc::Place::Variable(var) => self.var(*var).ty.clone(),
             oc::Place::Deref(..) => todo!(),
             oc::Place::Field(place, field) => {
-                let mut ty = self.place_ty(&place);
+                let mut ty = self.place_ty(place);
                 while let orco::Type::Symbol(sym) = ty {
                     let sym = match self.backend.symbols.get_sync(&sym) {
                         Some(sym) => sym,
@@ -116,9 +116,7 @@ impl oc::BodyCodegen<'_> for Codegen<'_> {
     }
 
     fn declare_var(&mut self, mut ty: orco::Type) -> oc::Variable {
-        self.backend
-            .type_interner
-            .on_type(self.backend, &mut ty, false, Some("void".into()));
+        self.backend.intern_type(&mut ty, false, true);
         let var = oc::Variable(self.variables.len());
         self.variables.push(VariableInfo { ty, name: None });
 
@@ -194,16 +192,16 @@ impl std::ops::Drop for Codegen<'_> {
             return;
         }
 
-        self.code.push_str("}");
+        self.code.push('}');
         self.backend.defs.push(std::mem::take(&mut self.code));
     }
 }
 
 /// Start codegen for a function
-pub fn function<'a, 'b>(
+pub fn function<'a>(
     backend: &'a Backend,
     name: orco::Symbol,
-    sig: &'b crate::symbols::FunctionSignature,
+    sig: &crate::symbols::FunctionSignature,
 ) -> Codegen<'a> {
     use std::fmt::Write;
 

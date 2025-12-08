@@ -92,7 +92,7 @@ impl<'tcx, 'a, CG: oc::BodyCodegen<'a>> CodegenCtx<'tcx, CG> {
                         rustc_middle::ty::TyKind::FnDef(func, ..) => {
                             oc::Operand::Global(crate::names::convert_path(self.tcx, *func))
                         }
-                        rustc_middle::ty::TyKind::Adt(_, ..) => oc::Operand::Unit,
+                        rustc_middle::ty::TyKind::Adt(..) => oc::Operand::Unit,
                         _ => panic!("Unknown zero-sized const {op:?}"),
                     },
                     ConstValue::Slice { .. } => todo!(),
