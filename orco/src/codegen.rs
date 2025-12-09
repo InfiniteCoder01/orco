@@ -35,6 +35,10 @@ pub enum Operand {
     Unit,
 }
 
+/// A label ID.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Label(pub usize);
+
 /// Trait for generating code within a function
 pub trait BodyCodegen<'a> {
     /// The body generated is external
@@ -55,6 +59,21 @@ pub trait BodyCodegen<'a> {
 
     /// Call a function and put return value into `destination`
     fn call(&mut self, function: Operand, args: Vec<Operand>, destination: Place);
+
+    /// Puts a said label in the current position.
+    /// Note: Labels can be used before placing. Frontend decides on IDs
+    /// Warning: Not all codegens implement arbitrary control flow
+    fn label(&mut self, label: Label) {
+        let _ = label;
+        unimplemented!("arbitrary control flow is not supported by this backend");
+    }
+
+    /// Jump to a label
+    /// See [`BodyCodegen::label`]
+    fn jump(&mut self, label: Label) {
+        let _ = label;
+        unimplemented!("arbitrary control flow is not supported by this backend");
+    }
 
     /// Return a value from this function.
     /// Use [`Operand::Unit`] if no return value is required.

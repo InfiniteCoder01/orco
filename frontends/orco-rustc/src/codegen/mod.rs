@@ -74,13 +74,15 @@ impl<'tcx, 'a, CG: oc::BodyCodegen<'a>> CodegenCtx<'tcx, CG> {
         }
     }
 
-    fn codegen_block(&mut self, block: &rustc_middle::mir::BasicBlockData<'tcx>) {
+    fn codegen_block(&mut self, block: rustc_middle::mir::BasicBlock) {
+        self.codegen.label(oc::Label(block.index()));
+        let block = &self.body[block];
         for stmt in &block.statements {
             self.codegen_statement(stmt);
         }
         use rustc_middle::mir::TerminatorKind;
         match &block.terminator().kind {
-            TerminatorKind::Goto { .. } => todo!(),
+            TerminatorKind::Goto { target } => self.codegen.jump(oc::Label(target.index())),
             TerminatorKind::SwitchInt { .. } => todo!(),
             TerminatorKind::UnwindResume => todo!(),
             TerminatorKind::UnwindTerminate(..) => todo!(),
@@ -88,21 +90,30 @@ impl<'tcx, 'a, CG: oc::BodyCodegen<'a>> CodegenCtx<'tcx, CG> {
                 .codegen
                 .return_(oc::Operand::Place(oc::Place::Variable(self.variables[0]))),
             TerminatorKind::Unreachable => todo!(),
-            TerminatorKind::Drop { .. } => {
+            TerminatorKind::Drop { target, .. } => {
+                self.codegen.jump(oc::Label(target.index()));
                 // TODO
             }
             TerminatorKind::Call {
                 func,
                 args,
                 destination,
+                target,
                 ..
-            } => self.codegen.call(
-                self.op(func),
-                args.iter().map(|arg| self.op(&arg.node)).collect(),
-                self.place(*destination),
-            ),
+            } => {
+                self.codegen.call(
+                    self.op(func),
+                    args.iter().map(|arg| self.op(&arg.node)).collect(),
+                    self.place(*destination),
+                );
+                if let Some(target) = target {
+                    self.codegen.jump(oc::Label(target.index()));
+                }
+            }
             TerminatorKind::TailCall { .. } => todo!(),
-            TerminatorKind::Assert { .. } => todo!(),
+            TerminatorKind::Assert { .. } => {
+                // TODO
+            }
             TerminatorKind::Yield { .. } => todo!(),
             TerminatorKind::CoroutineDrop => todo!(),
             TerminatorKind::FalseEdge { .. } => todo!(),
@@ -144,6 +155,6 @@ pub fn body<'a, 'b>(
     }
 
     for block in body.basic_blocks.reverse_postorder() {
-        ctx.codegen_block(&body[*block]);
+        ctx.codegen_block(*block);
     }
 }

@@ -5,7 +5,7 @@ use orco::codegen as oc;
 struct VariableInfo {
     ty: orco::Type,
     /// Variable name, for debugging purpuses
-    name: Option<String>,
+    name: String,
 }
 
 /// Code generation session of a single function
@@ -29,16 +29,9 @@ impl Codegen<'_> {
         &self.variables[var.0]
     }
 
-    fn var_name(&self, var: oc::Variable) -> String {
-        match &self.var(var).name {
-            Some(name) => name.clone(),
-            _ => format!("_{}", var.0),
-        }
-    }
-
     fn fmt_place(&self, place: oc::Place) -> String {
         match place {
-            oc::Place::Variable(variable) => self.var_name(variable),
+            oc::Place::Variable(variable) => self.var(variable).name.clone(),
             oc::Place::Deref(place) => format!("(*{})", self.fmt_place(*place)),
             oc::Place::Field(place, field) => {
                 format!("{}.{}", self.fmt_place(*place), crate::escape(field))
@@ -118,17 +111,15 @@ impl oc::BodyCodegen<'_> for Codegen<'_> {
     fn declare_var(&mut self, mut ty: orco::Type) -> oc::Variable {
         self.backend.intern_type(&mut ty, false, true);
         let var = oc::Variable(self.variables.len());
-        self.variables.push(VariableInfo { ty, name: None });
+        let name = format!("_{}", var.0);
 
-        if self.is_void(&self.var(var).ty) {
-            self.comment(&format!("void {};", self.var_name(var)));
-            return var;
+        if self.is_void(&ty) {
+            self.comment(&format!("void {};", &name));
+        } else {
+            self.line(&format!("{};", FmtType(&ty, Some(&name))));
         }
 
-        self.line(&format!(
-            "{};",
-            FmtType(&self.var(var).ty, Some(&self.var_name(var))),
-        ));
+        self.variables.push(VariableInfo { ty, name });
         var
     }
 
@@ -172,6 +163,14 @@ impl oc::BodyCodegen<'_> for Codegen<'_> {
         ));
     }
 
+    fn label(&mut self, label: oc::Label) {
+        self.code.push_str(&format!("_{}:\n", label.0));
+    }
+
+    fn jump(&mut self, label: oc::Label) {
+        self.line(&format!("goto _{};", label.0));
+    }
+
     fn return_(&mut self, value: oc::Operand) {
         if self.ret_void {
             self.line("return;");
@@ -213,18 +212,11 @@ pub fn function<'a>(
         if idx > 0 {
             codegen.code.push_str(", ");
         }
-        write!(
-            codegen.code,
-            "{}",
-            FmtType(
-                ty,
-                Some(&name.map(crate::escape).unwrap_or_else(|| format!("_{idx}")))
-            ),
-        )
-        .unwrap();
+        let name = name.map(crate::escape).unwrap_or_else(|| format!("_{idx}"));
+        write!(codegen.code, "{}", FmtType(ty, Some(&name)),).unwrap();
         codegen.variables.push(VariableInfo {
             ty: ty.clone(),
-            name: name.map(crate::escape),
+            name,
         });
     }
 
