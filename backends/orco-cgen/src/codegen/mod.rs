@@ -32,6 +32,7 @@ impl Codegen<'_> {
     fn fmt_place(&self, place: oc::Place) -> String {
         match place {
             oc::Place::Variable(variable) => self.var(variable).name.clone(),
+            oc::Place::Global(symbol) => crate::escape(symbol),
             oc::Place::Deref(place) => format!("(*{})", self.fmt_place(*place)),
             oc::Place::Field(place, field) => {
                 format!("{}.{}", self.fmt_place(*place), crate::escape(field))
@@ -41,7 +42,6 @@ impl Codegen<'_> {
 
     fn op(&self, op: oc::Operand) -> String {
         match op {
-            oc::Operand::Global(symbol) => crate::escape(symbol),
             oc::Operand::Place(var) => self.fmt_place(var),
             oc::Operand::IConst(val, _size) => format!("{val}ll"),
             oc::Operand::UConst(val, _size) => format!("{val}ull"),
@@ -63,6 +63,7 @@ impl Codegen<'_> {
     fn place_ty(&self, place: &oc::Place) -> orco::Type {
         match place {
             oc::Place::Variable(var) => self.var(*var).ty.clone(),
+            oc::Place::Global(..) => todo!(),
             oc::Place::Deref(..) => todo!(),
             oc::Place::Field(place, field) => {
                 let mut ty = self.place_ty(place);
@@ -102,20 +103,12 @@ impl oc::BodyCodegen<'_> for Codegen<'_> {
         self.code.clear();
     }
 
-    fn comment(&mut self, comment: &str) {
-        for line in comment.split('\n') {
-            self.line(&format!("// {line}"));
-        }
-    }
-
     fn declare_var(&mut self, mut ty: orco::Type) -> oc::Variable {
         self.backend.intern_type(&mut ty, false, true);
         let var = oc::Variable(self.variables.len());
         let name = format!("_{}", var.0);
 
-        if self.is_void(&ty) {
-            self.comment(&format!("void {};", &name));
-        } else {
+        if !self.is_void(&ty) {
             self.line(&format!("{};", FmtType(&ty, Some(&name))));
         }
 
@@ -129,11 +122,6 @@ impl oc::BodyCodegen<'_> for Codegen<'_> {
 
     fn assign(&mut self, value: oc::Operand, destination: oc::Place) {
         if self.is_void(&self.place_ty(&destination)) {
-            self.comment(&format!(
-                "{name} = {op};",
-                name = self.fmt_place(destination),
-                op = self.op(value),
-            ));
             return;
         }
 

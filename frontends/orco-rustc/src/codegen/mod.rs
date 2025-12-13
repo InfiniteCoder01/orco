@@ -20,7 +20,7 @@ impl<'tcx, 'a, CG: oc::BodyCodegen<'a>> CodegenCtx<'tcx, CG> {
             StatementKind::Intrinsic(..) => todo!(),
             stmt => {
                 // TODO: Some of them are worth implementing
-                self.codegen.comment(&format!("{stmt:?}"));
+                eprintln!("TODO: {stmt:?}");
                 return;
             }
         };
@@ -70,7 +70,7 @@ impl<'tcx, 'a, CG: oc::BodyCodegen<'a>> CodegenCtx<'tcx, CG> {
                     AK::RawPtr(..) => todo!(),
                 }
             }
-            _ => self.codegen.comment(&format!("{stmt:?}")), // TODO
+            _ => eprintln!("TODO: {stmt:?}"), // TODO
         }
     }
 
@@ -83,7 +83,12 @@ impl<'tcx, 'a, CG: oc::BodyCodegen<'a>> CodegenCtx<'tcx, CG> {
         use rustc_middle::mir::TerminatorKind;
         match &block.terminator().kind {
             TerminatorKind::Goto { target } => self.codegen.jump(oc::Label(target.index())),
-            TerminatorKind::SwitchInt { .. } => todo!(),
+            TerminatorKind::SwitchInt { discr, targets } => {
+                for (value, target) in targets.iter() {
+                    //
+                }
+                self.codegen.jump(oc::Label(targets.otherwise().index()));
+            }
             TerminatorKind::UnwindResume => todo!(),
             TerminatorKind::UnwindTerminate(..) => todo!(),
             TerminatorKind::Return => self

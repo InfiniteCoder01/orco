@@ -6,11 +6,13 @@ use crate::{Symbol, Type};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Variable(pub usize);
 
-/// A variable ([Variable]) with projection (aka field access, dereferences, etc.)
+/// A variable or symbol with projection (aka field access, dereferences, etc.)
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Place {
     /// Just variable access
     Variable(Variable),
+    /// Global symbol access
+    Global(Symbol),
     /// Pointer dereference
     Deref(Box<Place>),
     /// Field access
@@ -20,9 +22,6 @@ pub enum Place {
 /// An operand
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum Operand {
-    /// A global symbol, such as a function
-    /// or a global variable/constant
-    Global(Symbol),
     /// A place, see [Place]
     Place(Place),
     /// A signed integer constant
@@ -35,7 +34,7 @@ pub enum Operand {
     Unit,
 }
 
-/// A label ID.
+/// A label ID. See [`BodyCodegen::label`]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Label(pub usize);
 
@@ -45,9 +44,6 @@ pub trait BodyCodegen<'a> {
     fn external(self)
     where
         Self: Sized;
-
-    /// Comment (doesn't have to be a comment from the original source code, could be a compiler comment)
-    fn comment(&mut self, comment: &str);
 
     /// Declare a variable, see [Variable]
     fn declare_var(&mut self, ty: Type) -> Variable;
