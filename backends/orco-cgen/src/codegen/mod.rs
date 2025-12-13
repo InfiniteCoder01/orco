@@ -159,6 +159,25 @@ impl oc::BodyCodegen<'_> for Codegen<'_> {
         self.line(&format!("goto _{};", label.0));
     }
 
+    fn cjump(&mut self, lhs: oc::Operand, rhs: u128, equal: bool, label: oc::Label) {
+        if rhs == 0 {
+            self.line(&format!(
+                "if ({op}{value}) goto _{label};",
+                op = if equal { "!" } else { "" },
+                value = self.op(lhs),
+                label = label.0
+            ));
+            return;
+        }
+
+        self.line(&format!(
+            "if ({lhs} {op} {rhs}) goto _{label};",
+            lhs = self.op(lhs),
+            op = if equal { "==" } else { "!=" },
+            label = label.0
+        ));
+    }
+
     fn return_(&mut self, value: oc::Operand) {
         if self.ret_void {
             self.line("return;");

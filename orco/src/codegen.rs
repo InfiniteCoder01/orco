@@ -64,10 +64,17 @@ pub trait BodyCodegen<'a> {
         unimplemented!("arbitrary control flow is not supported by this backend");
     }
 
-    /// Jump to a label
+    /// Jump to a label.
     /// See [`BodyCodegen::label`]
     fn jump(&mut self, label: Label) {
         let _ = label;
+        unimplemented!("arbitrary control flow is not supported by this backend");
+    }
+
+    /// Jumps if value equals (or not if equal is false).
+    /// See [`BodyCodegen::label`]
+    fn cjump(&mut self, lhs: Operand, rhs: u128, equal: bool, label: Label) {
+        let _ = (lhs, rhs, equal, label);
         unimplemented!("arbitrary control flow is not supported by this backend");
     }
 

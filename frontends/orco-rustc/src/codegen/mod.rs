@@ -84,8 +84,10 @@ impl<'tcx, 'a, CG: oc::BodyCodegen<'a>> CodegenCtx<'tcx, CG> {
         match &block.terminator().kind {
             TerminatorKind::Goto { target } => self.codegen.jump(oc::Label(target.index())),
             TerminatorKind::SwitchInt { discr, targets } => {
+                let lhs = self.op(discr);
                 for (value, target) in targets.iter() {
-                    //
+                    self.codegen
+                        .cjump(lhs.clone(), value, true, oc::Label(target.index()));
                 }
                 self.codegen.jump(oc::Label(targets.otherwise().index()));
             }
