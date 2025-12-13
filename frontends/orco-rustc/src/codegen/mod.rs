@@ -70,6 +70,14 @@ impl<'tcx, 'a, CG: oc::BodyCodegen<'a>> CodegenCtx<'tcx, CG> {
                     AK::RawPtr(..) => todo!(),
                 }
             }
+            Rvalue::BinaryOp(op, operands) => {
+                self.codegen.call(
+                    // TODO: Operators themselves
+                    oc::Operand::Place(oc::Place::Global(format!("{op:?}").into())),
+                    vec![self.op(&operands.0), self.op(&operands.1)],
+                    self.place(*place),
+                );
+            }
             _ => eprintln!("TODO: {stmt:?}"), // TODO
         }
     }
