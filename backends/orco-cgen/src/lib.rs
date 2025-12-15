@@ -127,8 +127,11 @@ impl std::fmt::Display for Backend {
 
 /// Escape the symbol to be a valid C identifier. Possibly does mangling
 pub fn escape(symbol: orco::Symbol) -> String {
+    // Take only the method name, not the path
+    // FIXME: Temproary, for better readability of generated code
+    let symbol = &symbol[symbol.rfind(':').map_or(0, |i| i + 1)..];
+
     let symbol = symbol
-        .as_str()
         .replace("::", "_")
         .replace(['.', ':', '/', '-', ' '], "_");
     if symbol.chars().next().unwrap().is_ascii_digit() {
