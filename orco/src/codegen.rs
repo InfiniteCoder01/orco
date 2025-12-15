@@ -39,7 +39,7 @@ pub enum Operand {
 pub struct Label(pub usize);
 
 /// Trait for generating code within a function
-pub trait BodyCodegen<'a> {
+pub trait BodyCodegen: ACFCodegen {
     /// The body generated is external
     fn external(self)
     where
@@ -56,9 +56,16 @@ pub trait BodyCodegen<'a> {
     /// Call a function and put return value into `destination`
     fn call(&mut self, function: Operand, args: Vec<Operand>, destination: Place);
 
+    /// Return a value from this function.
+    /// Use [`Operand::Unit`] if no return value is required.
+    fn return_(&mut self, value: Operand);
+}
+
+/// Arbitrary control flow instructions, such as jumps and
+/// Warning: Not all codegens implement arbitrary control flow
+pub trait ACFCodegen {
     /// Puts a said label in the current position.
     /// Note: Labels can be used before placing. Frontend decides on IDs
-    /// Warning: Not all codegens implement arbitrary control flow
     fn label(&mut self, label: Label) {
         let _ = label;
         unimplemented!("arbitrary control flow is not supported by this backend");
@@ -77,8 +84,4 @@ pub trait BodyCodegen<'a> {
         let _ = (lhs, rhs, equal, label);
         unimplemented!("arbitrary control flow is not supported by this backend");
     }
-
-    /// Return a value from this function.
-    /// Use [`Operand::Unit`] if no return value is required.
-    fn return_(&mut self, value: Operand);
 }

@@ -66,7 +66,7 @@ impl orco::Backend for Backend {
         name: orco::Symbol,
         mut params: Vec<(Option<orco::Symbol>, orco::Type)>,
         mut return_type: orco::Type,
-    ) -> impl orco::codegen::BodyCodegen<'_> {
+    ) -> impl orco::codegen::BodyCodegen {
         for (_, ty) in &mut params {
             self.intern_type(ty, false, false);
         }

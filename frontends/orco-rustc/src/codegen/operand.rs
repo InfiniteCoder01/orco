@@ -1,6 +1,6 @@
 use super::{CodegenCtx, oc};
 
-impl<'tcx, 'a, CG: oc::BodyCodegen<'a>> CodegenCtx<'tcx, CG> {
+impl<'tcx, 'a, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
     pub(super) fn place(&self, place: rustc_middle::mir::Place<'tcx>) -> oc::Place {
         let mut res = oc::Place::Variable(self.variables[place.local.index()]);
         for (place, proj) in place.iter_projections() {

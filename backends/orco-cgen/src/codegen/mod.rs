@@ -41,15 +41,24 @@ impl Codegen<'_> {
     }
 
     fn op(&self, op: oc::Operand) -> String {
+        use oc::Operand as OP;
+        use orco::IntegerSize as IS;
         match op {
-            oc::Operand::Place(var) => self.fmt_place(var),
-            oc::Operand::IConst(val, _size) => format!("{val}ll"),
-            oc::Operand::UConst(val, _size) => format!("{val}ull"),
-            oc::Operand::FConst(val, _size) => {
+            OP::Place(var) => self.fmt_place(var),
+            OP::IConst(val, IS::Bits(bits)) => format!("INT{bits}_C({val})"),
+            OP::IConst(val, IS::Size) => format!("(ssize_t){val}ll"),
+            OP::UConst(val, IS::Bits(bits)) => format!("UINT{bits}_C({val})"),
+            OP::UConst(val, IS::Size) => format!("(size_t){val}ull"),
+            OP::FConst(val, size) => {
+                let suffix = match size {
+                    32 => "f",
+                    64 => "d",
+                    _ => "",
+                };
                 if val.fract() == 0.0 {
-                    format!("{val:.01}")
+                    format!("{val:.01}{suffix}")
                 } else {
-                    val.to_string()
+                    format!("{val}{suffix}")
                 }
             }
             oc::Operand::Unit => "(s_) {}".to_owned(),
@@ -95,7 +104,7 @@ impl Codegen<'_> {
     }
 }
 
-impl oc::BodyCodegen<'_> for Codegen<'_> {
+impl oc::BodyCodegen for Codegen<'_> {
     fn external(mut self)
     where
         Self: Sized,
@@ -151,6 +160,16 @@ impl oc::BodyCodegen<'_> for Codegen<'_> {
         ));
     }
 
+    fn return_(&mut self, value: oc::Operand) {
+        if self.ret_void {
+            self.line("return;");
+            return;
+        }
+        self.line(&format!("return {op};", op = self.op(value)));
+    }
+}
+
+impl oc::ACFCodegen for Codegen<'_> {
     fn label(&mut self, label: oc::Label) {
         self.code.push_str(&format!("_{}:\n", label.0));
     }
@@ -176,14 +195,6 @@ impl oc::BodyCodegen<'_> for Codegen<'_> {
             op = if equal { "==" } else { "!=" },
             label = label.0
         ));
-    }
-
-    fn return_(&mut self, value: oc::Operand) {
-        if self.ret_void {
-            self.line("return;");
-            return;
-        }
-        self.line(&format!("return {op};", op = self.op(value)));
     }
 }
 

@@ -68,7 +68,7 @@ pub trait Backend: PrimitiveTypeSource + Sync {
         name: Symbol,
         params: Vec<(Option<Symbol>, Type)>,
         return_type: Type,
-    ) -> impl codegen::BodyCodegen<'_>;
+    ) -> impl codegen::BodyCodegen;
 
     /// Define a type alias, should be used to declare compound types as well
     fn type_(&self, name: Symbol, ty: Type);
