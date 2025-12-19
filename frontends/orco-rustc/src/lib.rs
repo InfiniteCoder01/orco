@@ -79,25 +79,36 @@ pub fn struct_(tcx: TyCtxt, backend: &impl Backend, key: rustc_hir::def_id::DefI
     // TODO: Generics
     let name = names::convert_path(tcx, key);
     let adt = tcx.adt_def(key);
-    backend.type_(
-        name,
-        orco::Type::Struct(
-            // TODO: Default values???
-            adt.variants()
-                .iter()
-                .next()
-                .unwrap()
-                .fields
-                .iter()
-                .map(|field| {
-                    (
-                        field.name.as_str().into(),
-                        types::convert(tcx, backend, tcx.type_of(field.did).instantiate_identity()),
-                    )
-                })
-                .collect::<Vec<_>>(),
-        ),
+    let orco_ty = orco::Type::Struct(
+        // TODO: Default values???
+        adt.variants()
+            .iter()
+            .next()
+            .unwrap()
+            .fields
+            .iter()
+            .map(|field| {
+                (
+                    field.name.as_str().into(),
+                    types::convert(tcx, backend, tcx.type_of(field.did).instantiate_identity()),
+                )
+            })
+            .collect::<Vec<_>>(),
     );
+    let generics = tcx.generics_of(key);
+    if generics.is_empty() {
+        backend.type_(name, orco_ty);
+    } else {
+        backend
+            .generic(
+                generics
+                    .own_params
+                    .iter()
+                    .map(|param| param.name.as_str().into())
+                    .collect(),
+            )
+            .type_(name, orco_ty);
+    }
 }
 
 /// Define all the items using the backend provided.

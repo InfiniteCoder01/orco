@@ -153,10 +153,6 @@ pub fn body<'a, 'b>(
         variables: Vec::with_capacity(body.local_decls.len()),
     };
 
-    rustc_middle::mir::pretty::MirWriter::new(tcx)
-        .write_mir_fn(body, &mut std::io::stdout().lock())
-        .unwrap();
-
     // TODO: debug variable names
     for (idx, local) in body.local_decls.iter_enumerated() {
         let idx = idx.index();

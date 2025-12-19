@@ -72,4 +72,7 @@ pub trait Backend: PrimitiveTypeSource + Sync {
 
     /// Define a type alias, should be used to declare compound types as well
     fn type_(&self, name: Symbol, ty: Type);
+
+    /// Returns a backend that wraps every symbol in a macro with generic params
+    fn generic(&self, params: Vec<Symbol>) -> impl Backend;
 }

@@ -1,6 +1,19 @@
 use crate::{Backend, FmtType};
 use orco::codegen as oc;
 
+/// Code generation session of a single function
+pub(super) struct Codegen<'a, Callback: FnMut(crate::SymbolKind)> {
+    backend: &'a Backend,
+    /// Callback that is called when codegen finishes
+    callback: Callback,
+
+    signature: crate::symbols::FunctionSignature,
+    variables: Vec<VariableInfo>,
+
+    code: String,
+    indent: usize,
+}
+
 /// Info about a variable within [Codegen] session
 struct VariableInfo {
     ty: orco::Type,
@@ -8,16 +21,31 @@ struct VariableInfo {
     name: String,
 }
 
-/// Code generation session of a single function
-pub struct Codegen<'a> {
-    backend: &'a Backend,
-    code: String,
-    indent: usize,
-    variables: Vec<VariableInfo>,
-    ret_void: bool,
-}
+impl<'a, Callback: FnMut(crate::SymbolKind)> Codegen<'a, Callback> {
+    pub(super) fn new(
+        backend: &'a Backend,
+        callback: Callback,
+        signature: crate::symbols::FunctionSignature,
+    ) -> Self {
+        let mut variables = Vec::new();
+        for (idx, (name, ty)) in signature.params.iter().enumerate() {
+            let name = name.map(crate::escape).unwrap_or_else(|| format!("_{idx}"));
+            variables.push(VariableInfo {
+                ty: ty.clone(),
+                name,
+            });
+        }
 
-impl Codegen<'_> {
+        Self {
+            backend,
+            callback,
+            signature,
+            variables,
+            code: "{\n".to_owned(),
+            indent: 4,
+        }
+    }
+
     fn line(&mut self, line: &str) {
         self.code.reserve(self.indent + line.len() + 1);
         self.code.extend(std::iter::repeat_n(' ', self.indent));
@@ -104,7 +132,7 @@ impl Codegen<'_> {
     }
 }
 
-impl oc::BodyCodegen for Codegen<'_> {
+impl<Callback: FnMut(crate::SymbolKind)> oc::BodyCodegen for Codegen<'_, Callback> {
     fn external(mut self)
     where
         Self: Sized,
@@ -161,7 +189,7 @@ impl oc::BodyCodegen for Codegen<'_> {
     }
 
     fn return_(&mut self, value: oc::Operand) {
-        if self.ret_void {
+        if self.is_void(&self.signature.return_type) {
             self.line("return;");
             return;
         }
@@ -169,7 +197,7 @@ impl oc::BodyCodegen for Codegen<'_> {
     }
 }
 
-impl oc::ACFCodegen for Codegen<'_> {
+impl<Callback: FnMut(crate::SymbolKind)> oc::ACFCodegen for Codegen<'_, Callback> {
     fn label(&mut self, label: oc::Label) {
         self.code.push_str(&format!("_{}:\n", label.0));
     }
@@ -198,47 +226,24 @@ impl oc::ACFCodegen for Codegen<'_> {
     }
 }
 
-impl std::ops::Drop for Codegen<'_> {
+impl<Callback: FnMut(crate::SymbolKind)> std::ops::Drop for Codegen<'_, Callback> {
     fn drop(&mut self) {
-        if self.code.is_empty() {
-            return;
-        }
+        let body = if self.code.is_empty() {
+            None
+        } else {
+            self.code.push('}');
+            Some(std::mem::take(&mut self.code))
+        };
 
-        self.code.push('}');
-        self.backend.defs.push(std::mem::take(&mut self.code));
-    }
-}
-
-/// Start codegen for a function
-pub fn function<'a>(
-    backend: &'a Backend,
-    name: orco::Symbol,
-    sig: &crate::symbols::FunctionSignature,
-) -> Codegen<'a> {
-    use std::fmt::Write as _;
-
-    let mut codegen = Codegen {
-        backend,
-        code: crate::escape(name),
-        indent: 4,
-        variables: Vec::new(),
-        ret_void: sig.return_type == orco::Type::Symbol("void".into()),
-    };
-
-    codegen.code.push('(');
-    for (idx, (name, ty)) in sig.params.iter().enumerate() {
-        if idx > 0 {
-            codegen.code.push_str(", ");
-        }
-        let name = name.map(crate::escape).unwrap_or_else(|| format!("_{idx}"));
-        write!(codegen.code, "{}", FmtType(ty, Some(&name)),).unwrap();
-        codegen.variables.push(VariableInfo {
-            ty: ty.clone(),
-            name,
+        (self.callback)(crate::SymbolKind::Function {
+            signature: std::mem::replace(
+                &mut self.signature,
+                crate::symbols::FunctionSignature {
+                    params: Vec::new(),
+                    return_type: orco::Type::Error,
+                },
+            ),
+            body,
         });
     }
-
-    codegen.code.push(')');
-    codegen.code = format!("{} {{\n", FmtType(&sig.return_type, Some(&codegen.code)));
-    codegen
 }

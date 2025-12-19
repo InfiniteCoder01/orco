@@ -14,7 +14,7 @@ fn main() {
         2 * x;
     };
 
-    println!("x is {:?}", x);
-    println!("y is {:?}", y);
-    println!("z is {:?}", z);
+    // println!("x is {:?}", x);
+    // println!("y is {:?}", y);
+    // println!("z is {:?}", z);
 }

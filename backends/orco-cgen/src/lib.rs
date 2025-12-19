@@ -14,16 +14,16 @@ pub mod symbols;
 pub use symbols::SymbolKind;
 
 /// Code generation, used to generate function bodies.
-pub mod codegen;
+pub(crate) mod codegen;
 
-/// Central declaration & codegen backend
+/// Generics wrapper
+pub(crate) mod generics;
+
+/// Root backend struct
 #[derive(Debug, Default)]
 pub struct Backend {
     /// A map from symbol to it's definition
     pub symbols: scc::HashMap<orco::Symbol, SymbolKind>,
-    /// All function defs, in no particular order
-    // TODO: Unordered container would work better
-    pub defs: scc::Stack<String>,
     /// Interned types
     interned: scc::HashSet<orco::Symbol>,
 }
@@ -32,6 +32,14 @@ impl Backend {
     #[allow(missing_docs)]
     pub fn new() -> Backend {
         Self::default()
+    }
+
+    /// Adds a symbol
+    pub fn symbol(&self, name: orco::Symbol, kind: SymbolKind) {
+        self.symbols
+            .entry_sync(name)
+            .and_modify(|_| panic!("symbol {name:?} is already declared"))
+            .or_insert(kind);
     }
 
     /// Intern the following type and it's insides
@@ -72,26 +80,26 @@ impl orco::Backend for Backend {
         }
         self.intern_type(&mut return_type, false, true);
 
-        let sig = symbols::FunctionSignature {
-            params,
-            return_type,
-        };
-
-        let codegen = codegen::function(self, name, &sig);
-        self.symbols
-            .entry_sync(name)
-            .and_modify(|_| panic!("symbol {name:?} is already declared"))
-            .or_insert(SymbolKind::Function(sig));
-
-        codegen
+        codegen::Codegen::new(
+            self,
+            move |symbol| self.symbol(name, symbol),
+            symbols::FunctionSignature {
+                params,
+                return_type,
+            },
+        )
     }
 
     fn type_(&self, name: orco::Symbol, mut ty: orco::Type) {
         self.intern_type(&mut ty, true, false);
-        self.symbols
-            .entry_sync(name)
-            .and_modify(|_| panic!("symbol {name:?} is already declared"))
-            .or_insert(SymbolKind::Type(ty));
+        self.symbol(name, SymbolKind::Type(ty));
+    }
+
+    fn generic(&self, params: Vec<orco::Symbol>) -> impl orco::Backend {
+        generics::Wrapper {
+            backend: self,
+            params,
+        }
     }
 }
 
@@ -104,7 +112,7 @@ impl std::fmt::Display for Backend {
 
         let mut result = Ok(());
         self.symbols.iter_sync(|name, sym| {
-            let sym = format!("{}", symbols::FmtSymbol(*name, sym));
+            let sym = format!("{}", symbols::FmtSymbol(&crate::escape(*name), sym));
             result = writeln!(
                 f,
                 "{}{}",
@@ -113,13 +121,6 @@ impl std::fmt::Display for Backend {
             );
             result.is_ok()
         });
-        result?;
-
-        writeln!(f).unwrap();
-        let guard = scc::Guard::new();
-        for def in self.defs.iter(&guard) {
-            writeln!(f, "{def}\n")?;
-        }
 
         result
     }
