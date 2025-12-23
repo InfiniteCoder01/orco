@@ -32,8 +32,7 @@ impl BackendContext for Wrapper<'_> {
 
     fn intern_type(&self, ty: &mut orco::Type, named: bool, replace_unit: bool) {
         // TODO: Interned types in generics
-        self.backend.intern_type(ty, named, replace_unit);
-        todo!()
+        self.backend.intern_type(ty, named, replace_unit)
     }
 }
 
@@ -64,7 +63,7 @@ impl orco::Backend for Wrapper<'_> {
         self.backend.intern_type(&mut return_type, false, true);
 
         crate::codegen::Codegen::new(
-            self.backend,
+            self,
             name,
             crate::symbols::FunctionSignature {
                 params,
