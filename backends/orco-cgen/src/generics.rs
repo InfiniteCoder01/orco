@@ -1,4 +1,4 @@
-use crate::SymbolKind;
+use crate::{BackendContext, SymbolKind};
 
 // FIXME: Proof of concept
 /// [`crate::Backend`] wrapper that wraps all symbols in generic macros.
@@ -10,9 +10,13 @@ pub(super) struct Wrapper<'a> {
     pub params: Vec<orco::Symbol>,
 }
 
-impl Wrapper<'_> {
+impl BackendContext for Wrapper<'_> {
+    fn backend(&self) -> &crate::Backend {
+        self.backend
+    }
+
     /// Adds a symbol, wrapping it with generics
-    pub fn symbol(&self, name: orco::Symbol, kind: SymbolKind) {
+    fn symbol(&self, name: orco::Symbol, kind: SymbolKind) {
         self.backend.symbol(
             name,
             SymbolKind::Generic {
@@ -20,6 +24,16 @@ impl Wrapper<'_> {
                 symbol: Box::new(kind),
             },
         );
+    }
+
+    fn escape(&self, symbol: orco::Symbol) -> String {
+        crate::escape(&symbol.replace('#', "##_##"))
+    }
+
+    fn intern_type(&self, ty: &mut orco::Type, named: bool, replace_unit: bool) {
+        // TODO: Interned types in generics
+        self.backend.intern_type(ty, named, replace_unit);
+        todo!()
     }
 }
 
@@ -51,7 +65,7 @@ impl orco::Backend for Wrapper<'_> {
 
         crate::codegen::Codegen::new(
             self.backend,
-            move |symbol| self.symbol(name, symbol),
+            name,
             crate::symbols::FunctionSignature {
                 params,
                 return_type,

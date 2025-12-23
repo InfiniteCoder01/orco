@@ -19,6 +19,22 @@ pub(crate) mod codegen;
 /// Generics wrapper
 pub(crate) mod generics;
 
+/// Backend context. Either [Backend] or [`generics::Wrapper`]
+pub trait BackendContext {
+    /// Get the original backend
+    fn backend(&self) -> &Backend;
+
+    /// Defines a symbol
+    fn symbol(&self, name: orco::Symbol, kind: SymbolKind);
+
+    /// Escape the symbol to be a valid C identifier. Possibly does mangling.
+    /// Substitutes # for either token pasting (`##_##`) or underscores (`_`), depending on the context
+    fn escape(&self, symbol: orco::Symbol) -> String;
+
+    /// Intern the following type and it's insides
+    fn intern_type(&self, ty: &mut orco::Type, named: bool, replace_unit: bool);
+}
+
 /// Root backend struct
 #[derive(Debug, Default)]
 pub struct Backend {
@@ -33,17 +49,25 @@ impl Backend {
     pub fn new() -> Backend {
         Self::default()
     }
+}
 
-    /// Adds a symbol
-    pub fn symbol(&self, name: orco::Symbol, kind: SymbolKind) {
+impl BackendContext for Backend {
+    fn backend(&self) -> &Backend {
+        self
+    }
+
+    fn symbol(&self, name: orco::Symbol, kind: SymbolKind) {
         self.symbols
             .entry_sync(name)
             .and_modify(|_| panic!("symbol {name:?} is already declared"))
             .or_insert(kind);
     }
 
-    /// Intern the following type and it's insides
-    pub fn intern_type(&self, ty: &mut orco::Type, named: bool, replace_unit: bool) {
+    fn escape(&self, symbol: orco::Symbol) -> String {
+        escape(&symbol.replace('#', "_"))
+    }
+
+    fn intern_type(&self, ty: &mut orco::Type, named: bool, replace_unit: bool) {
         match ty {
             orco::Type::Array(ty, _) => self.intern_type(ty.as_mut(), false, false), // TODO: More work on arrays
             orco::Type::Struct(fields) if named => {
@@ -82,7 +106,7 @@ impl orco::Backend for Backend {
 
         codegen::Codegen::new(
             self,
-            move |symbol| self.symbol(name, symbol),
+            name,
             symbols::FunctionSignature {
                 params,
                 return_type,
@@ -112,7 +136,7 @@ impl std::fmt::Display for Backend {
 
         let mut result = Ok(());
         self.symbols.iter_sync(|name, sym| {
-            let sym = format!("{}", symbols::FmtSymbol(&crate::escape(*name), sym));
+            let sym = format!("{}", symbols::FmtSymbol(self, &self.escape(*name), sym));
             result = writeln!(
                 f,
                 "{}{}",
@@ -126,18 +150,17 @@ impl std::fmt::Display for Backend {
     }
 }
 
-/// Escape the symbol to be a valid C identifier. Possibly does mangling
-pub fn escape(symbol: orco::Symbol) -> String {
+/// Escape the symbol to be a valid C identifier.
+pub fn escape(symbol: &str) -> String {
     // Take only the method name, not the path
     // FIXME: Temproary, for better readability of generated code
     let symbol = &symbol[symbol.rfind(':').map_or(0, |i| i + 1)..];
 
-    let symbol = symbol
+    let mut symbol = symbol
         .replace("::", "_")
-        .replace(['.', ':', '/', '-', ' '], "_");
+        .replace(|c: char| !c.is_ascii_alphanumeric(), "_");
     if symbol.chars().next().unwrap().is_ascii_digit() {
-        format!("_{symbol}")
-    } else {
-        symbol
+        symbol.insert(0, '_');
     }
+    symbol
 }

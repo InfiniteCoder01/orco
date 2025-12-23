@@ -73,6 +73,11 @@ pub trait Backend: PrimitiveTypeSource + Sync {
     /// Define a type alias, should be used to declare compound types as well
     fn type_(&self, name: Symbol, ty: Type);
 
-    /// Returns a backend that wraps every symbol in a macro with generic params
+    /// Returns a backend that wraps every symbol in a macro with generic params.
+    /// Nestable. Appends #param to all symbol names.
+    /// e.g. if you provide `param1, param2` as params and then declare symbol `sym`,
+    /// the backend is going to generate a symbol `sym#param1#param2`.
+    /// Same syntax is used if you want to use generic params. So in `another#param1`, `param1`
+    /// is going to be substituted for the parameter value during instantiation
     fn generic(&self, params: Vec<Symbol>) -> impl Backend;
 }

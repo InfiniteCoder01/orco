@@ -19,11 +19,10 @@ pub enum SymbolKind {
 }
 
 /// Formats a symbol for display in C language
-pub struct FmtSymbol<'a>(pub &'a str, pub &'a SymbolKind);
-impl std::fmt::Display for FmtSymbol<'_> {
+pub struct FmtSymbol<'a, B: crate::BackendContext>(pub &'a B, pub &'a str, pub &'a SymbolKind);
+impl<B: crate::BackendContext> std::fmt::Display for FmtSymbol<'_, B> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let FmtSymbol(name, kind) = self;
-        let name = *name;
+        let FmtSymbol(backend, name, kind) = *self;
 
         match kind {
             SymbolKind::Function { signature, body } => {
@@ -31,6 +30,7 @@ impl std::fmt::Display for FmtSymbol<'_> {
                     f,
                     "{}",
                     FmtFunction {
+                        backend,
                         name,
                         signature,
                         name_all_args: true,
@@ -43,7 +43,7 @@ impl std::fmt::Display for FmtSymbol<'_> {
                 }
             }
             SymbolKind::Type(ty) => {
-                write!(f, "typedef {};", FmtType(ty, Some(name)))
+                write!(f, "typedef {};", FmtType(backend, ty, Some(name)))
             }
             SymbolKind::Generic { params, symbol } => {
                 write!(f, "#define {}(", name)?;
@@ -51,16 +51,16 @@ impl std::fmt::Display for FmtSymbol<'_> {
                     if idx > 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}", crate::escape(*param))?;
+                    write!(f, "{}", backend.escape(*param))?;
                 }
                 write!(f, ")")?;
 
                 let sym_name = std::iter::once(name.to_owned())
-                    .chain(params.iter().map(|param| crate::escape(*param)))
+                    .chain(params.iter().map(|param| backend.escape(*param)))
                     .collect::<Vec<_>>()
                     .join("##_##");
 
-                let symbol = format!("{}", FmtSymbol(&sym_name, symbol)); // TODO: Fix name
+                let symbol = format!("{}", FmtSymbol(backend, &sym_name, symbol));
                 for line in symbol.split('\n') {
                     writeln!(f, " \\")?;
                     write!(f, "{line}")?;
@@ -82,13 +82,14 @@ pub struct FunctionSignature {
 }
 
 /// Formats function signature
-pub struct FmtFunction<'a> {
+pub struct FmtFunction<'a, B: crate::BackendContext> {
+    backend: &'a B,
     name: &'a str,
     signature: &'a FunctionSignature,
     name_all_args: bool,
 }
 
-impl<'a> std::fmt::Display for FmtFunction<'a> {
+impl<'a, B: crate::BackendContext> std::fmt::Display for FmtFunction<'a, B> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut sig_noret = self.name.to_owned();
 
@@ -102,9 +103,10 @@ impl<'a> std::fmt::Display for FmtFunction<'a> {
                 sig_noret,
                 "{}",
                 FmtType(
+                    self.backend,
                     ty,
                     match name {
-                        Some(name) => Some(crate::escape(*name)),
+                        Some(name) => Some(self.backend.escape(*name)),
                         None if self.name_all_args => Some(format!("_{idx}")),
                         None => None,
                     }
@@ -115,6 +117,6 @@ impl<'a> std::fmt::Display for FmtFunction<'a> {
         }
         write!(sig_noret, ")")?;
 
-        FmtType(&self.signature.return_type, Some(&sig_noret)).fmt(f)
+        FmtType(self.backend, &self.signature.return_type, Some(&sig_noret)).fmt(f)
     }
 }

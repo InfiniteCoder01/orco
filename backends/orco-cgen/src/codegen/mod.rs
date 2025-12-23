@@ -1,12 +1,11 @@
-use crate::{Backend, FmtType};
+use crate::{BackendContext, FmtType};
 use orco::codegen as oc;
 
 /// Code generation session of a single function
-pub(super) struct Codegen<'a, Callback: FnMut(crate::SymbolKind)> {
-    backend: &'a Backend,
-    /// Callback that is called when codegen finishes
-    callback: Callback,
+pub(super) struct Codegen<'a, B: BackendContext> {
+    backend: &'a B,
 
+    name: orco::Symbol,
     signature: crate::symbols::FunctionSignature,
     variables: Vec<VariableInfo>,
 
@@ -21,15 +20,17 @@ struct VariableInfo {
     name: String,
 }
 
-impl<'a, Callback: FnMut(crate::SymbolKind)> Codegen<'a, Callback> {
+impl<'a, B: BackendContext> Codegen<'a, B> {
     pub(super) fn new(
-        backend: &'a Backend,
-        callback: Callback,
+        backend: &'a B,
+        name: orco::Symbol,
         signature: crate::symbols::FunctionSignature,
     ) -> Self {
         let mut variables = Vec::new();
         for (idx, (name, ty)) in signature.params.iter().enumerate() {
-            let name = name.map(crate::escape).unwrap_or_else(|| format!("_{idx}"));
+            let name = name
+                .map(|sym| backend.escape(sym))
+                .unwrap_or_else(|| format!("_{idx}"));
             variables.push(VariableInfo {
                 ty: ty.clone(),
                 name,
@@ -38,7 +39,7 @@ impl<'a, Callback: FnMut(crate::SymbolKind)> Codegen<'a, Callback> {
 
         Self {
             backend,
-            callback,
+            name,
             signature,
             variables,
             code: "{\n".to_owned(),
@@ -60,10 +61,10 @@ impl<'a, Callback: FnMut(crate::SymbolKind)> Codegen<'a, Callback> {
     fn fmt_place(&self, place: oc::Place) -> String {
         match place {
             oc::Place::Variable(variable) => self.var(variable).name.clone(),
-            oc::Place::Global(symbol) => crate::escape(symbol),
+            oc::Place::Global(symbol) => self.backend.escape(symbol),
             oc::Place::Deref(place) => format!("(*{})", self.fmt_place(*place)),
             oc::Place::Field(place, field) => {
-                format!("{}.{}", self.fmt_place(*place), crate::escape(field))
+                format!("{}.{}", self.fmt_place(*place), self.backend.escape(field))
             }
         }
     }
@@ -105,7 +106,7 @@ impl<'a, Callback: FnMut(crate::SymbolKind)> Codegen<'a, Callback> {
             oc::Place::Field(place, field) => {
                 let mut ty = self.place_ty(place);
                 while let orco::Type::Symbol(sym) = ty {
-                    let sym = match self.backend.symbols.get_sync(&sym) {
+                    let sym = match self.backend.backend().symbols.get_sync(&sym) {
                         Some(sym) => sym,
                         None => return orco::Type::Error,
                     };
@@ -132,7 +133,7 @@ impl<'a, Callback: FnMut(crate::SymbolKind)> Codegen<'a, Callback> {
     }
 }
 
-impl<Callback: FnMut(crate::SymbolKind)> oc::BodyCodegen for Codegen<'_, Callback> {
+impl<B: BackendContext> oc::BodyCodegen for Codegen<'_, B> {
     fn external(mut self)
     where
         Self: Sized,
@@ -146,7 +147,7 @@ impl<Callback: FnMut(crate::SymbolKind)> oc::BodyCodegen for Codegen<'_, Callbac
         let name = format!("_{}", var.0);
 
         if !self.is_void(&ty) {
-            self.line(&format!("{};", FmtType(&ty, Some(&name))));
+            self.line(&format!("{};", FmtType(self.backend, &ty, Some(&name))));
         }
 
         self.variables.push(VariableInfo { ty, name });
@@ -197,7 +198,7 @@ impl<Callback: FnMut(crate::SymbolKind)> oc::BodyCodegen for Codegen<'_, Callbac
     }
 }
 
-impl<Callback: FnMut(crate::SymbolKind)> oc::ACFCodegen for Codegen<'_, Callback> {
+impl<B: BackendContext> oc::ACFCodegen for Codegen<'_, B> {
     fn label(&mut self, label: oc::Label) {
         self.code.push_str(&format!("_{}:\n", label.0));
     }
@@ -226,7 +227,7 @@ impl<Callback: FnMut(crate::SymbolKind)> oc::ACFCodegen for Codegen<'_, Callback
     }
 }
 
-impl<Callback: FnMut(crate::SymbolKind)> std::ops::Drop for Codegen<'_, Callback> {
+impl<B: BackendContext> std::ops::Drop for Codegen<'_, B> {
     fn drop(&mut self) {
         let body = if self.code.is_empty() {
             None
@@ -235,15 +236,18 @@ impl<Callback: FnMut(crate::SymbolKind)> std::ops::Drop for Codegen<'_, Callback
             Some(std::mem::take(&mut self.code))
         };
 
-        (self.callback)(crate::SymbolKind::Function {
-            signature: std::mem::replace(
-                &mut self.signature,
-                crate::symbols::FunctionSignature {
-                    params: Vec::new(),
-                    return_type: orco::Type::Error,
-                },
-            ),
-            body,
-        });
+        self.backend.symbol(
+            self.name,
+            crate::SymbolKind::Function {
+                signature: std::mem::replace(
+                    &mut self.signature,
+                    crate::symbols::FunctionSignature {
+                        params: Vec::new(),
+                        return_type: orco::Type::Error,
+                    },
+                ),
+                body,
+            },
+        );
     }
 }
