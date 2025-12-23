@@ -31,11 +31,29 @@ pub mod codegen;
 use orco::Backend;
 use rustc_middle::ty::TyCtxt;
 
+macro_rules! declare_w_generics {
+    ($tcx:ident $backend:ident $key:ident $decl:block) => {
+        let generics = $tcx.generics_of($key);
+        if generics.is_empty() $decl
+        else {
+            let backend = $backend.generic(
+                generics
+                    .own_params
+                    .iter()
+                    .map(|param| param.name.as_str().into())
+                    .collect(),
+            );
+            let $backend = &backend;
+            $decl
+        }
+    };
+}
+
 /// Define a function from MIR by [`rustc_hir::def_id::LocalDefId`].
 /// The function MUST have a body.
 pub fn function(tcx: TyCtxt, backend: &impl Backend, key: rustc_hir::def_id::LocalDefId) {
     let name = names::convert_path(tcx, key.to_def_id());
-    let sig = tcx.fn_sig(key).skip_binder().skip_binder(); // TODO: Generics
+    let sig = tcx.fn_sig(key).instantiate_identity().skip_binder();
     let body = tcx.hir_body_owned_by(key);
 
     let mut params = Vec::with_capacity(sig.inputs().len());
@@ -44,8 +62,10 @@ pub fn function(tcx: TyCtxt, backend: &impl Backend, key: rustc_hir::def_id::Loc
         params.push((name, types::convert(tcx, backend, *ty)));
     }
 
-    let codegen = backend.function(name, params, types::convert(tcx, backend, sig.output()));
-    codegen::body(tcx, backend, codegen, tcx.optimized_mir(key));
+    declare_w_generics!(tcx backend key {
+        let codegen = backend.function(name, params, types::convert(tcx, backend, sig.output()));
+        codegen::body(tcx, backend, codegen, tcx.optimized_mir(key));
+    });
 }
 
 /// Declare a foregin function.
@@ -58,7 +78,7 @@ pub fn foreign_function(
     idents: &[Option<rustc_span::Ident>],
 ) {
     let name = names::convert_path(tcx, key);
-    let sig = tcx.fn_sig(key).skip_binder().skip_binder(); // TODO: Generics
+    let sig = tcx.fn_sig(key).instantiate_identity().skip_binder();
 
     let mut params = Vec::with_capacity(sig.inputs().len());
     for (i, ty) in sig.inputs().iter().enumerate() {
@@ -68,15 +88,16 @@ pub fn foreign_function(
         ));
     }
 
-    use orco::BodyCodegen;
-    backend
-        .function(name, params, types::convert(tcx, backend, sig.output()))
-        .external();
+    declare_w_generics!(tcx backend key {
+        use orco::BodyCodegen;
+        backend
+            .function(name, params, types::convert(tcx, backend, sig.output()))
+            .external();
+    });
 }
 
 /// Declare a struct type from MIR by [`rustc_hir::def_id::LocalDefId`].
 pub fn struct_(tcx: TyCtxt, backend: &impl Backend, key: rustc_hir::def_id::DefId) {
-    // TODO: Generics
     let name = names::convert_path(tcx, key);
     let adt = tcx.adt_def(key);
     let orco_ty = orco::Type::Struct(
@@ -95,20 +116,10 @@ pub fn struct_(tcx: TyCtxt, backend: &impl Backend, key: rustc_hir::def_id::DefI
             })
             .collect::<Vec<_>>(),
     );
-    let generics = tcx.generics_of(key);
-    if generics.is_empty() {
+
+    declare_w_generics!(tcx backend key {
         backend.type_(name, orco_ty);
-    } else {
-        backend
-            .generic(
-                generics
-                    .own_params
-                    .iter()
-                    .map(|param| param.name.as_str().into())
-                    .collect(),
-            )
-            .type_(name, orco_ty);
-    }
+    });
 }
 
 /// Define all the items using the backend provided.
