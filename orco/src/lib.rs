@@ -11,8 +11,17 @@ pub use codegen::BodyCodegen;
 /// Type of a variable, constant, part of a function signature, etc.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
+    /// Signed integer
+    Integer(IntegerSize),
+    /// Unsigned integer
+    Unsigned(IntegerSize),
+    /// IEEE (or not) floating point number with set number of bits
+    Float(u16),
+    /// A boolean. Should be 1 byte I guess...
+    Bool,
     /// Just a symbol
     Symbol(Symbol),
+
     /// An array type (`Type[size]`)
     Array(Box<Type>, usize),
     /// A struct, aka a collection of field-type pairs
@@ -25,7 +34,17 @@ impl Type {
     /// Returns a type name that could be used for hashing, mangling
     /// and human-facing names
     pub fn hashable_name(&self) -> String {
+        let fmt_size = |size| match size {
+            IntegerSize::Bits(bits) => bits.to_string(),
+            IntegerSize::Size => "size".to_owned(),
+        };
+
         match self {
+            Type::Integer(size) => format!("i{}", fmt_size(*size)),
+            Type::Unsigned(size) => format!("u{}", fmt_size(*size)),
+            Type::Float(size) => format!("f{size}"),
+            Type::Bool => "bool".to_owned(),
+
             Type::Symbol(sym) => sym.to_string(),
             Type::Array(ty, len) => format!("{}[{len}]", ty.hashable_name()),
             Type::Struct(fields) => fields
@@ -41,27 +60,15 @@ impl Type {
 /// Integer size
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum IntegerSize {
-    /// Number of bits
+    /// Number of bits. Not sure if non-powers-of-two
+    /// should be supported. Maybe even non-whole bytes (ex. u6 for 6 bit unsigned integer)
     Bits(u16),
     /// Kinda like `usize`/`isize` in rust or `size_t`/`ssize_t` in C
     Size,
 }
 
-/// This is a way to get primitive types. Every method returns an
-/// orco [Type] that will be used by frontends
-pub trait PrimitiveTypeSource {
-    /// Get the boolean type
-    fn bool(&self) -> Type;
-
-    /// Get the integer type with the set size and signedness
-    fn int(&self, size: IntegerSize, signed: bool) -> Type;
-
-    /// Get the floating point type
-    fn float(&self, size: u16) -> Type;
-}
-
 /// Root trait for declaring module items. This is enough to generate C headers
-pub trait Backend: PrimitiveTypeSource + Sync {
+pub trait Backend: Sync {
     /// Declare a function
     fn function(
         &self,

@@ -1,7 +1,7 @@
 use crate::TyCtxt;
 
 /// Convert path to [`orco::Symbol`]
-pub fn convert_path(tcx: TyCtxt, def_id: rustc_hir::def_id::DefId) -> orco::Symbol {
+pub fn convert_path(tcx: TyCtxt, def_id: rustc_hir::def_id::DefId) -> String {
     let path = tcx.def_path(def_id);
     let mut s = tcx.crate_name(path.krate).to_string();
     s.reserve(path.data.len() * 16 + 16);
@@ -20,7 +20,7 @@ pub fn convert_path(tcx: TyCtxt, def_id: rustc_hir::def_id::DefId) -> orco::Symb
         }
     }
 
-    s.into()
+    s
 }
 
 /// Extract the pattern name, if there is one concrete name

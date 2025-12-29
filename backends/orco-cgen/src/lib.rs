@@ -136,6 +136,7 @@ impl std::fmt::Display for Backend {
 
         let mut result = Ok(());
         self.symbols.iter_sync(|name, sym| {
+            // TODO: Generic context loss
             let sym = format!("{}", symbols::FmtSymbol(self, &self.escape(*name), sym));
             result = writeln!(
                 f,

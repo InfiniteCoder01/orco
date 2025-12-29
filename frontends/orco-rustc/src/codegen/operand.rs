@@ -90,7 +90,7 @@ impl<'tcx, 'a, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
                         // TODO: We might need to do more
                         // TODO: Generics
                         rustc_middle::ty::TyKind::FnDef(func, ..) => oc::Operand::Place(
-                            oc::Place::Global(crate::names::convert_path(self.tcx, *func)),
+                            oc::Place::Global(crate::names::convert_path(self.tcx, *func).into()),
                         ),
                         rustc_middle::ty::TyKind::Adt(..) => oc::Operand::Unit, // TODO: Ain't working
                         _ => panic!("Unknown zero-sized const {op:?}"),
@@ -99,6 +99,7 @@ impl<'tcx, 'a, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
                     ConstValue::Indirect { .. } => todo!(),
                 }
             }
+            Operand::RuntimeChecks(..) => todo!(),
         }
     }
 }

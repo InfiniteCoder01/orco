@@ -1,6 +1,7 @@
 use crate::TyCtxt;
 use orco::Backend;
 use orco::codegen as oc;
+use orco::codegen::ACFCodegen as _;
 
 mod operand;
 
@@ -83,21 +84,24 @@ impl<'tcx, 'a, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
     }
 
     fn codegen_block(&mut self, block: rustc_middle::mir::BasicBlock) {
-        self.codegen.label(oc::Label(block.index()));
+        self.codegen.acf().label(oc::Label(block.index()));
         let block = &self.body[block];
         for stmt in &block.statements {
             self.codegen_statement(stmt);
         }
         use rustc_middle::mir::TerminatorKind;
         match &block.terminator().kind {
-            TerminatorKind::Goto { target } => self.codegen.jump(oc::Label(target.index())),
+            TerminatorKind::Goto { target } => self.codegen.acf().jump(oc::Label(target.index())),
             TerminatorKind::SwitchInt { discr, targets } => {
                 let lhs = self.op(discr);
                 for (value, target) in targets.iter() {
                     self.codegen
+                        .acf()
                         .cjump(lhs.clone(), value, true, oc::Label(target.index()));
                 }
-                self.codegen.jump(oc::Label(targets.otherwise().index()));
+                self.codegen
+                    .acf()
+                    .jump(oc::Label(targets.otherwise().index()));
             }
             TerminatorKind::UnwindResume => todo!(),
             TerminatorKind::UnwindTerminate(..) => todo!(),
@@ -106,7 +110,7 @@ impl<'tcx, 'a, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
                 .return_(oc::Operand::Place(oc::Place::Variable(self.variables[0]))),
             TerminatorKind::Unreachable => todo!(),
             TerminatorKind::Drop { target, .. } => {
-                self.codegen.jump(oc::Label(target.index()));
+                self.codegen.acf().jump(oc::Label(target.index()));
                 // TODO
             }
             TerminatorKind::Call {
@@ -122,7 +126,7 @@ impl<'tcx, 'a, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
                     self.place(*destination),
                 );
                 if let Some(target) = target {
-                    self.codegen.jump(oc::Label(target.index()));
+                    self.codegen.acf().jump(oc::Label(target.index()));
                 }
             }
             TerminatorKind::TailCall { .. } => todo!(),
@@ -160,7 +164,7 @@ pub fn body<'a, 'b>(
             // An argument
             ctx.codegen.arg_var(idx - 1)
         } else {
-            let ty = crate::types::convert(tcx, backend, local.ty);
+            let ty = crate::types::convert(tcx, local.ty);
             ctx.codegen.declare_var(ty)
         };
         ctx.variables.push(var);

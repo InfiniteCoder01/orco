@@ -1,6 +1,9 @@
 //! Code generation APIs, used to actually define functions and generate code.
 use crate::{Symbol, Type};
 
+/// Implementations of codegen features
+pub mod impls;
+
 /// A variable ID.
 /// Variables are the only thing that can store information
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -39,7 +42,7 @@ pub enum Operand {
 pub struct Label(pub usize);
 
 /// Trait for generating code within a function
-pub trait BodyCodegen: ACFCodegen {
+pub trait BodyCodegen {
     /// The body generated is external
     fn external(self)
     where
@@ -59,6 +62,11 @@ pub trait BodyCodegen: ACFCodegen {
     /// Return a value from this function.
     /// Use [`Operand::Unit`] if no return value is required.
     fn return_(&mut self, value: Operand);
+
+    /// Get arbitrary control flow instructions, see [ACFCodegen]
+    fn acf(&mut self) -> &mut impl ACFCodegen {
+        Box::leak(Box::new(impls::Unsupported))
+    }
 }
 
 /// Arbitrary control flow instructions, such as jumps and
@@ -66,22 +74,13 @@ pub trait BodyCodegen: ACFCodegen {
 pub trait ACFCodegen {
     /// Puts a said label in the current position.
     /// Note: Labels can be used before placing. Frontend decides on IDs
-    fn label(&mut self, label: Label) {
-        let _ = label;
-        unimplemented!("arbitrary control flow is not supported by this backend");
-    }
+    fn label(&mut self, label: Label);
 
     /// Jump to a label.
     /// See [`BodyCodegen::label`]
-    fn jump(&mut self, label: Label) {
-        let _ = label;
-        unimplemented!("arbitrary control flow is not supported by this backend");
-    }
+    fn jump(&mut self, label: Label);
 
     /// Jumps if value equals (or not if equal is false).
     /// See [`BodyCodegen::label`]
-    fn cjump(&mut self, lhs: Operand, rhs: u128, equal: bool, label: Label) {
-        let _ = (lhs, rhs, equal, label);
-        unimplemented!("arbitrary control flow is not supported by this backend");
-    }
+    fn cjump(&mut self, lhs: Operand, rhs: u128, equal: bool, label: Label);
 }

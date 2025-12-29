@@ -36,20 +36,6 @@ impl BackendContext for Wrapper<'_> {
     }
 }
 
-impl orco::PrimitiveTypeSource for Wrapper<'_> {
-    fn bool(&self) -> orco::Type {
-        self.backend.bool()
-    }
-
-    fn int(&self, size: orco::IntegerSize, signed: bool) -> orco::Type {
-        self.backend.int(size, signed)
-    }
-
-    fn float(&self, size: u16) -> orco::Type {
-        self.backend.float(size)
-    }
-}
-
 impl orco::Backend for Wrapper<'_> {
     fn function(
         &self,

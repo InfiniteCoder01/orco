@@ -196,6 +196,10 @@ impl<B: BackendContext> oc::BodyCodegen for Codegen<'_, B> {
         }
         self.line(&format!("return {op};", op = self.op(value)));
     }
+
+    fn acf(&mut self) -> &mut impl oc::ACFCodegen {
+        self
+    }
 }
 
 impl<B: BackendContext> oc::ACFCodegen for Codegen<'_, B> {
