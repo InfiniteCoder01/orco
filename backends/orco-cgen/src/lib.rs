@@ -27,10 +27,6 @@ pub trait BackendContext {
     /// Defines a symbol
     fn symbol(&self, name: orco::Symbol, kind: SymbolKind);
 
-    /// Escape the symbol to be a valid C identifier. Possibly does mangling.
-    /// Substitutes # for either token pasting (`##_##`) or underscores (`_`), depending on the context
-    fn escape(&self, symbol: orco::Symbol) -> String;
-
     /// Intern the following type and it's insides
     fn intern_type(&self, ty: &mut orco::Type, named: bool, replace_unit: bool);
 }
@@ -49,6 +45,20 @@ impl Backend {
     pub fn new() -> Backend {
         Self::default()
     }
+
+    /// Escape the symbol to be a valid C identifier.
+    fn escape(&self, symbol: orco::Symbol, macro_context: bool) -> String {
+        // Take only the method name, not the path
+        // FIXME: conflicts...
+        let symbol = &symbol[symbol.rfind([':', '.']).map_or(0, |i| i + 1)..];
+
+        let mut symbol = symbol.replace(|c: char| !c.is_ascii_alphanumeric() && c != '#', "_");
+        if symbol.chars().next().is_none_or(|c| c.is_ascii_digit()) {
+            symbol.insert(0, '_');
+        }
+
+        symbol.replace('#', if macro_context { "##_##" } else { "_" })
+    }
 }
 
 impl BackendContext for Backend {
@@ -61,10 +71,6 @@ impl BackendContext for Backend {
             .entry_sync(name)
             .and_modify(|_| panic!("symbol {name:?} is already declared"))
             .or_insert(kind);
-    }
-
-    fn escape(&self, symbol: orco::Symbol) -> String {
-        escape(&symbol.replace('#', "_"))
     }
 
     fn intern_type(&self, ty: &mut orco::Type, named: bool, replace_unit: bool) {
@@ -137,7 +143,15 @@ impl std::fmt::Display for Backend {
         let mut result = Ok(());
         self.symbols.iter_sync(|name, sym| {
             // TODO: Generic context loss
-            let sym = format!("{}", symbols::FmtSymbol(self, &self.escape(*name), sym));
+            let sym = format!(
+                "{}",
+                symbols::FmtSymbol {
+                    backend: self,
+                    name: &self.escape(*name, false),
+                    kind: sym,
+                    macro_context: false,
+                }
+            );
             result = writeln!(
                 f,
                 "{}{}",
@@ -149,19 +163,4 @@ impl std::fmt::Display for Backend {
 
         result
     }
-}
-
-/// Escape the symbol to be a valid C identifier.
-pub fn escape(symbol: &str) -> String {
-    // Take only the method name, not the path
-    // FIXME: Temproary, for better readability of generated code
-    let symbol = &symbol[symbol.rfind(':').map_or(0, |i| i + 1)..];
-
-    let mut symbol = symbol
-        .replace("::", "_")
-        .replace(|c: char| !c.is_ascii_alphanumeric(), "_");
-    if symbol.chars().next().unwrap().is_ascii_digit() {
-        symbol.insert(0, '_');
-    }
-    symbol
 }

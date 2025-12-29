@@ -1,5 +1,4 @@
 use crate::TyCtxt;
-use orco::Backend;
 use orco::codegen as oc;
 use orco::codegen::ACFCodegen as _;
 
@@ -12,7 +11,7 @@ struct CodegenCtx<'tcx, CG> {
     variables: Vec<oc::Variable>,
 }
 
-impl<'tcx, 'a, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
+impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
     fn codegen_statement(&mut self, stmt: &rustc_middle::mir::Statement<'tcx>) {
         use rustc_middle::mir::StatementKind;
         let (place, rvalue) = match &stmt.kind {
@@ -144,11 +143,10 @@ impl<'tcx, 'a, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
 
 /// Codegen a body
 /// Note: Generates dirty code, not meant to be human-readable
-pub fn body<'a, 'b>(
-    tcx: TyCtxt<'b>,
-    backend: &impl Backend,
+pub fn body<'a>(
+    tcx: TyCtxt<'a>,
     codegen: impl orco::BodyCodegen,
-    body: &'b rustc_middle::mir::Body<'b>,
+    body: &'a rustc_middle::mir::Body<'a>,
 ) {
     let mut ctx = CodegenCtx {
         tcx,

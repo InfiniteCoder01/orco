@@ -29,7 +29,7 @@ impl<'a, B: BackendContext> Codegen<'a, B> {
         let mut variables = Vec::new();
         for (idx, (name, ty)) in signature.params.iter().enumerate() {
             let name = name
-                .map(|sym| backend.escape(sym))
+                .map(|sym| backend.backend().escape(sym, false)) // TODO: FIXME
                 .unwrap_or_else(|| format!("_{idx}"));
             variables.push(VariableInfo {
                 ty: ty.clone(),
@@ -61,10 +61,14 @@ impl<'a, B: BackendContext> Codegen<'a, B> {
     fn fmt_place(&self, place: oc::Place) -> String {
         match place {
             oc::Place::Variable(variable) => self.var(variable).name.clone(),
-            oc::Place::Global(symbol) => self.backend.escape(symbol),
+            oc::Place::Global(symbol) => self.backend.backend().escape(symbol, false), // TODO: FIXME
             oc::Place::Deref(place) => format!("(*{})", self.fmt_place(*place)),
             oc::Place::Field(place, field) => {
-                format!("{}.{}", self.fmt_place(*place), self.backend.escape(field))
+                format!(
+                    "{}.{}",
+                    self.fmt_place(*place),
+                    self.backend.backend().escape(field, false) // TODO: FIXME
+                )
             }
         }
     }
@@ -147,7 +151,15 @@ impl<B: BackendContext> oc::BodyCodegen for Codegen<'_, B> {
         let name = format!("_{}", var.0);
 
         if !self.is_void(&ty) {
-            self.line(&format!("{};", FmtType(self.backend, &ty, Some(&name))));
+            self.line(&format!(
+                "{};",
+                FmtType {
+                    backend: self.backend.backend(),
+                    macro_context: false, // TODO: FIXME
+                    ty: &ty,
+                    name: Some(&name)
+                }
+            ));
         }
 
         self.variables.push(VariableInfo { ty, name });

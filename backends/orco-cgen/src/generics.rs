@@ -26,10 +26,6 @@ impl BackendContext for Wrapper<'_> {
         );
     }
 
-    fn escape(&self, symbol: orco::Symbol) -> String {
-        crate::escape(&symbol.replace('#', "##_##"))
-    }
-
     fn intern_type(&self, ty: &mut orco::Type, named: bool, replace_unit: bool) {
         // TODO: Interned types in generics
         self.backend.intern_type(ty, named, replace_unit)
@@ -66,12 +62,7 @@ impl orco::Backend for Wrapper<'_> {
     fn generic(&self, params: Vec<orco::Symbol>) -> impl orco::Backend {
         Self {
             backend: self.backend,
-            params: self
-                .params
-                .iter()
-                .cloned()
-                .chain(params.into_iter())
-                .collect(),
+            params: self.params.iter().cloned().chain(params).collect(),
         }
     }
 }

@@ -1,22 +1,29 @@
 /// A thin wrapper around [`orco::Type`] for formatting it as a C type.
 /// Because C loves types to influence postfixes (aka arrays and function pointers),
 /// also wraps optional name (variable name, parameter name, type name in typedef)
-pub struct FmtType<'a, B: crate::BackendContext>(
-    pub &'a B,
-    pub &'a orco::Type,
-    pub Option<&'a str>,
-);
+#[allow(missing_docs)]
+pub struct FmtType<'a> {
+    pub backend: &'a crate::Backend,
+    pub macro_context: bool,
+    pub ty: &'a orco::Type,
+    pub name: Option<&'a str>,
+}
 
-impl<B: crate::BackendContext> std::fmt::Display for FmtType<'_, B> {
+impl std::fmt::Display for FmtType<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let FmtType(backend, ty, name) = *self;
+        let FmtType {
+            backend,
+            macro_context,
+            ty,
+            name,
+        } = *self;
 
         use orco::Type as OT;
         match ty {
             OT::Integer(size) => match size {
                 orco::IntegerSize::Bits(bits) => {
                     assert!(
-                        [8, 16, 32, 64].contains(&bits),
+                        [8, 16, 32, 64].contains(bits),
                         "invalid or unsupported integer bit width {bits}"
                     );
 
@@ -28,7 +35,7 @@ impl<B: crate::BackendContext> std::fmt::Display for FmtType<'_, B> {
             OT::Unsigned(size) => match size {
                 orco::IntegerSize::Bits(bits) => {
                     assert!(
-                        [8, 16, 32, 64].contains(&bits),
+                        [8, 16, 32, 64].contains(bits),
                         "invalid or unsupported integer bit width {bits}"
                     );
 
@@ -46,16 +53,32 @@ impl<B: crate::BackendContext> std::fmt::Display for FmtType<'_, B> {
                 }
             },
             OT::Bool => write!(f, "bool"),
-            OT::Symbol(sym) => write!(f, "{}", backend.escape(*sym)),
+            OT::Symbol(sym) => write!(f, "{}", backend.escape(*sym, macro_context)),
 
-            OT::Array(ty, sz) => return write!(f, "{}[{sz}]", FmtType(backend, ty, name)),
+            OT::Array(ty, sz) => {
+                return write!(
+                    f,
+                    "{}[{sz}]",
+                    FmtType {
+                        backend,
+                        macro_context,
+                        ty,
+                        name
+                    }
+                );
+            }
             OT::Struct(fields) => {
                 writeln!(f, "struct {{")?;
                 for (name, ty) in fields {
                     writeln!(
                         f,
                         "  {};",
-                        FmtType(backend, ty, Some(&backend.escape(*name)))
+                        FmtType {
+                            backend,
+                            macro_context,
+                            ty,
+                            name: Some(&backend.escape(*name, macro_context))
+                        }
                     )?;
                 }
                 write!(f, "}}")

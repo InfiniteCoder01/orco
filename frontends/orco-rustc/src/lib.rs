@@ -64,7 +64,7 @@ pub fn function(tcx: TyCtxt, backend: &impl Backend, key: rustc_hir::def_id::Loc
 
     declare_w_generics!(tcx backend key {
         let codegen = backend.function(name, params, types::convert(tcx, sig.output()));
-        codegen::body(tcx, backend, codegen, tcx.optimized_mir(key));
+        codegen::body(tcx, codegen, tcx.optimized_mir(key));
     });
 }
 
