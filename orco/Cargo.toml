@@ -1,7 +1,10 @@
 [package]
 name = "orco"
-version = "0.1.0"
+version = "0.1.0-prealpha"
 edition = "2024"
+license.workspace = true
+description.workspace = true
+repository.workspace = true
 
 [dependencies]
 scc = "3.4.2"

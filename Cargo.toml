@@ -6,6 +6,11 @@ members = [
   "backends/orco-cgen", "backends/orco-cranelift",
 ]
 
+[workspace.package]
+description = "A compiler backend interface"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/InfiniteCoder01/orco"
+
 [workspace.dependencies]
 orco = { path = "orco" }
 orco-cgen = { path = "backends/orco-cgen" }
