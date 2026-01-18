@@ -3,27 +3,11 @@ use super::{CodegenCtx, oc};
 impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
     pub(super) fn place(&self, place: rustc_middle::mir::Place<'tcx>) -> oc::Place {
         let mut res = oc::Place::Variable(self.variables[place.local.index()]);
-        for (place, proj) in place.iter_projections() {
+        for (_, proj) in place.iter_projections() {
             use rustc_middle::mir::ProjectionElem as PE;
             match proj {
                 PE::Deref => res = oc::Place::Deref(Box::new(res)),
-                PE::Field(field, _) => {
-                    let ty = place.ty(&self.body.local_decls, self.tcx);
-                    use rustc_middle::ty::TyKind as TK;
-                    let field = match ty.ty.kind() {
-                        TK::Adt(adt, _) => {
-                            adt.variants()
-                                [ty.variant_index.or(adt.variants().last_index()).unwrap()] // FIXME: this is a mess
-                            .fields[field]
-                                .name
-                                .to_string()
-                        }
-                        TK::Tuple(_) => field.index().to_string(),
-                        _ => panic!("Trying to access field of {ty:?}"),
-                    };
-
-                    res = oc::Place::Field(Box::new(res), field.into());
-                }
+                PE::Field(field, _) => res = oc::Place::Field(Box::new(res), field.index()),
                 PE::Index(_) => todo!(),
                 PE::ConstantIndex { .. } => todo!(),
                 PE::Subslice { .. } => todo!(),
@@ -35,7 +19,7 @@ impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
         res
     }
 
-    pub(super) fn op(&self, op: &rustc_middle::mir::Operand<'tcx>) -> oc::Operand {
+    pub(super) fn op(&mut self, op: &rustc_middle::mir::Operand<'tcx>) -> oc::Operand {
         use rustc_const_eval::interpret::Scalar;
         use rustc_middle::mir::{Const, ConstValue, Operand};
         match op {
@@ -92,7 +76,12 @@ impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
                         rustc_middle::ty::TyKind::FnDef(func, ..) => oc::Operand::Place(
                             oc::Place::Global(crate::names::convert_path(self.tcx, *func).into()),
                         ),
-                        rustc_middle::ty::TyKind::Adt(..) => oc::Operand::Unit, // TODO: Ain't working
+                        rustc_middle::ty::TyKind::Adt(..) => {
+                            let var = self
+                                .codegen
+                                .declare_var(crate::types::convert(self.tcx, ty));
+                            oc::Operand::Place(oc::Place::Variable(var))
+                        }
                         _ => panic!("Unknown zero-sized const {op:?}"),
                     },
                     ConstValue::Slice { .. } => todo!(),

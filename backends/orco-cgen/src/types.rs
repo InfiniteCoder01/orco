@@ -3,7 +3,6 @@
 /// also wraps optional name (variable name, parameter name, type name in typedef)
 #[allow(missing_docs)]
 pub struct FmtType<'a> {
-    pub backend: &'a crate::Backend,
     pub macro_context: bool,
     pub ty: &'a orco::Type,
     pub name: Option<&'a str>,
@@ -12,7 +11,6 @@ pub struct FmtType<'a> {
 impl std::fmt::Display for FmtType<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let FmtType {
-            backend,
             macro_context,
             ty,
             name,
@@ -53,35 +51,70 @@ impl std::fmt::Display for FmtType<'_> {
                 }
             },
             OT::Bool => write!(f, "bool"),
-            OT::Symbol(sym) => write!(f, "{}", backend.escape(*sym, macro_context)),
+            OT::Symbol(sym) => write!(f, "{}", crate::symname(*sym, macro_context)),
 
             OT::Array(ty, sz) => {
                 return write!(
                     f,
                     "{}[{sz}]",
                     FmtType {
-                        backend,
                         macro_context,
                         ty,
                         name
                     }
                 );
             }
+            OT::Struct(fields) if fields.is_empty() => {
+                write!(f, "struct {{}}")
+            }
             OT::Struct(fields) => {
                 writeln!(f, "struct {{")?;
-                for (name, ty) in fields {
+                for (idx, (name, ty)) in fields.iter().enumerate() {
                     writeln!(
                         f,
                         "  {};",
                         FmtType {
-                            backend,
                             macro_context,
                             ty,
-                            name: Some(&backend.escape(*name, macro_context))
+                            name: Some(
+                                name.as_deref()
+                                    .map(std::borrow::Cow::Borrowed)
+                                    .unwrap_or_else(|| format!("_{idx}").into())
+                                    .as_ref()
+                            )
                         }
                     )?;
                 }
                 write!(f, "}}")
+            }
+            OT::FnPtr {
+                params,
+                return_type,
+            } => {
+                return write!(
+                    f,
+                    "{}",
+                    FmtType {
+                        macro_context,
+                        ty: return_type,
+                        name: Some(&format!(
+                            "{}({})",
+                            name.unwrap_or_default(),
+                            params
+                                .iter()
+                                .map(|ty| {
+                                    FmtType {
+                                        ty,
+                                        macro_context,
+                                        name,
+                                    }
+                                    .to_string()
+                                })
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )),
+                    }
+                );
             }
             OT::Error => write!(f, "<error-type>"),
         }?;

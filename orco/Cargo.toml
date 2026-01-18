@@ -1,6 +1,6 @@
 [package]
 name = "orco"
-version = "0.1.0-prealpha"
+version = "0.0.0-prealpha"
 edition = "2024"
 license.workspace = true
 description.workspace = true

@@ -18,8 +18,7 @@ extern crate tracing;
 /// Extraction and conversion of names from HIR to orco::Symbol
 pub mod names;
 
-/// Type declaration,
-/// useful for generating bindings
+/// Type conversion
 pub mod types;
 
 /// rustc backend implementation
@@ -27,8 +26,9 @@ pub mod rustc_backend;
 
 /// Code generation is used to define functions and other items
 pub mod codegen;
+pub use codegen::codegen;
 
-use orco::Backend;
+use orco::DeclarationBackend;
 use rustc_middle::ty::TyCtxt;
 
 macro_rules! declare_w_generics {
@@ -40,7 +40,7 @@ macro_rules! declare_w_generics {
                 generics
                     .own_params
                     .iter()
-                    .map(|param| param.name.as_str().into())
+                    .map(|param| param.name.as_str().to_owned())
                     .collect(),
             );
             let $backend = &backend;
@@ -49,9 +49,13 @@ macro_rules! declare_w_generics {
     };
 }
 
-/// Define a function from MIR by [`rustc_hir::def_id::LocalDefId`].
-/// The function MUST have a body.
-pub fn function(tcx: TyCtxt, backend: &impl Backend, key: rustc_hir::def_id::LocalDefId) {
+/// Declare a function from MIR by [`rustc_hir::def_id::LocalDefId`].
+/// The function MUST have a body. For bodyless functions, see [foreign_function]
+pub fn function(
+    tcx: TyCtxt,
+    backend: &impl DeclarationBackend,
+    key: rustc_hir::def_id::LocalDefId,
+) {
     let name = names::convert_path(tcx, key.to_def_id()).into();
     let sig = tcx.fn_sig(key).instantiate_identity().skip_binder();
     let body = tcx.hir_body_owned_by(key);
@@ -63,8 +67,7 @@ pub fn function(tcx: TyCtxt, backend: &impl Backend, key: rustc_hir::def_id::Loc
     }
 
     declare_w_generics!(tcx backend key {
-        let codegen = backend.function(name, params, types::convert(tcx, sig.output()));
-        codegen::body(tcx, codegen, tcx.optimized_mir(key));
+        backend.function(name, params, types::convert(tcx, sig.output()));
     });
 }
 
@@ -73,7 +76,7 @@ pub fn function(tcx: TyCtxt, backend: &impl Backend, key: rustc_hir::def_id::Loc
 /// since foreign functions don't have a body.
 pub fn foreign_function(
     tcx: TyCtxt,
-    backend: &impl Backend,
+    backend: &impl DeclarationBackend,
     key: rustc_hir::def_id::DefId,
     idents: &[Option<rustc_span::Ident>],
 ) {
@@ -83,21 +86,18 @@ pub fn foreign_function(
     let mut params = Vec::with_capacity(sig.inputs().len());
     for (i, ty) in sig.inputs().iter().enumerate() {
         params.push((
-            idents[i].map(|ident| ident.as_str().into()),
+            idents[i].map(|ident| ident.as_str().to_owned()),
             types::convert(tcx, *ty),
         ));
     }
 
     declare_w_generics!(tcx backend key {
-        use orco::BodyCodegen;
-        backend
-            .function(name, params, types::convert(tcx, sig.output()))
-            .external();
+        backend.function(name, params, types::convert(tcx, sig.output()));
     });
 }
 
 /// Declare a struct type from MIR by [`rustc_hir::def_id::LocalDefId`].
-pub fn struct_(tcx: TyCtxt, backend: &impl Backend, key: rustc_hir::def_id::DefId) {
+pub fn struct_(tcx: TyCtxt, backend: &impl DeclarationBackend, key: rustc_hir::def_id::DefId) {
     let name = names::convert_path(tcx, key).into();
     let adt = tcx.adt_def(key);
     let orco_ty = orco::Type::Struct(
@@ -109,8 +109,13 @@ pub fn struct_(tcx: TyCtxt, backend: &impl Backend, key: rustc_hir::def_id::DefI
             .fields
             .iter()
             .map(|field| {
+                let name = field.name.to_string();
                 (
-                    field.name.as_str().into(),
+                    if name.chars().next().is_none_or(|c| c.is_ascii_digit()) {
+                        None
+                    } else {
+                        Some(name)
+                    },
                     types::convert(tcx, tcx.type_of(field.did).instantiate_identity()),
                 )
             })
@@ -122,9 +127,13 @@ pub fn struct_(tcx: TyCtxt, backend: &impl Backend, key: rustc_hir::def_id::DefI
     });
 }
 
-/// Define all the items using the backend provided.
+/// Declare all the items using the backend provided.
 /// See [`TyCtxt::hir_crate_items`]
-pub fn define(tcx: TyCtxt<'_>, backend: &impl Backend, items: &rustc_middle::hir::ModuleItems) {
+pub fn declare(
+    tcx: TyCtxt<'_>,
+    backend: &impl DeclarationBackend,
+    items: &rustc_middle::hir::ModuleItems,
+) {
     let backend = rustc_data_structures::sync::IntoDynSyncSend(backend);
     items
         .par_items(|item| {

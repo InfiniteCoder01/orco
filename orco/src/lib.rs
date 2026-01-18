@@ -6,7 +6,7 @@ pub use sinter::IStr as Symbol;
 
 /// Code generation, outside of declaration
 pub mod codegen;
-pub use codegen::BodyCodegen;
+pub use codegen::CodegenBackend;
 
 /// Type of a variable, constant, part of a function signature, etc.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -24,8 +24,13 @@ pub enum Type {
 
     /// An array type (`Type[size]`)
     Array(Box<Type>, usize),
-    /// A struct, aka a collection of field-type pairs
-    Struct(Vec<(Symbol, Type)>),
+    /// A struct, aka a collection of field-type pairs.
+    Struct(Vec<(Option<String>, Type)>),
+    /// Function pointer
+    FnPtr {
+        params: Vec<Type>,
+        return_type: Box<Type>,
+    },
     /// An error type
     Error,
 }
@@ -52,6 +57,18 @@ impl Type {
                 .map(|(_, ty)| ty.hashable_name())
                 .collect::<Vec<_>>()
                 .join(" "),
+            Type::FnPtr {
+                params,
+                return_type,
+            } => format!(
+                "({}) -> {}",
+                params
+                    .iter()
+                    .map(Type::hashable_name)
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                return_type.hashable_name()
+            ),
             Type::Error => "<error>".to_owned(),
         }
     }
@@ -67,17 +84,13 @@ pub enum IntegerSize {
     Size,
 }
 
-/// Root trait for declaring module items. This is enough to generate C headers
-pub trait Backend: Sync {
-    /// Declare a function
-    fn function(
-        &self,
-        name: Symbol,
-        params: Vec<(Option<Symbol>, Type)>,
-        return_type: Type,
-    ) -> impl codegen::BodyCodegen;
+/// Declare items before defining them.
+/// Think of it as an interface to generate C headers.
+pub trait DeclarationBackend: Sync {
+    /// Declare a function (does not have to be defined within this linker unit)
+    fn function(&self, name: Symbol, params: Vec<(Option<String>, Type)>, return_type: Type);
 
-    /// Define a type alias, should be used to declare compound types as well
+    /// Declre a type alias, should be used to declare compound types as well
     fn type_(&self, name: Symbol, ty: Type);
 
     /// Returns a backend that wraps every symbol in a macro with generic params.
@@ -86,5 +99,5 @@ pub trait Backend: Sync {
     /// the backend is going to generate a symbol `sym#param1#param2`.
     /// Same syntax is used if you want to use generic params. So in `another#param1`, `param1`
     /// is going to be substituted for the parameter value during instantiation
-    fn generic(&self, params: Vec<Symbol>) -> impl Backend;
+    fn generic(&self, params: Vec<String>) -> impl DeclarationBackend;
 }

@@ -18,8 +18,8 @@ pub enum Place {
     Global(Symbol),
     /// Pointer dereference
     Deref(Box<Place>),
-    /// Field access
-    Field(Box<Place>, Symbol),
+    /// Field access, using 0-based field index
+    Field(Box<Place>, usize),
 }
 
 /// An operand
@@ -33,21 +33,10 @@ pub enum Operand {
     UConst(u128, crate::IntegerSize),
     /// A floating point constant (value, size) where size is specified in bits
     FConst(f64, u16),
-    /// Unit value
-    Unit,
 }
-
-/// A label ID. See [`BodyCodegen::label`]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Label(pub usize);
 
 /// Trait for generating code within a function
 pub trait BodyCodegen {
-    /// The body generated is external
-    fn external(self)
-    where
-        Self: Sized;
-
     /// Declare a variable, see [Variable]
     fn declare_var(&mut self, ty: Type) -> Variable;
     /// Get the variable representing an argument
@@ -69,6 +58,10 @@ pub trait BodyCodegen {
     }
 }
 
+/// A label ID. See [`ACFCodegen::label`]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Label(pub usize);
+
 /// Arbitrary control flow instructions, such as jumps and
 /// Warning: Not all codegens implement arbitrary control flow
 pub trait ACFCodegen {
@@ -77,10 +70,17 @@ pub trait ACFCodegen {
     fn label(&mut self, label: Label);
 
     /// Jump to a label.
-    /// See [`BodyCodegen::label`]
+    /// See [`ACFCodegen::label`]
     fn jump(&mut self, label: Label);
 
     /// Jumps if value equals (or not if equal is false).
-    /// See [`BodyCodegen::label`]
+    /// See [`ACFCodegen::label`]
     fn cjump(&mut self, lhs: Operand, rhs: u128, equal: bool, label: Label);
+}
+
+/// Interface for generating actual code.
+/// All the items defined must be declared using [DeclarationBackend] first.
+pub trait CodegenBackend: Sync {
+    /// Define a function
+    fn function(&self, name: Symbol) -> impl BodyCodegen;
 }

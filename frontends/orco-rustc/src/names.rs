@@ -24,12 +24,12 @@ pub fn convert_path(tcx: TyCtxt, def_id: rustc_hir::def_id::DefId) -> String {
 }
 
 /// Extract the pattern name, if there is one concrete name
-pub fn pat_name(pat: &rustc_hir::Pat) -> Option<orco::Symbol> {
+pub fn pat_name(pat: &rustc_hir::Pat) -> Option<String> {
     use rustc_hir::PatKind as PK;
     match pat.kind {
         PK::Missing => None,
         PK::Wild => None,
-        PK::Binding(_, _, ident, _) => Some(ident.as_str().into()),
+        PK::Binding(_, _, ident, _) => Some(ident.as_str().to_owned()),
         PK::Struct(..) => None,
         PK::TupleStruct(..) => None,
         PK::Or(..) => None,

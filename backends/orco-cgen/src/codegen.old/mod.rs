@@ -1,6 +1,10 @@
 use crate::{BackendContext, FmtType};
 use orco::codegen as oc;
 
+pub struct Body {
+    statements: Vec<Statement>,
+}
+
 /// Code generation session of a single function
 pub(super) struct Codegen<'a, B: BackendContext> {
     backend: &'a B,

@@ -1,5 +1,8 @@
+fn test() {}
+
 fn main() {
     let x = 5u32;
+    test();
 
     let y = {
         let x_squared = x * x;
