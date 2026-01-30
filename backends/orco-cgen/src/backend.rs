@@ -136,7 +136,7 @@ impl std::fmt::Display for Backend {
         result?;
 
         for def in self.definitions.iter(&scc::Guard::new()) {
-            writeln!(f, "{def}")?;
+            writeln!(f, "{def}\n")?;
         }
 
         Ok(())

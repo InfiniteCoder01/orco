@@ -87,6 +87,24 @@ impl std::fmt::Display for FmtType<'_> {
                 }
                 write!(f, "}}")
             }
+            OT::Ptr(ty, mutable) => {
+                return write!(
+                    f,
+                    "{}",
+                    FmtType {
+                        macro_context,
+                        ty,
+                        name: Some(&format!(
+                            "*{}{}",
+                            match mutable {
+                                true => "",
+                                false => "const",
+                            },
+                            name.unwrap_or_default()
+                        ))
+                    }
+                );
+            }
             OT::FnPtr {
                 params,
                 return_type,

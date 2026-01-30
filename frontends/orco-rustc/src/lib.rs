@@ -31,18 +31,20 @@ pub use codegen::codegen;
 use orco::DeclarationBackend;
 use rustc_middle::ty::TyCtxt;
 
+fn cvt_generics(generics: &rustc_middle::ty::Generics) -> Vec<String> {
+    generics
+        .own_params
+        .iter()
+        .map(|param| param.name.as_str().to_owned())
+        .collect()
+}
+
 macro_rules! declare_w_generics {
     ($tcx:ident $backend:ident $key:ident $decl:block) => {
         let generics = $tcx.generics_of($key);
         if generics.is_empty() $decl
         else {
-            let backend = $backend.generic(
-                generics
-                    .own_params
-                    .iter()
-                    .map(|param| param.name.as_str().to_owned())
-                    .collect(),
-            );
+            let backend = $backend.generic(cvt_generics(generics));
             let $backend = &backend;
             $decl
         }
@@ -163,7 +165,23 @@ pub fn declare(
         })
         .unwrap();
 
-    items.par_impl_items(|_| todo!()).unwrap();
+    items
+        .par_impl_items(|item| {
+            let item = tcx.hir_impl_item(item);
+            let generics = tcx.generics_of(tcx.parent(item.owner_id.to_def_id()));
+            let backend = backend.generic(cvt_generics(generics));
+
+            use rustc_hir::ImplItemKind as IIK;
+            // TODO: All of theese
+            match item.kind {
+                IIK::Const(..) => (),
+                IIK::Fn(..) => function(tcx, &backend, item.owner_id.def_id),
+                IIK::Type(..) => (),
+            }
+
+            Ok(())
+        })
+        .unwrap();
 
     items
         .par_foreign_items(|item| {

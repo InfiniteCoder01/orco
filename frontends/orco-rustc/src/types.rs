@@ -47,7 +47,9 @@ pub fn convert(tcx: TyCtxt, ty: rustc_middle::ty::Ty) -> orco::Type {
         TyKind::Pat(..) => todo!(),
         TyKind::Slice(..) => todo!(),
         TyKind::RawPtr(..) => todo!(),
-        TyKind::Ref(..) => todo!(),
+        TyKind::Ref(_, ty, mutability) => {
+            orco::Type::Ptr(Box::new(convert(tcx, *ty)), mutability.is_mut())
+        }
         TyKind::FnDef(..) => todo!(),
         TyKind::FnPtr(..) => todo!(),
         TyKind::UnsafeBinder(..) => todo!(),

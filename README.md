@@ -1,7 +1,7 @@
 # orco
 [![wakatime](https://wakatime.com/badge/github/InfiniteCoder01/orco.svg)](https://wakatime.com/badge/github/InfiniteCoder01/orco)
 
-orco is a compiler backend interface focusing on performace and extensibility
+IDK, S2S compiler?
 [Developed on streams](https://www.youtube.com/playlist?list=PLvZASPqsD2VjqJ6968gEhoLlCn0i0rqHH)
 
 ## Goals

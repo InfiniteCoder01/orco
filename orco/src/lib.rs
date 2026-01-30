@@ -26,9 +26,13 @@ pub enum Type {
     Array(Box<Type>, usize),
     /// A struct, aka a collection of field-type pairs.
     Struct(Vec<(Option<String>, Type)>),
+    /// Pointer (with mutability)
+    Ptr(Box<Type>, bool),
     /// Function pointer
     FnPtr {
+        /// Types of parameters
         params: Vec<Type>,
+        /// Return type
         return_type: Box<Type>,
     },
     /// An error type
@@ -57,6 +61,16 @@ impl Type {
                 .map(|(_, ty)| ty.hashable_name())
                 .collect::<Vec<_>>()
                 .join(" "),
+            Type::Ptr(ty, mutable) => {
+                format!(
+                    "*{} {}",
+                    match mutable {
+                        true => "mut",
+                        false => "const",
+                    },
+                    ty.hashable_name()
+                )
+            }
             Type::FnPtr {
                 params,
                 return_type,
