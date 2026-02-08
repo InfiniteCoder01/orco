@@ -131,7 +131,7 @@ impl<'a, B: BackendContext> Codegen<'a, B> {
                 _ => orco::Type::Error,
             },
             oc::Place::Field(place, field) => match self.place_ty(place) {
-                orco::Type::Struct(fields) => fields
+                orco::Type::Struct { fields } => fields
                     .get(*field)
                     .map_or(orco::Type::Error, |(_, ty)| ty.clone()),
                 _ => orco::Type::Error,
@@ -155,7 +155,7 @@ impl<B: BackendContext> oc::BodyCodegen for Codegen<'_, B> {
         let name = format!("_{id}");
         self.ctx.intern_type(&mut ty, false, false);
 
-        if !matches!(&ty, orco::Type::Struct(fields) if fields.is_empty()) {
+        if !matches!(&ty, orco::Type::Struct { fields: fields } if fields.is_empty()) {
             self.stmt(&format!(
                 "{};",
                 crate::types::FmtType {

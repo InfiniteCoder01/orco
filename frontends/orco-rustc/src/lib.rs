@@ -51,6 +51,22 @@ macro_rules! declare_w_generics {
     };
 }
 
+fn convert_fn_attrs(
+    attrs: &rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrs,
+) -> orco::attrs::FunctionAttributes {
+    use orco::attrs as oa;
+    use rustc_hir::attrs as ra;
+    orco::attrs::FunctionAttributes {
+        inlining: match attrs.inline {
+            ra::InlineAttr::None => oa::Inlining::Auto,
+            ra::InlineAttr::Hint => oa::Inlining::Hint,
+            ra::InlineAttr::Always => oa::Inlining::Always,
+            ra::InlineAttr::Never => oa::Inlining::Never,
+            ra::InlineAttr::Force { attr_span, reason } => oa::Inlining::Always,
+        },
+    }
+}
+
 /// Declare a function from MIR by [`rustc_hir::def_id::LocalDefId`].
 /// The function MUST have a body. For bodyless functions, see [foreign_function]
 pub fn function(
@@ -60,6 +76,7 @@ pub fn function(
 ) {
     let name = names::convert_path(tcx, key.to_def_id()).into();
     let sig = tcx.fn_sig(key).instantiate_identity().skip_binder();
+    let attrs = tcx.codegen_fn_attrs(key);
     let body = tcx.hir_body_owned_by(key);
 
     let mut params = Vec::with_capacity(sig.inputs().len());
@@ -69,7 +86,7 @@ pub fn function(
     }
 
     declare_w_generics!(tcx backend key {
-        backend.function(name, params, types::convert(tcx, sig.output()));
+        backend.function(name, params, types::convert(tcx, sig.output()), convert_fn_attrs(attrs));
     });
 }
 
@@ -84,6 +101,7 @@ pub fn foreign_function(
 ) {
     let name = names::convert_path(tcx, key).into();
     let sig = tcx.fn_sig(key).instantiate_identity().skip_binder();
+    let attrs = tcx.codegen_fn_attrs(key);
 
     let mut params = Vec::with_capacity(sig.inputs().len());
     for (i, ty) in sig.inputs().iter().enumerate() {
@@ -94,7 +112,7 @@ pub fn foreign_function(
     }
 
     declare_w_generics!(tcx backend key {
-        backend.function(name, params, types::convert(tcx, sig.output()));
+        backend.function(name, params, types::convert(tcx, sig.output()), convert_fn_attrs(attrs));
     });
 }
 
@@ -102,9 +120,9 @@ pub fn foreign_function(
 pub fn struct_(tcx: TyCtxt, backend: &impl DeclarationBackend, key: rustc_hir::def_id::DefId) {
     let name = names::convert_path(tcx, key).into();
     let adt = tcx.adt_def(key);
-    let orco_ty = orco::Type::Struct(
-        // TODO: Default values???
-        adt.variants()
+    let orco_ty = orco::Type::Struct {
+        fields: adt
+            .variants()
             .iter()
             .next()
             .unwrap()
@@ -122,7 +140,7 @@ pub fn struct_(tcx: TyCtxt, backend: &impl DeclarationBackend, key: rustc_hir::d
                 )
             })
             .collect::<Vec<_>>(),
-    );
+    };
 
     declare_w_generics!(tcx backend key {
         backend.type_(name, orco_ty);

@@ -43,12 +43,12 @@ impl BackendContext for Backend {
             orco::Type::Array(ty, _) => {
                 self.intern_type(ty.as_mut(), false, false) // TODO: More work on arrays
             }
-            orco::Type::Struct(fields) if named => {
+            orco::Type::Struct { fields } if named => {
                 for (_, ty) in fields {
                     self.intern_type(ty, false, false);
                 }
             }
-            orco::Type::Struct(fields) if !named => {
+            orco::Type::Struct { fields } if !named => {
                 if fields.is_empty() {
                     if replace_unit {
                         *ty = orco::Type::Symbol("void".into());
@@ -74,6 +74,7 @@ impl orco::DeclarationBackend for Backend {
         name: orco::Symbol,
         mut params: Vec<(Option<String>, orco::Type)>,
         mut return_type: orco::Type,
+        attrs: orco::attrs::FunctionAttributes,
     ) {
         for (_, ty) in &mut params {
             self.intern_type(ty, false, false);
@@ -82,6 +83,7 @@ impl orco::DeclarationBackend for Backend {
         self.symbol(
             name,
             SymbolKind::Function(symbols::FunctionSignature {
+                attrs,
                 params,
                 return_type,
             }),

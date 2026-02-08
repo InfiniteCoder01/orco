@@ -11,11 +11,6 @@ use rustc_session::Session;
 pub struct OrcoCodegenBackend;
 
 impl rustc_codegen_ssa::traits::CodegenBackend for OrcoCodegenBackend {
-    fn locale_resource(&self) -> &'static str {
-        // FIXME(rust-lang/rust#100717) - orco codegen backend is not yet translated
-        ""
-    }
-
     fn name(&self) -> &'static str {
         "orco codegen"
     }

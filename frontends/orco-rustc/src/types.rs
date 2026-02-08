@@ -9,20 +9,20 @@ pub fn convert(tcx: TyCtxt, ty: rustc_middle::ty::Ty) -> orco::Type {
         TyKind::Bool => orco::Type::Bool,
         TyKind::Char => todo!(),
         TyKind::Int(sz) => orco::Type::Integer(match sz {
-            IntTy::Isize => orco::IntegerSize::Size,
-            IntTy::I8 => orco::IntegerSize::Bits(8),
-            IntTy::I16 => orco::IntegerSize::Bits(16),
-            IntTy::I32 => orco::IntegerSize::Bits(32),
-            IntTy::I64 => orco::IntegerSize::Bits(64),
-            IntTy::I128 => orco::IntegerSize::Bits(128),
+            IntTy::Isize => orco::types::IntegerSize::Size,
+            IntTy::I8 => orco::types::IntegerSize::Bits(8),
+            IntTy::I16 => orco::types::IntegerSize::Bits(16),
+            IntTy::I32 => orco::types::IntegerSize::Bits(32),
+            IntTy::I64 => orco::types::IntegerSize::Bits(64),
+            IntTy::I128 => orco::types::IntegerSize::Bits(128),
         }),
         TyKind::Uint(sz) => orco::Type::Unsigned(match sz {
-            UintTy::Usize => orco::IntegerSize::Size,
-            UintTy::U8 => orco::IntegerSize::Bits(8),
-            UintTy::U16 => orco::IntegerSize::Bits(16),
-            UintTy::U32 => orco::IntegerSize::Bits(32),
-            UintTy::U64 => orco::IntegerSize::Bits(64),
-            UintTy::U128 => orco::IntegerSize::Bits(128),
+            UintTy::Usize => orco::types::IntegerSize::Size,
+            UintTy::U8 => orco::types::IntegerSize::Bits(8),
+            UintTy::U16 => orco::types::IntegerSize::Bits(16),
+            UintTy::U32 => orco::types::IntegerSize::Bits(32),
+            UintTy::U64 => orco::types::IntegerSize::Bits(64),
+            UintTy::U128 => orco::types::IntegerSize::Bits(128),
         }),
         TyKind::Float(sz) => orco::Type::Float(match sz {
             FloatTy::F16 => 16,
@@ -59,8 +59,9 @@ pub fn convert(tcx: TyCtxt, ty: rustc_middle::ty::Ty) -> orco::Type {
         TyKind::Coroutine(..) => todo!(),
         TyKind::CoroutineWitness(..) => todo!(),
         TyKind::Never => todo!(),
-        TyKind::Tuple(v) => orco::Type::Struct(
-            v.iter()
+        TyKind::Tuple(v) => orco::Type::Struct {
+            fields: v
+                .iter()
                 .enumerate()
                 .map(|(idx, ty)| {
                     let name = idx.to_string();
@@ -74,7 +75,7 @@ pub fn convert(tcx: TyCtxt, ty: rustc_middle::ty::Ty) -> orco::Type {
                     )
                 })
                 .collect(),
-        ),
+        },
         TyKind::Alias(..) => todo!(),
         TyKind::Param(param) => orco::Type::Symbol(param.name.as_str().into()), // TODO: Generics?
         TyKind::Bound(..) => todo!(),

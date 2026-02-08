@@ -96,6 +96,8 @@ impl std::fmt::Display for FmtSymbol<'_> {
 /// Function signature without a name
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FunctionSignature {
+    /// Function attributes
+    pub attrs: orco::attrs::FunctionAttributes,
     /// Parameter types with optional names
     pub params: Vec<(Option<String>, orco::Type)>,
     /// Return type
@@ -128,6 +130,14 @@ impl std::fmt::Display for FmtFunction<'_> {
             signature,
             name_all_args,
         } = *self;
+
+        use orco::attrs as oa;
+        match signature.attrs.inlining {
+            oa::Inlining::Never => write!(f, "__attribute__ ((noinline)) ")?,
+            oa::Inlining::Auto => (),
+            oa::Inlining::Hint => write!(f, "inline ")?,
+            oa::Inlining::Always => write!(f, "__attribute__ ((always_inline)) ")?,
+        }
 
         let mut sig_noret = name.to_owned();
 

@@ -46,6 +46,7 @@ impl orco::DeclarationBackend for Wrapper<'_> {
         name: orco::Symbol,
         mut params: Vec<(Option<String>, orco::Type)>,
         mut return_type: orco::Type,
+        attrs: orco::attrs::FunctionAttributes,
     ) {
         for (_, ty) in &mut params {
             self.intern_type(ty, false, false);
@@ -54,6 +55,7 @@ impl orco::DeclarationBackend for Wrapper<'_> {
         self.symbol(
             name,
             SymbolKind::Function(crate::symbols::FunctionSignature {
+                attrs,
                 params,
                 return_type,
             }),

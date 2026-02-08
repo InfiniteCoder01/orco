@@ -1,3 +1,4 @@
+#[inline]
 fn test() {}
 
 fn main() {

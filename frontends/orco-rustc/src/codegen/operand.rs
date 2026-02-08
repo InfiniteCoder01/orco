@@ -52,18 +52,18 @@ impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
                                 oc::Operand::IConst(
                                     value.to_int(value.size()),
                                     if ty.is_ptr_sized_integral() {
-                                        orco::IntegerSize::Size
+                                        orco::types::IntegerSize::Size
                                     } else {
-                                        orco::IntegerSize::Bits(value.size().bits() as _)
+                                        orco::types::IntegerSize::Bits(value.size().bits() as _)
                                     },
                                 )
                             } else {
                                 oc::Operand::UConst(
                                     value.to_uint(value.size()),
                                     if ty.is_ptr_sized_integral() {
-                                        orco::IntegerSize::Size
+                                        orco::types::IntegerSize::Size
                                     } else {
-                                        orco::IntegerSize::Bits(value.size().bits() as _)
+                                        orco::types::IntegerSize::Bits(value.size().bits() as _)
                                     },
                                 )
                             }

@@ -17,9 +17,10 @@ impl std::fmt::Display for FmtType<'_> {
         } = *self;
 
         use orco::Type as OT;
+        use orco::types::IntegerSize as IS;
         match ty {
             OT::Integer(size) => match size {
-                orco::IntegerSize::Bits(bits) => {
+                IS::Bits(bits) => {
                     assert!(
                         [8, 16, 32, 64].contains(bits),
                         "invalid or unsupported integer bit width {bits}"
@@ -28,10 +29,10 @@ impl std::fmt::Display for FmtType<'_> {
                     // TODO: __int128_t
                     write!(f, "int{bits}_t")
                 }
-                orco::IntegerSize::Size => write!(f, "ssize_t"),
+                IS::Size => write!(f, "ssize_t"),
             },
             OT::Unsigned(size) => match size {
-                orco::IntegerSize::Bits(bits) => {
+                IS::Bits(bits) => {
                     assert!(
                         [8, 16, 32, 64].contains(bits),
                         "invalid or unsupported integer bit width {bits}"
@@ -40,7 +41,7 @@ impl std::fmt::Display for FmtType<'_> {
                     // TODO: unsigned __int128_t
                     write!(f, "uint{bits}_t")
                 }
-                orco::IntegerSize::Size => write!(f, "size_t"),
+                IS::Size => write!(f, "size_t"),
             },
             OT::Float(size) => match size {
                 32 => write!(f, "float"),
@@ -64,10 +65,10 @@ impl std::fmt::Display for FmtType<'_> {
                     }
                 );
             }
-            OT::Struct(fields) if fields.is_empty() => {
+            OT::Struct { fields } if fields.is_empty() => {
                 write!(f, "struct {{}}")
             }
-            OT::Struct(fields) => {
+            OT::Struct { fields } => {
                 writeln!(f, "struct {{")?;
                 for (idx, (name, ty)) in fields.iter().enumerate() {
                     writeln!(

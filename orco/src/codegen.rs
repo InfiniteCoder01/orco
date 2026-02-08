@@ -28,9 +28,9 @@ pub enum Operand {
     /// A place, see [Place]
     Place(Place),
     /// A signed integer constant
-    IConst(i128, crate::IntegerSize),
+    IConst(i128, crate::types::IntegerSize),
     /// An unsigned integer constant
-    UConst(u128, crate::IntegerSize),
+    UConst(u128, crate::types::IntegerSize),
     /// A floating point constant (value, size) where size is specified in bits
     FConst(f64, u16),
 }
