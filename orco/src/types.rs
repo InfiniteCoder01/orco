@@ -38,16 +38,10 @@ impl Type {
     /// Returns a type name that could be used for hashing, mangling
     /// and human-facing names
     pub fn hashable_name(&self) -> String {
-        let fmt_size = |size| match size {
-            IntegerSize::Bits(bits) => bits.to_string(),
-            IntegerSize::Size => "size".to_owned(),
-        };
-
         match self {
-            Type::Integer(size) => format!("i{}", fmt_size(*size)),
-            Type::Unsigned(size) => format!("u{}", fmt_size(*size)),
-            Type::Float(size) => format!("f{size}"),
-            Type::Bool => "bool".to_owned(),
+            ty @ (Type::Integer(..) | Type::Unsigned(..) | Type::Float(..) | Type::Bool) => {
+                ty.to_string()
+            }
 
             Type::Symbol(sym) => sym.to_string(),
             Type::Array(ty, len) => format!("{}[{len}]", ty.hashable_name()),
@@ -81,6 +75,71 @@ impl Type {
                     .map_or("void".to_owned(), Type::hashable_name)
             ),
             Type::Error => "<error>".to_owned(),
+        }
+    }
+}
+
+impl std::fmt::Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let fmt_size = |size| match size {
+            IntegerSize::Bits(bits) => bits.to_string(),
+            IntegerSize::Size => "size".to_owned(),
+        };
+
+        match self {
+            Type::Integer(size) => write!(f, "i{}", fmt_size(*size)),
+            Type::Unsigned(size) => write!(f, "u{}", fmt_size(*size)),
+            Type::Float(size) => write!(f, "f{size}"),
+            Type::Bool => write!(f, "bool"),
+
+            Type::Symbol(sym) => write!(f, "{sym}"),
+            Type::Array(ty, len) => write!(f, "{ty}[{len}]"),
+            Type::Struct { fields } => {
+                write!(f, "{{ ")?;
+                for (idx, (name, ty)) in fields.iter().enumerate() {
+                    if idx > 0 {
+                        write!(f, ", ")?;
+                    }
+
+                    match name {
+                        Some(name) => write!(f, "{name}: ")?,
+                        None => write!(f, "<{idx}>: ")?,
+                    }
+
+                    write!(f, "{ty}")?;
+                }
+                Ok(())
+            }
+            Type::Ptr(ty, mutable) => {
+                write!(
+                    f,
+                    "*{} {ty}",
+                    match mutable {
+                        true => "mut",
+                        false => "const",
+                    },
+                )
+            }
+            Type::FnPtr {
+                params,
+                return_type,
+            } => {
+                write!(f, "(")?;
+
+                for (idx, param) in params.iter().enumerate() {
+                    if idx > 0 {
+                        write!(f, ", ")?;
+                    }
+
+                    write!(f, "{param}")?;
+                }
+
+                match return_type {
+                    Some(ty) => write!(f, ") -> {ty}"),
+                    None => write!(f, ") -> void"),
+                }
+            }
+            Type::Error => write!(f, "<error>"),
         }
     }
 }
@@ -125,6 +184,31 @@ impl FunctionSignature {
         Type::FnPtr {
             params: self.params.iter().map(|(_, ty)| ty.clone()).collect(),
             return_type: self.return_type.clone().map(Box::new),
+        }
+    }
+}
+
+impl std::fmt::Display for FunctionSignature {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.attrs)?;
+        write!(f, "(")?;
+
+        for (idx, (name, ty)) in self.params.iter().enumerate() {
+            if idx > 0 {
+                write!(f, ", ")?;
+            }
+
+            match name {
+                Some(name) => write!(f, "{name}: ")?,
+                None => write!(f, "<{idx}>: ")?,
+            }
+
+            write!(f, "{ty}")?;
+        }
+
+        match &self.return_type {
+            Some(ty) => write!(f, ") -> {ty}"),
+            None => write!(f, ") -> void"),
         }
     }
 }

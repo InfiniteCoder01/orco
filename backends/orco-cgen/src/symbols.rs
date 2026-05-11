@@ -1,7 +1,7 @@
 use crate::FmtType;
 use orco::types::FunctionSignature;
 
-/// Reference to a declaration
+/// A declaration
 #[derive(Debug)]
 pub enum SymbolKind {
     /// Function, see [FunctionSignature]

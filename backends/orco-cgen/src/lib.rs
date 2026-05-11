@@ -1,5 +1,6 @@
 //! C transpilation backend for orco.
-//! Also used to generate C headers and is generally the reference for other backends
+//! Also used to generate C headers and
+//! is generally the reference for other backends
 //! See [Backend]
 // TODO: ABI
 // TODO: Extra type interning
@@ -39,9 +40,8 @@ impl Backend<'_> {
     /// Declares a symbol
     pub fn symbol(&self, name: orco::Symbol, kind: SymbolKind) {
         self.symbols
-            .entry_sync(name)
-            .and_modify(|_| panic!("symbol {name:?} is already declared"))
-            .or_insert(kind);
+            .insert_sync(name, kind)
+            .unwrap_or_else(|_| panic!("symbol {name:?} is already declared"))
     }
 
     /// Returns a previously declared symbol
