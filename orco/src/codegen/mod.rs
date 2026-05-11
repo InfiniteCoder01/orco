@@ -82,6 +82,8 @@ pub trait BodyCodegen {
 
     /// Read value from a [Place]
     fn read(&mut self, place: Place) -> Value;
+    /// Get memory address of a [Place]
+    fn reference(&mut self, place: Place) -> Value;
 
     /// Call a function (or an intrinsic)
     fn call(&mut self, func: Value, args: Vec<Value>) -> Option<Value>;

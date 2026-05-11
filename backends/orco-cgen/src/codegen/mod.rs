@@ -115,6 +115,7 @@ impl oc::BodyCodegen for Codegen<'_, '_> {
                 "{};",
                 crate::types::FmtType {
                     ty: &ty,
+                    constant: false,
                     name: Some(&name),
                 }
             ));
@@ -160,6 +161,12 @@ impl oc::BodyCodegen for Codegen<'_, '_> {
 
     fn read(&mut self, place: oc::Place) -> oc::Value {
         let place = self.place(place);
+        self.mk_value(place)
+    }
+
+    fn reference(&mut self, place: oc::Place) -> oc::Value {
+        let mut place = self.place(place);
+        place.expression.insert(0, '&');
         self.mk_value(place)
     }
 

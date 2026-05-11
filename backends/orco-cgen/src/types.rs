@@ -4,15 +4,21 @@
 #[allow(missing_docs)]
 pub struct FmtType<'a> {
     pub ty: &'a orco::Type,
+    pub constant: bool,
     pub name: Option<&'a str>,
 }
 
 impl std::fmt::Display for FmtType<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let FmtType { ty, name } = *self;
+        let FmtType { ty, constant, name } = *self;
 
         use orco::Type as OT;
         use orco::types::IntegerSize as IS;
+
+        if constant && !matches!(ty, OT::Ptr(_, _)) {
+            write!(f, "const ")?;
+        }
+
         match ty {
             OT::Integer(size) => match size {
                 IS::Bits(bits) => {
@@ -50,7 +56,15 @@ impl std::fmt::Display for FmtType<'_> {
             OT::Symbol(sym) => write!(f, "{}", crate::symname(*sym)),
 
             OT::Array(ty, sz) => {
-                return write!(f, "{}[{sz}]", FmtType { ty, name });
+                return write!(
+                    f,
+                    "{}[{sz}]",
+                    FmtType {
+                        ty,
+                        constant: false,
+                        name
+                    }
+                );
             }
             OT::Struct { fields } if fields.is_empty() => {
                 write!(f, "struct {{}}")
@@ -63,6 +77,7 @@ impl std::fmt::Display for FmtType<'_> {
                         "  {};",
                         FmtType {
                             ty,
+                            constant: false,
                             name: Some(
                                 name.as_deref()
                                     .map(std::borrow::Cow::Borrowed)
@@ -74,20 +89,24 @@ impl std::fmt::Display for FmtType<'_> {
                 }
                 write!(f, "}}")
             }
-            OT::Ptr(ty, mutable) => {
+            OT::Ptr(ty, pointee_mutable) => {
                 return write!(
                     f,
                     "{}",
                     FmtType {
                         ty,
-                        name: Some(&format!(
-                            "*{}{}",
-                            match mutable {
-                                true => "",
-                                false => "const",
-                            },
-                            name.unwrap_or_default()
-                        ))
+                        constant: !*pointee_mutable,
+                        name: Some(
+                            &format!(
+                                "*{}{}",
+                                match constant {
+                                    false => "const ",
+                                    true => "",
+                                },
+                                name.unwrap_or_default()
+                            )
+                            .trim_end()
+                        )
                     }
                 );
             }
@@ -102,12 +121,18 @@ impl std::fmt::Display for FmtType<'_> {
                         ty: return_type
                             .as_deref()
                             .unwrap_or(&orco::Type::Symbol("void".into())),
+                        constant: false,
                         name: Some(&format!(
                             "{}({})",
                             name.unwrap_or_default(),
                             params
                                 .iter()
-                                .map(|ty| FmtType { ty, name }.to_string())
+                                .map(|ty| FmtType {
+                                    ty,
+                                    constant: false,
+                                    name
+                                }
+                                .to_string())
                                 .collect::<Vec<_>>()
                                 .join(", ")
                         )),

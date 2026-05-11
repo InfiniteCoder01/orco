@@ -39,6 +39,7 @@ impl std::fmt::Display for FmtSymbol<'_> {
                     "typedef {};",
                     FmtType {
                         ty,
+                        constant: false,
                         name: Some(name)
                     }
                 )
@@ -86,6 +87,7 @@ impl std::fmt::Display for FmtFunction<'_> {
                 "{}",
                 FmtType {
                     ty,
+                    constant: false,
                     name: match name {
                         Some(name) => Some(name.to_owned()),
                         None if name_all_args => Some(format!("arg{idx}")),
@@ -102,6 +104,7 @@ impl std::fmt::Display for FmtFunction<'_> {
                 .return_type
                 .as_ref()
                 .unwrap_or(&orco::Type::Symbol("void".into())),
+            constant: false,
             name: Some(&sig_noret),
         }
         .fmt(f)
