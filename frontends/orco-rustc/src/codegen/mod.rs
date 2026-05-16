@@ -172,7 +172,7 @@ pub fn body<'a>(
     for (idx, local) in body.local_decls.iter_enumerated() {
         let var = if (1..body.arg_count + 1).contains(&idx.index()) {
             // An argument
-            Some(ctx.codegen.arg_var(idx.index() - 1))
+            Some(oc::Variable(idx.index() - 1))
         } else if !local.ty.is_unit() {
             let ty = crate::types::convert(tcx, local.ty);
             ty.map(|ty| ctx.codegen.declare_var(ty))

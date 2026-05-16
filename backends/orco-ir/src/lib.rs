@@ -6,6 +6,9 @@
 /// Code generation and actual IR
 pub mod codegen;
 
+/// Intermediate representation for code
+pub mod ir;
+
 /// The heart storage
 #[derive(Debug, Default)]
 pub struct Backend<'a> {
@@ -14,7 +17,7 @@ pub struct Backend<'a> {
     /// Function declarations
     pub functions: scc::HashMap<orco::Symbol, orco::types::FunctionSignature>,
     /// Definitions
-    pub function_definitions: scc::HashMap<orco::Symbol, codegen::Function>,
+    pub function_definitions: scc::HashMap<orco::Symbol, ir::Body>,
     /// Macro server, default impl
     pub macros: orco::impls::MacroServer<'a>,
 }
@@ -43,13 +46,13 @@ impl<'a> orco::DeclarationBackend<'a> for Backend<'a> {
                     attrs,
                 },
             )
-            .unwrap_or_else(|_| panic!("function {name:?} is already declared"))
+            .unwrap_or_else(|_| panic!("function {name} is already declared"))
     }
 
     fn type_(&self, name: orco::Symbol, ty: orco::Type) {
         self.types
             .insert_sync(name, ty)
-            .unwrap_or_else(|_| panic!("type {name:?} is already declared"))
+            .unwrap_or_else(|_| panic!("type {name} is already declared"))
     }
 
     fn macro_(
@@ -83,13 +86,14 @@ impl std::fmt::Display for Backend<'_> {
 
         writeln!(f)?;
         self.functions.iter_sync(|name, sig| {
-            result = writeln!(f, "{}fn {name}{sig}", sig.attrs);
-            result.is_ok()
-        });
-        result?;
-
-        self.function_definitions.iter_sync(|name, _| {
-            result = writeln!(f, "\nfn {name} is defined;");
+            let body = self.function_definitions.get_sync(name);
+            result = write!(f, "{}fn {name}{sig}", sig.attrs);
+            if result.is_ok() {
+                match body {
+                    Some(body) => result = writeln!(f, " {}\n", body.get()),
+                    None => result = writeln!(f, ";"),
+                }
+            }
             result.is_ok()
         });
         result

@@ -50,8 +50,8 @@ pub fn declare<'a>(backend: &impl orco::DeclarationBackend<'a>) {
 pub fn codegen(backend: &impl orco::CodegenBackend) {
     integers(|ty| {
         let mut cg = backend.function(format!("__MulWithOverflow#{}", ty.hashable_name()).into());
-        let a = cg.read(cg.arg_var(0).into());
-        let b = cg.read(cg.arg_var(1).into());
+        let a = cg.read(orco::codegen::Variable(0).into());
+        let b = cg.read(orco::codegen::Variable(1).into());
         let result = cg.declare_var(tuple2(ty.clone(), Type::Bool));
         let sum = cg.intrinsics().mul(a, b);
         cg.assign(result.place().field(0), sum);
@@ -60,8 +60,8 @@ pub fn codegen(backend: &impl orco::CodegenBackend) {
         let result = cg.read(result.into());
         cg.return_(Some(result));
         let mut cg = backend.function(format!("__AddWithOverflow#{}", ty.hashable_name()).into());
-        let a = cg.read(cg.arg_var(0).into());
-        let b = cg.read(cg.arg_var(1).into());
+        let a = cg.read(orco::codegen::Variable(0).into());
+        let b = cg.read(orco::codegen::Variable(1).into());
         let result = cg.declare_var(tuple2(ty.clone(), Type::Bool));
         let sum = cg.intrinsics().add(a, b);
         cg.assign(result.place().field(0), sum);

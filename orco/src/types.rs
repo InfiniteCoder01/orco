@@ -81,14 +81,9 @@ impl Type {
 
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let fmt_size = |size| match size {
-            IntegerSize::Bits(bits) => bits.to_string(),
-            IntegerSize::Size => "size".to_owned(),
-        };
-
         match self {
-            Type::Integer(size) => write!(f, "i{}", fmt_size(*size)),
-            Type::Unsigned(size) => write!(f, "u{}", fmt_size(*size)),
+            Type::Integer(size) => write!(f, "i{size}"),
+            Type::Unsigned(size) => write!(f, "u{size}"),
             Type::Float(size) => write!(f, "f{size}"),
             Type::Bool => write!(f, "bool"),
 
@@ -162,6 +157,15 @@ pub enum IntegerSize {
     Bits(u16),
     /// Kinda like `usize`/`isize` in rust or `size_t`/`ssize_t` in C
     Size,
+}
+
+impl std::fmt::Display for IntegerSize {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Bits(bits) => write!(f, "{bits}"),
+            Self::Size => write!(f, "size"),
+        }
+    }
 }
 
 /// Function signature without a name

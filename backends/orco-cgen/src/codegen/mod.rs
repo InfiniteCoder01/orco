@@ -6,7 +6,7 @@ mod intrinsics;
 mod value;
 use value::ValueInfo;
 
-/// Implementation of [`orco::BodyCodegen`]
+/// Implementation of [`oc::BodyCodegen`]
 pub struct Codegen<'a, 'b: 'a> {
     /// Backend context that will recieve the symbol once codegen is done
     pub backend: &'a Backend<'b>,
@@ -19,12 +19,9 @@ pub struct Codegen<'a, 'b: 'a> {
     indent: usize,
 
     /// A variable info list. Variables never get removed,
-    /// this can be indexed using [`Variable::0`] directly
+    /// this can be indexed using [`oc::Variable::0`] directly
     variables: Vec<VariableInfo>,
-    /// Number of arguments this function has
-    arg_count: usize,
-
-    /// Map of [`Value::0`] to value info. Entries get
+    /// Map of [`oc::Value::0`] to value info. Entries get
     /// removed whenever values get used
     values: HashMap<usize, ValueInfo>,
     next_value_index: usize,
@@ -46,8 +43,6 @@ impl<'a, 'b: 'a> Codegen<'a, 'b> {
             indent: 1,
 
             variables: Vec::new(),
-            arg_count: 0,
-
             values: HashMap::new(),
             next_value_index: 0,
         };
@@ -71,7 +66,6 @@ impl<'a, 'b: 'a> Codegen<'a, 'b> {
                     name,
                 });
             }
-            this.arg_count = signature.params.len();
         } else {
             panic!("Trying to define a non-function symbol {symbol:#?}")
         }
@@ -123,15 +117,6 @@ impl oc::BodyCodegen for Codegen<'_, '_> {
 
         self.variables.push(VariableInfo { name, ty });
         oc::Variable(id)
-    }
-
-    fn arg_var(&self, idx: usize) -> oc::Variable {
-        assert!(
-            idx < self.arg_count,
-            "trying to access argument #{idx}, but there are only {} arguments.",
-            self.arg_count
-        );
-        oc::Variable(idx)
     }
 
     fn assign(&mut self, target: oc::Place, value: oc::Value) {
