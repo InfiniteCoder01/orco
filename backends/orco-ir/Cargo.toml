@@ -1,0 +1,11 @@
+[package]
+name = "orco-ir"
+version = "0.1.0"
+edition = "2024"
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+scc.workspace = true
+orco.workspace = true

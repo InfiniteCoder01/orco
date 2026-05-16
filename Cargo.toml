@@ -3,7 +3,7 @@ resolver = "1"
 members = [
   "orco",
   "frontends/orco-rustc",
-  "backends/orco-cgen", "backends/orco-cranelift",
+  "backends/orco-ir", "backends/orco-cgen", "backends/orco-cranelift",
 ]
 
 [workspace.package]
@@ -13,6 +13,7 @@ repository = "https://github.com/InfiniteCoder01/orco"
 
 [workspace.dependencies]
 orco = { path = "orco" }
+orco-ir = { path = "backends/orco-ir" }
 orco-cgen = { path = "backends/orco-cgen" }
 
 scc = "3.4.2"

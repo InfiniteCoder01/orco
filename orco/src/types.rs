@@ -95,30 +95,37 @@ impl std::fmt::Display for Type {
             Type::Symbol(sym) => write!(f, "{sym}"),
             Type::Array(ty, len) => write!(f, "{ty}[{len}]"),
             Type::Struct { fields } => {
-                write!(f, "{{ ")?;
+                write!(f, "{{{}", if f.alternate() { '\n' } else { ' ' })?;
                 for (idx, (name, ty)) in fields.iter().enumerate() {
-                    if idx > 0 {
+                    if f.alternate() {
+                        write!(f, "  ")?;
+                    } else if idx > 0 {
                         write!(f, ", ")?;
                     }
 
                     match name {
                         Some(name) => write!(f, "{name}: ")?,
-                        None => write!(f, "<{idx}>: ")?,
+                        None => write!(f, "_{idx}: ")?,
                     }
 
-                    write!(f, "{ty}")?;
+                    ty.fmt(f)?;
+                    if f.alternate() {
+                        writeln!(f, ",")?;
+                    }
                 }
-                Ok(())
+
+                write!(f, "{}}}", if f.alternate() { "" } else { " " })
             }
             Type::Ptr(ty, mutable) => {
                 write!(
                     f,
-                    "*{} {ty}",
+                    "*{} ",
                     match mutable {
                         true => "mut",
                         false => "const",
                     },
-                )
+                )?;
+                ty.fmt(f)
             }
             Type::FnPtr {
                 params,
@@ -131,11 +138,14 @@ impl std::fmt::Display for Type {
                         write!(f, ", ")?;
                     }
 
-                    write!(f, "{param}")?;
+                    param.fmt(f)?;
                 }
 
                 match return_type {
-                    Some(ty) => write!(f, ") -> {ty}"),
+                    Some(ty) => {
+                        write!(f, ") -> ")?;
+                        ty.fmt(f)
+                    }
                     None => write!(f, ") -> void"),
                 }
             }
@@ -190,7 +200,6 @@ impl FunctionSignature {
 
 impl std::fmt::Display for FunctionSignature {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.attrs)?;
         write!(f, "(")?;
 
         for (idx, (name, ty)) in self.params.iter().enumerate() {
@@ -199,15 +208,18 @@ impl std::fmt::Display for FunctionSignature {
             }
 
             match name {
-                Some(name) => write!(f, "{name}: ")?,
-                None => write!(f, "<{idx}>: ")?,
+                Some(name) => write!(f, "{name:}: ")?,
+                None => write!(f, "_{idx}: ")?,
             }
 
-            write!(f, "{ty}")?;
+            ty.fmt(f)?;
         }
 
         match &self.return_type {
-            Some(ty) => write!(f, ") -> {ty}"),
+            Some(ty) => {
+                write!(f, ") -> ")?;
+                ty.fmt(f)
+            }
             None => write!(f, ") -> void"),
         }
     }
