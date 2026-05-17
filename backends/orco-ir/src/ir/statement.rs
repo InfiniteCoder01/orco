@@ -20,6 +20,11 @@ pub enum Statement {
     Read(oc::Place),
     /// See [`orco::codegen::BodyCodegen::reference`]
     Reference(oc::Place, bool),
+    /// See [`orco::codegen::BodyCodegen::call`].
+    /// Additionally stores wether there is a return value
+    Call(oc::Value, Vec<oc::Value>, bool),
+    /// See [`orco::codegen::BodyCodegen::return`]
+    Return(Option<oc::Value>),
 }
 
 impl Statement {
@@ -34,6 +39,8 @@ impl Statement {
             Self::BConst(..) => true,
             Self::Read(..) => true,
             Self::Reference(..) => true,
+            Self::Call(_, _, has_retval) => *has_retval,
+            Self::Return(..) => false,
         }
     }
 
@@ -50,6 +57,13 @@ impl Statement {
             Self::Reference(place, mutable) => {
                 Type::Ptr(Box::new(place_ty(place, backend, body).0), *mutable)
             }
+            Self::Call(func, ..) => match body.type_of(func.0, backend) {
+                Type::FnPtr { return_type, .. } => {
+                    return_type.map_or(Type::Error, |ty| *ty.clone())
+                }
+                _ => Type::Error,
+            },
+            Self::Return(_) => Type::Error,
         }
     }
 }
@@ -73,6 +87,23 @@ impl std::fmt::Display for Statement {
             Self::Read(place) => write!(f, "{place}")?,
             Self::Reference(place, mutable) => {
                 write!(f, "&{} {place}", if *mutable { "mut" } else { "const" })?
+            }
+            Self::Call(func, args, _) => {
+                write!(f, "{func}(")?;
+                for (idx, arg) in args.iter().enumerate() {
+                    if idx > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{arg}")?;
+                }
+                write!(f, ")")?;
+            }
+            Self::Return(value) => {
+                write!(f, "return")?;
+                if let Some(value) = value {
+                    write!(f, " {value}")?;
+                }
+                write!(f, ";")?;
             }
         }
         Ok(())

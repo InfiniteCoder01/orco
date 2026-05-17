@@ -93,10 +93,16 @@ impl oc::BodyCodegen for Codegen<'_, '_> {
     }
 
     fn call(&mut self, func: oc::Value, args: Vec<oc::Value>) -> Option<oc::Value> {
-        None
+        let has_retval = match self.type_of(func.0) {
+            orco::Type::FnPtr { return_type, .. } => return_type.is_some(),
+            ty => panic!("trying to call non-function {func}, which is of type {ty}"),
+        };
+        has_retval.then_some(self.stmt(ir::Statement::Call(func, args, has_retval)))
     }
 
-    fn return_(&mut self, value: Option<oc::Value>) {}
+    fn return_(&mut self, value: Option<oc::Value>) {
+        self.stmt(ir::Statement::Return(value));
+    }
 
     fn intrinsics(&mut self) -> impl oc::Intrinsics + '_ {
         self
