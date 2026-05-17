@@ -27,6 +27,19 @@ impl Backend<'_> {
     pub fn new() -> Self {
         Self::default()
     }
+
+    /// If `ty` is a type alias, will be replaced by what is aliased.
+    /// Inner aliases (f.e. struct field types) are not replaced!
+    pub fn inline_type_aliases(&self, mut ty: orco::Type) -> orco::Type {
+        while let orco::Type::Symbol(name) = ty {
+            ty = self
+                .types
+                .get_sync(&name)
+                .unwrap_or_else(|| panic!("undeclared type {name}"))
+                .clone()
+        }
+        ty
+    }
 }
 
 impl<'a> orco::DeclarationBackend<'a> for Backend<'a> {

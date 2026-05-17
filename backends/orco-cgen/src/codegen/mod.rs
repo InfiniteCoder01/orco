@@ -149,9 +149,10 @@ impl oc::BodyCodegen for Codegen<'_, '_> {
         self.mk_value(place)
     }
 
-    fn reference(&mut self, place: oc::Place) -> oc::Value {
+    fn reference(&mut self, place: oc::Place, mutable: bool) -> oc::Value {
         let mut place = self.place(place);
         place.expression.insert(0, '&');
+        place.ty = orco::Type::Ptr(Box::new(place.ty), mutable);
         self.mk_value(place)
     }
 

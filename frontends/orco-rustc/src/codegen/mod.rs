@@ -84,7 +84,8 @@ impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
                     .into_iter()
                     .chain(self.op(&operands.1))
                     .collect();
-                let ty = self.codegen.type_of(params[0].0).hashable_name();
+
+                let ty = operands.0.ty(self.body, self.tcx).to_string();
                 let op = self
                     .codegen
                     .read(oc::Place::Global(format!("__{op:?}#{ty}").into()));

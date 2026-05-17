@@ -1,6 +1,5 @@
 use crate::ir;
 use orco::codegen as oc;
-use std::collections::HashMap;
 
 /// Implementation of [`oc::BodyCodegen`]
 pub struct Codegen<'a, 'b: 'a> {
@@ -10,9 +9,6 @@ pub struct Codegen<'a, 'b: 'a> {
     pub name: orco::Symbol,
     /// Currently generated body
     pub body: ir::Body,
-    /// Map of [`oc::Value::0`] to value type. Entries get
-    /// removed whenever values get used
-    values: HashMap<usize, orco::Type>,
 }
 
 impl<'a, 'b: 'a> Codegen<'a, 'b> {
@@ -36,31 +32,26 @@ impl<'a, 'b: 'a> Codegen<'a, 'b> {
             backend,
             name,
             body,
-            values: HashMap::new(),
         }
     }
 
-    fn stmt(&mut self, statement: ir::Statement) {
-        dbg!(&statement);
+    fn stmt(&mut self, statement: ir::Statement) -> oc::Value {
         self.body.statements.push(statement);
-    }
-
-    /// Generate value from last inserted statement
-    /// with set type
-    fn value(&mut self, ty: orco::Type) -> oc::Value {
-        let id = self.body.statements.len() - 1;
-        self.values.insert(id, ty);
-        oc::Value(id)
+        oc::Value(self.body.statements.len() - 1)
     }
 }
 
 impl oc::BodyCodegen for Codegen<'_, '_> {
     fn comment(&mut self, comment: &str) {
-        self.stmt(ir::Statement::Comment(comment.to_owned()))
+        self.stmt(ir::Statement::Comment(comment.to_owned()));
     }
 
     fn type_of(&self, id: usize) -> orco::Type {
-        self.values.get(&id).unwrap_or_else(|| panic!("trying to determine type from invalid value id {id}. Something probably went terribly wrong")).clone()
+        self.body
+            .statements
+            .get(id)
+            .unwrap_or_else(|| panic!("invalid value id {id}"))
+            .get_type(self.backend, &self.body)
     }
 
     fn declare_var(&mut self, ty: orco::Type) -> oc::Variable {
@@ -73,33 +64,32 @@ impl oc::BodyCodegen for Codegen<'_, '_> {
     }
 
     fn iconst(&mut self, value: i128, size: orco::types::IntegerSize) -> oc::Value {
-        self.stmt(ir::Statement::IConst(value, size));
-        self.value(orco::Type::Integer(size))
+        self.stmt(ir::Statement::IConst(value, size))
     }
 
     fn uconst(&mut self, value: u128, size: orco::types::IntegerSize) -> oc::Value {
-        self.stmt(ir::Statement::UConst(value, size));
-        self.value(orco::Type::Unsigned(size))
+        self.stmt(ir::Statement::UConst(value, size))
     }
 
     fn fconst(&mut self, value: f64, size: u16) -> oc::Value {
-        self.stmt(ir::Statement::FConst(value, size));
-        self.value(orco::Type::Float(size))
+        self.stmt(ir::Statement::FConst(value, size))
     }
 
     fn bconst(&mut self, value: bool) -> oc::Value {
-        self.stmt(ir::Statement::BConst(value));
-        self.value(orco::Type::Bool)
+        self.stmt(ir::Statement::BConst(value))
     }
 
     fn read(&mut self, place: oc::Place) -> oc::Value {
-        self.stmt(ir::Statement::Comment("".to_owned()));
-        self.value(orco::Type::Error)
+        self.stmt(ir::Statement::Read(place))
     }
 
-    fn reference(&mut self, place: oc::Place) -> oc::Value {
-        self.stmt(ir::Statement::Comment("".to_owned()));
-        self.value(orco::Type::Error)
+    fn reference(&mut self, place: oc::Place, mutable: bool) -> oc::Value {
+        let can_be_mutable = ir::place_ty(&place, self.backend, &self.body).1;
+        if mutable && !can_be_mutable {
+            panic!("can't create mutable reference to an immutable {place}")
+        }
+
+        self.stmt(ir::Statement::Reference(place, mutable))
     }
 
     fn call(&mut self, func: oc::Value, args: Vec<oc::Value>) -> Option<oc::Value> {
@@ -119,13 +109,11 @@ impl oc::BodyCodegen for Codegen<'_, '_> {
 
 impl oc::Intrinsics for &mut Codegen<'_, '_> {
     fn add(&mut self, a: oc::Value, b: oc::Value) -> oc::Value {
-        self.stmt(ir::Statement::Comment("".to_owned()));
-        self.value(orco::Type::Error)
+        self.stmt(ir::Statement::Comment("".to_owned()))
     }
 
     fn mul(&mut self, a: oc::Value, b: oc::Value) -> oc::Value {
-        self.stmt(ir::Statement::Comment("".to_owned()));
-        self.value(orco::Type::Error)
+        self.stmt(ir::Statement::Comment("".to_owned()))
     }
 }
 

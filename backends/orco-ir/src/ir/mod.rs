@@ -1,5 +1,5 @@
 mod statement;
-pub use statement::Statement;
+pub use statement::{Statement, place_ty};
 
 /// Info about one variable in a body
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -18,6 +18,23 @@ pub struct Body {
     pub variables: Vec<Variable>,
     /// See [Statement]
     pub statements: Vec<Statement>,
+}
+
+impl Body {
+    /// Shortcut to access [`Self::variables`]
+    pub fn get_variable(&self, variable: orco::codegen::Variable) -> &Variable {
+        self.variables
+            .get(variable.0)
+            .unwrap_or_else(|| panic!("invalid variable {variable}"))
+    }
+
+    /// Get type from value id, similar to [`orco::codegen::BodyCodegen::type_of`]
+    pub fn type_of(&self, id: usize, backend: &crate::Backend) -> orco::Type {
+        self.statements
+            .get(id)
+            .unwrap_or_else(|| panic!("invalid value id {id}"))
+            .get_type(backend, self)
+    }
 }
 
 impl std::fmt::Display for Body {
