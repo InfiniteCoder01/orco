@@ -4,27 +4,29 @@ use orco::codegen as oc;
 /// Basic instructions
 #[derive(Debug, PartialEq, PartialOrd)]
 pub enum Statement {
-    /// See [`orco::codegen::BodyCodegen::comment`]
+    /// See [`oc::BodyCodegen::comment`]
     Comment(String),
-    /// See [`orco::codegen::BodyCodegen::assign`]
+    /// See [`oc::BodyCodegen::assign`]
     Assign(oc::Place, oc::Value),
-    /// See [`orco::codegen::BodyCodegen::iconst`]
+    /// See [`oc::BodyCodegen::iconst`]
     IConst(i128, orco::types::IntegerSize),
-    /// See [`orco::codegen::BodyCodegen::uconst`]
+    /// See [`oc::BodyCodegen::uconst`]
     UConst(u128, orco::types::IntegerSize),
-    /// See [`orco::codegen::BodyCodegen::fconst`]
+    /// See [`oc::BodyCodegen::fconst`]
     FConst(f64, u16),
-    /// See [`orco::codegen::BodyCodegen::fconst`]
+    /// See [`oc::BodyCodegen::fconst`]
     BConst(bool),
-    /// See [`orco::codegen::BodyCodegen::read`]
+    /// See [`oc::BodyCodegen::read`]
     Read(oc::Place),
-    /// See [`orco::codegen::BodyCodegen::reference`]
+    /// See [`oc::BodyCodegen::reference`]
     Reference(oc::Place, bool),
-    /// See [`orco::codegen::BodyCodegen::call`].
+    /// See [`oc::BodyCodegen::call`].
     /// Additionally stores wether there is a return value
     Call(oc::Value, Vec<oc::Value>, bool),
-    /// See [`orco::codegen::BodyCodegen::return`]
+    /// See [`oc::BodyCodegen::return`]
     Return(Option<oc::Value>),
+    /// See [`oc::BodyCodegen::intrinsics`]
+    Intrinsic(super::Intrinsic),
 }
 
 impl Statement {
@@ -41,6 +43,7 @@ impl Statement {
             Self::Reference(..) => true,
             Self::Call(_, _, has_retval) => *has_retval,
             Self::Return(..) => false,
+            Self::Intrinsic(..) => true,
         }
     }
 
@@ -64,6 +67,7 @@ impl Statement {
                 _ => Type::Error,
             },
             Self::Return(_) => Type::Error,
+            Self::Intrinsic(intrinsic) => intrinsic.get_type(backend, body),
         }
     }
 }
@@ -105,6 +109,7 @@ impl std::fmt::Display for Statement {
                 }
                 write!(f, ";")?;
             }
+            Self::Intrinsic(intrinsic) => write!(f, "{intrinsic}")?,
         }
         Ok(())
     }

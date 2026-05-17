@@ -1,6 +1,8 @@
 use crate::ir;
 use orco::codegen as oc;
 
+mod intrinsics;
+
 /// Implementation of [`oc::BodyCodegen`]
 pub struct Codegen<'a, 'b: 'a> {
     /// Backend context that will recieve the symbol once codegen is done
@@ -110,16 +112,6 @@ impl oc::BodyCodegen for Codegen<'_, '_> {
 
     fn acf(&mut self) -> impl oc::ACFCodegen + '_ {
         self
-    }
-}
-
-impl oc::Intrinsics for &mut Codegen<'_, '_> {
-    fn add(&mut self, a: oc::Value, b: oc::Value) -> oc::Value {
-        self.stmt(ir::Statement::Comment("".to_owned()))
-    }
-
-    fn mul(&mut self, a: oc::Value, b: oc::Value) -> oc::Value {
-        self.stmt(ir::Statement::Comment("".to_owned()))
     }
 }
 

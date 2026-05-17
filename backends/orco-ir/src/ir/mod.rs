@@ -1,6 +1,9 @@
 mod statement;
 pub use statement::{Statement, place_ty};
 
+mod intrinsics;
+pub use intrinsics::Intrinsic;
+
 /// Info about one variable in a body
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Variable {
