@@ -86,10 +86,11 @@ impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
                     .collect();
 
                 let ty = operands.0.ty(self.body, self.tcx).to_string();
-                let op = self
-                    .codegen
-                    .read(oc::Place::Global(format!("__{op:?}#{ty}").into()));
-                let value = self.codegen.call(op, params);
+                let value = crate::intrinsics().inline_call(
+                    &mut self.codegen,
+                    format!("__{op:?}#{ty}").into(),
+                    params,
+                );
                 if let (Some(place), Some(value)) = (self.place(*place), value) {
                     self.codegen.assign(place, value);
                 }

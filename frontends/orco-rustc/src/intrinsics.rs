@@ -71,3 +71,13 @@ pub fn codegen(backend: &impl orco::CodegenBackend) {
         cg.return_(Some(result));
     });
 }
+
+static BACKEND: std::sync::OnceLock<orco_ir::Backend<'static>> = std::sync::OnceLock::new();
+pub fn intrinsics() -> &'static orco_ir::Backend<'static> {
+    BACKEND.get_or_init(|| {
+        let backend = orco_ir::Backend::new();
+        declare(&backend);
+        codegen(&backend);
+        backend
+    })
+}

@@ -9,6 +9,8 @@ pub mod codegen;
 /// Intermediate representation for code
 pub mod ir;
 
+mod forwarding;
+
 /// The heart storage
 #[derive(Debug, Default)]
 pub struct Backend<'a> {

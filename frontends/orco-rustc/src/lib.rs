@@ -26,6 +26,7 @@ pub mod rustc_backend;
 
 /// Intrinsic implementations
 pub mod intrinsics;
+pub use intrinsics::intrinsics;
 
 /// Code generation is used to define functions and other items
 pub mod codegen;
