@@ -117,14 +117,23 @@ impl oc::BodyCodegen for Codegen<'_, '_> {
 
 impl oc::ACFCodegen for &mut Codegen<'_, '_> {
     fn alloc_label(&mut self) -> oc::Label {
-        oc::Label(0)
+        self.body.labels.push(0);
+        oc::Label(self.body.labels.len() - 1)
     }
 
-    fn label(&mut self, label: oc::Label) {}
+    fn label(&mut self, label: oc::Label) {
+        self.body.labels[label.0] = self.body.statements.len();
+    }
 
-    fn jump(&mut self, label: oc::Label) {}
+    fn jump(&mut self, label: oc::Label) {
+        self.body.statements.push(ir::Statement::ACFJump(label));
+    }
 
-    fn cjump(&mut self, condition: oc::Value, label: oc::Label) {}
+    fn cjump(&mut self, condition: oc::Value, label: oc::Label) {
+        self.body
+            .statements
+            .push(ir::Statement::ACFCJump(condition, label));
+    }
 }
 
 impl std::ops::Drop for Codegen<'_, '_> {

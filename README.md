@@ -29,10 +29,11 @@ going through some of [rust by example](<https://doc.rust-lang.org/stable/rust-b
 - [x] cgen: intrinsics
 - [x] rustc: intrinsics
 - [x] cgen: fix mutability formatting
-- [ ] orco-ir: IR
-- [ ] orco: new macro system
+- [x] orco-ir: IR
+- [x] orco-ir: ACF
 - [ ] cgen: implement value flushing
 - [ ] cgen: implement dependency sorting for symbol declarations
 - [ ] orco: regular control flow
+- [ ] orco: new macro system
 - [ ] orco: Constant expressions inside types (f.e. array size)
 - [ ] rustc: implement missing features (full implementation?)

@@ -1,4 +1,5 @@
 use crate::ir;
+use oc::ACFCodegen as _;
 use oc::BodyCodegen as _;
 use orco::codegen as oc;
 
@@ -89,8 +90,19 @@ impl ir::Body {
             }
         }
 
+        let mut label_map = Vec::with_capacity(self.labels.len());
+        let mut statement_idx_to_label = std::collections::HashMap::new();
+        for label in &self.labels {
+            let backend_label = *label_map.push_mut(codegen.acf().alloc_label());
+            statement_idx_to_label.insert(label, backend_label);
+        }
+
         let mut value_map = Vec::<Option<oc::Value>>::with_capacity(self.statements.len());
-        for statement in &self.statements {
+        for (idx, statement) in self.statements.iter().enumerate() {
+            if let Some(label) = statement_idx_to_label.get(&idx) {
+                codegen.acf().label(*label);
+            }
+
             let map_value = |value: &oc::Value| {
                 value_map
                     .get_mut(value.0)
@@ -104,7 +116,12 @@ impl ir::Body {
                 continue;
             }
 
-            let value = statement.codegen(codegen, |variable| variable_map[variable.0], map_value);
+            let value = statement.codegen(
+                codegen,
+                |variable| variable_map[variable.0],
+                map_value,
+                |label| label_map[label.0],
+            );
             value_map.push(value);
         }
     }
@@ -112,12 +129,13 @@ impl ir::Body {
 
 impl ir::Statement {
     /// Codegen this statement into another [`oc::BodyCodegen`],
-    /// mapping all variables and values.
+    /// mapping all variables, values and labels (ACF).
     fn codegen(
         &self,
         codegen: &mut impl oc::BodyCodegen,
         map_variable: impl Fn(oc::Variable) -> oc::Variable,
         mut map_value: impl FnMut(&oc::Value) -> oc::Value,
+        map_label: impl Fn(oc::Label) -> oc::Label,
     ) -> Option<oc::Value> {
         fn map_place(
             place: &oc::Place,
@@ -164,6 +182,7 @@ impl ir::Statement {
                 codegen.return_(value.as_ref().map(map_value));
                 None
             }
+
             Self::Intrinsic(intrinsic) => {
                 use oc::Intrinsics as _;
                 let mut ci = codegen.intrinsics();
@@ -171,6 +190,15 @@ impl ir::Statement {
                     I::Add(a, b) => ci.add(map_value(a), map_value(b)),
                     I::Mul(a, b) => ci.mul(map_value(a), map_value(b)),
                 })
+            }
+
+            Self::ACFJump(label) => {
+                codegen.acf().jump(map_label(*label));
+                None
+            }
+            Self::ACFCJump(value, label) => {
+                codegen.acf().cjump(map_value(value), map_label(*label));
+                None
             }
         }
     }

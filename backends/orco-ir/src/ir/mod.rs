@@ -19,6 +19,10 @@ pub struct Body {
     /// All variables used in the body.
     /// Index this with [`orco::codegen::Variable::0`]
     pub variables: Vec<Variable>,
+    /// Labels for ACF (see [`orco::codegen::ACFCodegen`]).
+    /// [`orco::codegen::Label::0`] is an index into this vector,
+    /// while values are indices into [`Self::statements`]
+    pub labels: Vec<usize>,
     /// See [Statement]
     pub statements: Vec<Statement>,
 }

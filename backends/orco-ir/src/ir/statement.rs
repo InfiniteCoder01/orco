@@ -25,8 +25,14 @@ pub enum Statement {
     Call(oc::Value, Vec<oc::Value>, bool),
     /// See [`oc::BodyCodegen::return`]
     Return(Option<oc::Value>),
+
     /// See [`oc::BodyCodegen::intrinsics`]
     Intrinsic(super::Intrinsic),
+
+    /// See [`oc::ACFCodegen::jump`]
+    ACFJump(oc::Label),
+    /// See [`oc::ACFCodegen::cjump`]
+    ACFCJump(oc::Value, oc::Label),
 }
 
 impl Statement {
@@ -43,7 +49,11 @@ impl Statement {
             Self::Reference(..) => true,
             Self::Call(_, _, has_retval) => *has_retval,
             Self::Return(..) => false,
+
             Self::Intrinsic(..) => true,
+
+            Self::ACFJump(..) => false,
+            Self::ACFCJump(..) => false,
         }
     }
 
@@ -67,7 +77,11 @@ impl Statement {
                 _ => Type::Error,
             },
             Self::Return(_) => Type::Error,
+
             Self::Intrinsic(intrinsic) => intrinsic.get_type(backend, body),
+
+            Self::ACFJump(..) => Type::Error,
+            Self::ACFCJump(..) => Type::Error,
         }
     }
 }
@@ -109,7 +123,11 @@ impl std::fmt::Display for Statement {
                 }
                 write!(f, ";")?;
             }
+
             Self::Intrinsic(intrinsic) => write!(f, "{intrinsic}")?,
+
+            Self::ACFJump(label) => write!(f, "jump label{};", label.0)?,
+            Self::ACFCJump(value, label) => write!(f, "jump label{} if {value};", label.0)?,
         }
         Ok(())
     }

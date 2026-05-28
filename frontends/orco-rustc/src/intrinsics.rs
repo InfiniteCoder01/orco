@@ -43,7 +43,32 @@ pub fn declare<'a>(backend: &impl orco::DeclarationBackend<'a>) {
             vec![(None, ty.clone()), (None, ty.clone())],
             tuple2(ty.clone(), Type::Bool),
         );
+        intrinsic(
+            format!("__Lt#{}", ty.hashable_name()),
+            vec![(None, ty.clone()), (None, ty.clone())],
+            Type::Bool,
+        );
+        intrinsic(
+            format!("__Gt#{}", ty.hashable_name()),
+            vec![(None, ty.clone()), (None, ty.clone())],
+            Type::Bool,
+        );
+        intrinsic(
+            format!("__Eq#{}", ty.hashable_name()),
+            vec![(None, ty.clone()), (None, ty.clone())],
+            Type::Bool,
+        );
+        intrinsic(
+            format!("__Div#{}", ty.hashable_name()),
+            vec![(None, ty.clone()), (None, ty.clone())],
+            ty.clone(),
+        );
     });
+    intrinsic(
+        "__BitAnd#bool".to_owned(),
+        vec![(None, Type::Bool), (None, Type::Bool)],
+        Type::Bool,
+    );
 }
 
 /// Codegens rust's intrinsics
@@ -69,7 +94,17 @@ pub fn codegen(backend: &impl orco::CodegenBackend) {
         cg.assign(result.place().field(1), cfalse);
         let result = cg.read(result.into());
         cg.return_(Some(result));
+        let mut cg = backend.function(format!("__Lt#{}", ty.hashable_name()).into()); // FIXME: HARDCODED
+        cg.return_(None);
+        let mut cg = backend.function(format!("__Gt#{}", ty.hashable_name()).into()); // FIXME: HARDCODED
+        cg.return_(None);
+        let mut cg = backend.function(format!("__Eq#{}", ty.hashable_name()).into()); // FIXME: HARDCODED
+        cg.return_(None);
+        let mut cg = backend.function(format!("__Div#{}", ty.hashable_name()).into()); // FIXME: HARDCODED
+        cg.return_(None);
     });
+    let mut cg = backend.function("__BitAnd#bool".into()); // FIXME: HARDCODED
+    cg.return_(None);
 }
 
 static BACKEND: std::sync::OnceLock<orco_ir::Backend<'static>> = std::sync::OnceLock::new();
