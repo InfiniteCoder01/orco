@@ -34,6 +34,7 @@ going through some of [rust by example](<https://doc.rust-lang.org/stable/rust-b
 - [ ] cgen: implement value flushing
 - [ ] cgen: implement dependency sorting for symbol declarations
 - [ ] orco: regular control flow
+- [ ] orco-ir: sea of nodes?
 - [ ] orco: new macro system
 - [ ] orco: Constant expressions inside types (f.e. array size)
 - [ ] rustc: implement missing features (full implementation?)

@@ -54,7 +54,17 @@ impl std::fmt::Display for Body {
             }
             writeln!(f, ";")?;
         }
+
+        let mut statement_idx_to_label = std::collections::HashMap::new();
+        for (idx, label) in self.labels.iter().enumerate() {
+            statement_idx_to_label.insert(label, idx);
+        }
+
         for (idx, statement) in self.statements.iter().enumerate() {
+            if let Some(label) = statement_idx_to_label.get(&idx) {
+                writeln!(f, "label{label}:")?;
+            }
+
             if statement.is_expression() {
                 writeln!(f, "  <{idx}> = {statement};")?;
                 continue;

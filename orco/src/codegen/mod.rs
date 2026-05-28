@@ -7,7 +7,10 @@ pub mod impls;
 mod values;
 pub use values::*;
 
-/// Trait for generating code within a function
+/// Trait for generating code within a function.
+/// NOTE: whenever an instruction yields a value,
+/// it may be reordered or removed, until the value gets used.
+/// Use [`Self::mk_tmp`] to convert values to variables
 pub trait BodyCodegen {
     /// Leave a comment. Mainly for source2source backends
     fn comment(&mut self, comment: &str) {
