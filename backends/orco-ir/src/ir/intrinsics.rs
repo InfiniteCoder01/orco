@@ -1,12 +1,12 @@
-use orco::codegen as oc;
+use super::Expression;
 
 /// Intrinsic function calls, see [`oc::Intrinsics`]
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum Intrinsic {
     /// See [`oc::Intrinsics::add`]
-    Add(oc::Value, oc::Value),
+    Add(Box<Expression>, Box<Expression>),
     /// See [`oc::Intrinsics::mul`]
-    Mul(oc::Value, oc::Value),
+    Mul(Box<Expression>, Box<Expression>),
 }
 
 impl Intrinsic {
@@ -20,8 +20,8 @@ impl Intrinsic {
     /// Similar to [super::Statement::get_type]
     pub fn get_type(&self, backend: &crate::Backend, body: &super::Body) -> orco::Type {
         match self {
-            Self::Add(a, _) => body.type_of(a.0, backend),
-            Self::Mul(a, _) => body.type_of(a.0, backend),
+            Self::Add(a, _) => a.get_type(backend, body),
+            Self::Mul(a, _) => a.get_type(backend, body),
         }
     }
 }

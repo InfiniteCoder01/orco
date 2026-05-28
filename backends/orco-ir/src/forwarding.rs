@@ -1,6 +1,5 @@
 use crate::ir;
 use oc::ACFCodegen as _;
-use oc::BodyCodegen as _;
 use orco::codegen as oc;
 
 impl super::Backend<'_> {
@@ -29,9 +28,11 @@ impl super::Backend<'_> {
             let args = (0..signature.params.len())
                 .map(|idx| oc::Variable(idx))
                 .collect::<Vec<_>>();
-            body.codegen(&mut backend.function(*name), &args, |cg, value| {
-                cg.return_(value)
-            });
+            body.codegen(
+                &mut backend.function(*name),
+                &args,
+                oc::BodyCodegen::return_,
+            );
             true
         });
     }
@@ -97,108 +98,133 @@ impl ir::Body {
             statement_idx_to_label.insert(label, backend_label);
         }
 
-        let mut value_map = Vec::<Option<oc::Value>>::with_capacity(self.statements.len());
         for (idx, statement) in self.statements.iter().enumerate() {
             if let Some(label) = statement_idx_to_label.get(&idx) {
                 codegen.acf().label(*label);
             }
 
-            let map_value = |value: &oc::Value| {
-                value_map
-                    .get_mut(value.0)
-                    .and_then(Option::take)
-                    .take()
-                    .unwrap_or_else(|| panic!("invalid value id {}", value.0))
-            };
             if let ir::Statement::Return(value) = statement {
-                codegen_return(codegen, value.as_ref().map(map_value));
-                value_map.push(None);
+                let value = value
+                    .as_ref()
+                    .map(|value| value.codegen(codegen, &|variable| variable_map[variable.0]));
+                codegen_return(codegen, value);
                 continue;
             }
 
-            let value = statement.codegen(
-                codegen,
-                |variable| variable_map[variable.0],
-                map_value,
-                |label| label_map[label.0],
-            );
-            value_map.push(value);
+            statement.codegen(codegen, &|variable| variable_map[variable.0], |label| {
+                label_map[label.0]
+            });
+        }
+    }
+}
+
+impl ir::Place {
+    /// Convert this place into [`oc::Place`],
+    /// while generating code for inner expressions using
+    /// [`ir::Expression::codegen`]
+    fn codegen(
+        &self,
+        codegen: &mut impl oc::BodyCodegen,
+        map_variable: &impl Fn(oc::Variable) -> oc::Variable,
+    ) -> oc::Place {
+        match self {
+            ir::Place::Variable(variable) => map_variable(*variable).into(),
+            ir::Place::Global(symbol) => oc::Place::Global(*symbol),
+            ir::Place::Deref(value) => oc::Place::Deref(value.codegen(codegen, map_variable)),
+            ir::Place::Field(place, idx) => place.codegen(codegen, map_variable).field(*idx),
+        }
+    }
+}
+
+impl ir::Expression {
+    /// Codegen this expression into another [`oc::BodyCodegen`],
+    /// mapping all variables
+    fn codegen(
+        &self,
+        codegen: &mut impl oc::BodyCodegen,
+        map_variable: &impl Fn(oc::Variable) -> oc::Variable,
+    ) -> oc::Value {
+        match self {
+            Self::IConst(value, size) => codegen.iconst(*value, *size),
+            Self::UConst(value, size) => codegen.uconst(*value, *size),
+            Self::FConst(value, size) => codegen.fconst(*value, *size),
+            Self::BConst(value) => codegen.bconst(*value),
+            Self::Read(place) => {
+                let place = place.codegen(codegen, map_variable);
+                codegen.read(place)
+            }
+            Self::Reference(place, mutable) => {
+                let place = place.codegen(codegen, map_variable);
+                codegen.reference(place, *mutable)
+            }
+            Self::Call(func, args) => {
+                let func = func.codegen(codegen, map_variable);
+                let args = args
+                    .iter()
+                    .map(|arg| arg.codegen(codegen, map_variable))
+                    .collect();
+                codegen
+                    .call(func, args)
+                    .unwrap_or_else(|| panic!("trying to use value from calling a void function"))
+            }
+
+            Self::Intrinsic(intrinsic) => {
+                use crate::ir::Intrinsic as I;
+                use oc::Intrinsics as IT;
+                match intrinsic {
+                    I::Add(a, b) => {
+                        let a = a.codegen(codegen, map_variable);
+                        let b = b.codegen(codegen, map_variable);
+                        codegen.intrinsics().add(a, b)
+                    }
+                    I::Mul(a, b) => {
+                        let a = a.codegen(codegen, map_variable);
+                        let b = b.codegen(codegen, map_variable);
+                        codegen.intrinsics().add(a, b)
+                    }
+                }
+            }
         }
     }
 }
 
 impl ir::Statement {
     /// Codegen this statement into another [`oc::BodyCodegen`],
-    /// mapping all variables, values and labels (ACF).
+    /// mapping all variables and labels (ACF)
     fn codegen(
         &self,
         codegen: &mut impl oc::BodyCodegen,
-        map_variable: impl Fn(oc::Variable) -> oc::Variable,
-        mut map_value: impl FnMut(&oc::Value) -> oc::Value,
+        map_variable: &impl Fn(oc::Variable) -> oc::Variable,
         map_label: impl Fn(oc::Label) -> oc::Label,
-    ) -> Option<oc::Value> {
-        fn map_place(
-            place: &oc::Place,
-            map_variable: impl Fn(oc::Variable) -> oc::Variable,
-            mut map_value: impl FnMut(&oc::Value) -> oc::Value,
-        ) -> oc::Place {
-            match place {
-                oc::Place::Variable(variable) => map_variable(*variable).into(),
-                oc::Place::Global(symbol) => oc::Place::Global(*symbol),
-                oc::Place::Deref(value) => oc::Place::Deref(map_value(value)),
-                oc::Place::Field(place, idx) => {
-                    map_place(place.as_ref(), map_variable, map_value).field(*idx)
+    ) {
+        match self {
+            Self::Comment(comment) => codegen.comment(&comment),
+            Self::Assign(place, value) => {
+                let place = place.codegen(codegen, map_variable);
+                let value = value.codegen(codegen, map_variable);
+                codegen.assign(place, value)
+            }
+            Self::Call(func, args) => {
+                let func = func.codegen(codegen, map_variable);
+                let args = args
+                    .iter()
+                    .map(|arg| arg.codegen(codegen, map_variable))
+                    .collect();
+                if let Some(value) = codegen.call(func, args) {
+                    codegen.mk_tmp(value);
                 }
             }
-        }
-
-        use crate::ir::Intrinsic as I;
-        match self {
-            Self::Comment(comment) => {
-                codegen.comment(&comment);
-                None
-            }
-            Self::Assign(place, value) => {
-                codegen.assign(
-                    map_place(place, &map_variable, &mut map_value),
-                    map_value(value),
-                );
-                None
-            }
-            Self::IConst(value, size) => Some(codegen.iconst(*value, *size)),
-            Self::UConst(value, size) => Some(codegen.uconst(*value, *size)),
-            Self::FConst(value, size) => Some(codegen.fconst(*value, *size)),
-            Self::BConst(value) => Some(codegen.bconst(*value)),
-            Self::Read(place) => {
-                Some(codegen.read(map_place(place, &map_variable, &mut map_value)))
-            }
-            Self::Reference(place, mutable) => {
-                Some(codegen.reference(map_place(place, &map_variable, &mut map_value), *mutable))
-            }
-            Self::Call(func, args, _) => {
-                codegen.call(map_value(func), args.iter().map(map_value).collect())
-            }
             Self::Return(value) => {
-                codegen.return_(value.as_ref().map(map_value));
-                None
+                let value = value
+                    .as_ref()
+                    .map(|value| value.codegen(codegen, map_variable));
+                codegen.return_(value)
             }
 
-            Self::Intrinsic(intrinsic) => {
-                use oc::Intrinsics as _;
-                let mut ci = codegen.intrinsics();
-                Some(match intrinsic {
-                    I::Add(a, b) => ci.add(map_value(a), map_value(b)),
-                    I::Mul(a, b) => ci.mul(map_value(a), map_value(b)),
-                })
-            }
-
-            Self::ACFJump(label) => {
-                codegen.acf().jump(map_label(*label));
-                None
-            }
+            Self::ACFJump(label) => codegen.acf().jump(map_label(*label)),
             Self::ACFCJump(value, label) => {
-                codegen.acf().cjump(map_value(value), map_label(*label));
-                None
+                let value = value.codegen(codegen, map_variable);
+                codegen.acf().cjump(value, map_label(*label))
             }
         }
     }

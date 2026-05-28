@@ -17,7 +17,8 @@ pub trait BodyCodegen {
         let _ = comment;
     }
 
-    /// Get type of the value. Takes in [`Value::0`] to not consume the value
+    /// Get type of the value. Takes in [`Value::0`] to not consume the value.
+    /// Only applicable to unused values (rust type system will make sure)
     fn type_of(&self, id: usize) -> Type;
 
     /// Declare a variable, see [Variable].

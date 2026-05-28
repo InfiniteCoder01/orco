@@ -24,7 +24,7 @@ pub struct Codegen<'a, 'b: 'a> {
     /// Map of [`oc::Value::0`] to value info. Entries get
     /// removed whenever values get used
     values: HashMap<usize, ValueInfo>,
-    next_value_index: usize,
+    next_value_id: usize,
 }
 
 struct VariableInfo {
@@ -44,7 +44,7 @@ impl<'a, 'b: 'a> Codegen<'a, 'b> {
 
             variables: Vec::new(),
             values: HashMap::new(),
-            next_value_index: 0,
+            next_value_id: 0,
         };
 
         let symbol = ctx.get_symbol(this.name);

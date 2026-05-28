@@ -1,5 +1,5 @@
-mod statement;
-pub use statement::{Statement, place_ty};
+mod expressions;
+pub use expressions::{Expression, Place, Statement};
 
 mod intrinsics;
 pub use intrinsics::Intrinsic;
@@ -32,15 +32,7 @@ impl Body {
     pub fn get_variable(&self, variable: orco::codegen::Variable) -> &Variable {
         self.variables
             .get(variable.0)
-            .unwrap_or_else(|| panic!("invalid variable {variable}"))
-    }
-
-    /// Get type from value id, similar to [`orco::codegen::BodyCodegen::type_of`]
-    pub fn type_of(&self, id: usize, backend: &crate::Backend) -> orco::Type {
-        self.statements
-            .get(id)
-            .unwrap_or_else(|| panic!("invalid value id {id}"))
-            .get_type(backend, self)
+            .unwrap_or_else(|| panic!("invalid variable _{}", variable.0))
     }
 }
 
@@ -63,11 +55,6 @@ impl std::fmt::Display for Body {
         for (idx, statement) in self.statements.iter().enumerate() {
             if let Some(label) = statement_idx_to_label.get(&idx) {
                 writeln!(f, "label{label}:")?;
-            }
-
-            if statement.is_expression() {
-                writeln!(f, "  <{idx}> = {statement};")?;
-                continue;
             }
 
             for line in statement.to_string().split('\n') {

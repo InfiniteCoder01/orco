@@ -6,22 +6,10 @@ use super::Symbol;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Variable(pub usize);
 
-impl std::fmt::Display for Variable {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "_{}", self.0)
-    }
-}
-
 /// Values are immutable results of operations. They can't be reused
 /// unless stored in temporary variables, see [`BodyCodegen::mk_tmp`]
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Value(pub usize);
-
-impl std::fmt::Display for Value {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<{}>", self.0)
-    }
-}
 
 /// A variable or symbol with projection (aka field access, dereferences, etc.)
 #[derive(Debug, PartialEq, PartialOrd)]
@@ -53,16 +41,5 @@ impl Variable {
     /// Quickly convert a variable to [Place]
     pub fn place(self) -> Place {
         self.into()
-    }
-}
-
-impl std::fmt::Display for Place {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Place::Variable(var) => write!(f, "{var}"),
-            Place::Global(name) => write!(f, "{name}"),
-            Place::Deref(value) => write!(f, "*{value}"),
-            Place::Field(place, idx) => write!(f, "{place}._{idx}"),
-        }
     }
 }
