@@ -31,7 +31,6 @@ going through some of [rust by example](<https://doc.rust-lang.org/stable/rust-b
 - [x] cgen: fix mutability formatting
 - [x] orco-ir: IR
 - [x] orco-ir: ACF
-- [ ] cgen: implement value flushing
 - [ ] cgen: implement dependency sorting for symbol declarations
 - [ ] orco: regular control flow
 - [ ] orco-ir: sea of nodes?

@@ -1,6 +1,7 @@
 use crate::{Backend, SymbolKind};
 use orco::codegen as oc;
 use std::collections::HashMap;
+use std::fmt::Write as _;
 
 mod intrinsics;
 mod value;
@@ -25,6 +26,8 @@ pub struct Codegen<'a, 'b: 'a> {
     /// removed whenever values get used
     values: HashMap<usize, ValueInfo>,
     next_value_id: usize,
+    /// ID of the next label for ACF (see [`orco::codegen::ACFCodegen`]).
+    next_label_id: usize,
 }
 
 struct VariableInfo {
@@ -45,6 +48,7 @@ impl<'a, 'b: 'a> Codegen<'a, 'b> {
             variables: Vec::new(),
             values: HashMap::new(),
             next_value_id: 0,
+            next_label_id: 0,
         };
 
         let symbol = ctx.get_symbol(this.name);
@@ -209,19 +213,21 @@ impl oc::BodyCodegen for Codegen<'_, '_> {
 
 impl oc::ACFCodegen for &mut Codegen<'_, '_> {
     fn alloc_label(&mut self) -> oc::Label {
-        oc::Label(0)
+        self.next_label_id += 1;
+        oc::Label(self.next_label_id - 1)
     }
 
     fn label(&mut self, label: oc::Label) {
-        let _ = label;
+        writeln!(&mut self.body, "label{}:", label.0).unwrap();
     }
 
     fn jump(&mut self, label: oc::Label) {
-        let _ = label;
+        self.line(format_args!("goto label{};", label.0));
     }
 
     fn cjump(&mut self, condition: oc::Value, label: oc::Label) {
-        let _ = (condition, label);
+        let condition = self.use_value(condition).expression;
+        self.line(format_args!("if ({condition}) goto label{};", label.0));
     }
 }
 

@@ -107,13 +107,33 @@ impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
             self.codegen_statement(stmt);
         }
 
+        self.codegen.comment(&format!("{:#?}", block.terminator()));
         use rustc_middle::mir::TerminatorKind;
         match &block.terminator().kind {
-            TerminatorKind::Goto { target } => self.codegen.acf().jump(oc::Label(target.index())),
-            TerminatorKind::SwitchInt { targets, .. } => {
-                self.codegen
-                    .acf()
-                    .jump(oc::Label(targets.otherwise().index()));
+            TerminatorKind::Goto { target } => self.codegen.acf().jump(self.labels[target]),
+            TerminatorKind::SwitchInt { discr, targets } => {
+                use oc::Intrinsics as _;
+                for (value, target) in targets.iter() {
+                    let discr = self.op(discr).expect("SwitchInt on unit discriminant");
+                    let value = match self.codegen.type_of(discr.0) {
+                        orco::Type::Integer(is) => self.codegen.iconst(value as _, is),
+                        orco::Type::Unsigned(is) => self.codegen.uconst(value as _, is),
+                        orco::Type::Bool => {
+                            assert!(
+                                [0, 1].contains(&value),
+                                "invalid bool branch in SwitchInt: {value} (expected 0 or 1)"
+                            );
+                            self.codegen.bconst(value != 0)
+                        }
+                        orco::Type::Symbol(name) => {
+                            todo!("symbol discriminant type in SwitchInt ({name})")
+                        }
+                        ty => panic!("invalid discriminant type in SwitchInt: {ty}"),
+                    };
+                    let condition = self.codegen.intrinsics().eq(discr, value);
+                    self.codegen.acf().cjump(condition, self.labels[&target]);
+                }
+                self.codegen.acf().jump(self.labels[&targets.otherwise()]);
             }
             TerminatorKind::UnwindResume => todo!(),
             TerminatorKind::UnwindTerminate(..) => todo!(),
@@ -128,21 +148,31 @@ impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
                 // TODO
             }
             TerminatorKind::Call {
-                // func,
-                // args,
-                // destination,
-                // target,
+                func,
+                args,
+                destination,
+                target,
                 ..
             } => {
-                // TODO!!!
-                // let func = self.op(func);
-                // let args = args.iter().map(|arg| self.op(&arg.node)).collect();
-                // self.codegen.call(func, args, self.place(*destination));
-                // if let Some(target) = target {
-                //     self.codegen.acf().jump(oc::Label(target.index()));
-                // }
+                let func = self.op(func).expect("trying to call a unit value");
+                let args = args.iter().flat_map(|arg| self.op(&arg.node)).collect();
+                let retval = self.codegen.call(func, args);
+                if let Some(place) = self.place(*destination) {
+                    self.codegen.assign(
+                        place,
+                        retval.expect("can't use the return value of a unit function"),
+                    );
+                }
+                if let Some(target) = target {
+                    self.codegen.acf().jump(oc::Label(target.index()));
+                }
             }
-            TerminatorKind::TailCall { .. } => todo!(),
+            TerminatorKind::TailCall { func, args, .. } => {
+                let func = self.op(func).expect("trying to call a unit value");
+                let args = args.iter().flat_map(|arg| self.op(&arg.node)).collect();
+                let retval = self.codegen.call(func, args);
+                self.codegen.return_(retval);
+            }
             TerminatorKind::Assert { .. } => {
                 // TODO
             }

@@ -76,6 +76,12 @@ pub trait Intrinsics {
     fn mul(&mut self, a: Value, b: Value) -> Value {
         unimplemented!("mul operation");
     }
+
+    /// Primitive type equality check
+    #[allow(unused_variables)]
+    fn eq(&mut self, a: Value, b: Value) -> Value {
+        unimplemented!("eq operation");
+    }
 }
 
 /// A label ID. See [`ACFCodegen::label`]
