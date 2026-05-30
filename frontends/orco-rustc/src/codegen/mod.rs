@@ -15,7 +15,7 @@ struct CodegenCtx<'tcx, CG> {
 
 impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
     fn codegen_statement(&mut self, stmt: &rustc_middle::mir::Statement<'tcx>) {
-        self.codegen.comment(&format!("{stmt:#?}"));
+        // self.codegen.comment(&format!("{stmt:#?}"));
 
         use rustc_middle::mir::StatementKind;
         let (place, rvalue) = match &stmt.kind {
@@ -31,7 +31,6 @@ impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
 
         use rustc_middle::mir::Rvalue;
         match rvalue {
-            // Rvalue::Cast(_, op, _) => self.codegen.assign(self.op(op), self.var(*place)),
             Rvalue::Use(op) => {
                 if let (Some(place), Some(value)) = (self.place(*place), self.op(op)) {
                     self.codegen.assign(place, value);
@@ -95,7 +94,7 @@ impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
                     self.codegen.assign(place, value);
                 }
             }
-            _ => eprintln!("TODO: {stmt:?}"), // TODO
+            _ => self.codegen.comment("TODO: {stmt:?}"), // TODO
         }
     }
 
@@ -107,7 +106,7 @@ impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
             self.codegen_statement(stmt);
         }
 
-        self.codegen.comment(&format!("{:#?}", block.terminator()));
+        // self.codegen.comment(&format!("{:#?}", block.terminator()));
         use rustc_middle::mir::TerminatorKind;
         match &block.terminator().kind {
             TerminatorKind::Goto { target } => self.codegen.acf().jump(self.labels[target]),
@@ -200,14 +199,30 @@ pub fn body<'a>(
         labels: HashMap::with_capacity(body.basic_blocks.len()),
     };
 
-    // TODO: debug variable names
+    let mut local_names = HashMap::new();
+    for info in &body.var_debug_info {
+        use rustc_middle::mir::VarDebugInfoContents as VDIC;
+        match info.value {
+            VDIC::Place(place) => {
+                if !place.projection.is_empty() && local_names.contains_key(&place.local) {
+                    continue;
+                }
+                local_names.insert(place.local, info.name);
+            }
+            VDIC::Const(..) => (),
+        }
+    }
+
     for (idx, local) in body.local_decls.iter_enumerated() {
         let var = if (1..body.arg_count + 1).contains(&idx.index()) {
             // An argument
             Some(oc::Variable(idx.index() - 1))
         } else if !local.ty.is_unit() {
             let ty = crate::types::convert(tcx, local.ty);
-            ty.map(|ty| ctx.codegen.declare_var(ty))
+            ty.map(|ty| {
+                ctx.codegen
+                    .declare_var(ty, local_names.get(&idx).map(|name| name.as_str()))
+            })
         } else {
             None
         };

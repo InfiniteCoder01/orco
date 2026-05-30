@@ -81,7 +81,7 @@ impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
                         rustc_middle::ty::TyKind::Adt(..) => {
                             let var = self
                                 .codegen
-                                .declare_var(crate::types::convert(self.tcx, ty)?);
+                                .declare_var(crate::types::convert(self.tcx, ty)?, Some("zst"));
                             self.codegen.read(var.into())
                         }
                         _ => panic!("Unknown zero-sized const {op:?}"),

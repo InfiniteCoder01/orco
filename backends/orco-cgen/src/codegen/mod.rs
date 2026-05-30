@@ -1,6 +1,6 @@
 use crate::Backend;
 use orco::codegen as oc;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Write as _;
 
 mod intrinsics;
@@ -22,6 +22,8 @@ pub struct Codegen<'a, 'b: 'a> {
     /// A variable info list. Variables never get removed,
     /// this can be indexed using [`oc::Variable::0`] directly
     variables: Vec<VariableInfo>,
+    /// Used variable names, for disambiguation
+    variable_names: HashSet<String>,
     /// Map of [`oc::Value::0`] to value info. Entries get
     /// removed whenever values get used
     values: HashMap<usize, ValueInfo>,
@@ -46,6 +48,7 @@ impl<'a, 'b: 'a> Codegen<'a, 'b> {
             indent: 1,
 
             variables: Vec::new(),
+            variable_names: HashSet::new(),
             values: HashMap::new(),
             next_value_id: 0,
             next_label_id: 0,
@@ -101,10 +104,21 @@ impl oc::BodyCodegen for Codegen<'_, '_> {
         self.values[&id].ty.clone()
     }
 
-    fn declare_var(&mut self, mut ty: orco::Type) -> oc::Variable {
+    fn declare_var(&mut self, mut ty: orco::Type, name: Option<&str>) -> oc::Variable {
         self.backend.intern_type(&mut ty, false);
         let id = self.variables.len();
-        let name = format!("var{}", id);
+        let mut name =
+            name.map_or_else(|| format!("var{}", id), |name| crate::symname(name.into())); // TODO: Not ideal
+        if self.variable_names.contains(&name) {
+            for disambiguator in 1.. {
+                let disambiguated = format!("{name}{disambiguator}");
+                if !self.variable_names.contains(&disambiguated) {
+                    name = disambiguated;
+                    break;
+                }
+            }
+        }
+        self.variable_names.insert(name.clone());
 
         if !matches!(&ty, orco::Type::Struct { fields } if fields.is_empty()) {
             self.line(format_args!(

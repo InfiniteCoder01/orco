@@ -61,7 +61,7 @@ impl super::Backend<'_> {
         let retvar = signature
             .return_type
             .clone()
-            .map(|rt| codegen.declare_var(rt));
+            .map(|rt| codegen.declare_var(rt, Some("_retval")));
 
         body.codegen(codegen, &args, |cg, value| {
             if let (Some(retval), Some(value)) = (retvar, value) {
@@ -87,7 +87,8 @@ impl ir::Body {
             if variable.arg {
                 variable_map.push(args[idx]);
             } else {
-                variable_map.push(codegen.declare_var(variable.ty.clone()))
+                variable_map
+                    .push(codegen.declare_var(variable.ty.clone(), variable.name.as_deref()))
             }
         }
 

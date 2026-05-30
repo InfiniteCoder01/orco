@@ -28,10 +28,11 @@ impl<'a, 'b: 'a> Codegen<'a, 'b> {
             .unwrap_or_else(|| panic!("trying to codegen undeclared function {name}"));
 
         body.variables.reserve(function.params.len());
-        for (_, ty) in &function.params {
+        for (name, ty) in &function.params {
             body.variables.push(ir::Variable {
                 ty: ty.clone(),
                 arg: true,
+                name: name.clone(),
             });
         }
 
@@ -85,8 +86,12 @@ impl oc::BodyCodegen for Codegen<'_, '_> {
             .get_type(self.backend, &self.body)
     }
 
-    fn declare_var(&mut self, ty: orco::Type) -> oc::Variable {
-        self.body.variables.push(ir::Variable { ty, arg: false });
+    fn declare_var(&mut self, ty: orco::Type, name: Option<&str>) -> oc::Variable {
+        self.body.variables.push(ir::Variable {
+            ty,
+            arg: false,
+            name: name.map(|name| name.to_owned()),
+        });
         oc::Variable(self.body.variables.len() - 1)
     }
 

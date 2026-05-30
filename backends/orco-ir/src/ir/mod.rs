@@ -11,6 +11,8 @@ pub struct Variable {
     pub ty: orco::Type,
     /// Wether this variable comes from function arguments
     pub arg: bool,
+    /// Debug name
+    pub name: Option<String>,
 }
 
 /// A function body
@@ -43,6 +45,9 @@ impl std::fmt::Display for Body {
             write!(f, "  let _{idx}: {}", var.ty)?;
             if var.arg {
                 write!(f, " = <argument>")?;
+            }
+            if let Some(name) = &var.name {
+                write!(f, "// {name}")?;
             }
             writeln!(f, ";")?;
         }

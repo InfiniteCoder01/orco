@@ -22,12 +22,15 @@ pub trait BodyCodegen {
     fn type_of(&self, id: usize) -> Type;
 
     /// Declare a variable, see [Variable].
-    fn declare_var(&mut self, ty: Type) -> Variable;
+    /// Takes optional name (for debugging purposes),
+    /// which does not have to be unique
+    fn declare_var(&mut self, ty: Type, name: Option<&str>) -> Variable;
+
     /// Assign a value into a place, which makes it reusable
     fn assign(&mut self, target: Place, value: Value);
     /// Makes a temporary variable and assigns the value to it. Utility function
     fn mk_tmp(&mut self, value: Value) -> Variable {
-        let tmp = self.declare_var(self.type_of(value.0));
+        let tmp = self.declare_var(self.type_of(value.0), None);
         self.assign(tmp.into(), value);
         tmp
     }
