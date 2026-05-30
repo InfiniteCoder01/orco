@@ -1,4 +1,4 @@
-use crate::{Backend, SymbolKind};
+use crate::Backend;
 use orco::codegen as oc;
 use std::collections::HashMap;
 use std::fmt::Write as _;
@@ -51,27 +51,25 @@ impl<'a, 'b: 'a> Codegen<'a, 'b> {
             next_label_id: 0,
         };
 
-        let symbol = ctx.get_symbol(this.name);
-        let symbol = symbol.get();
-        if let SymbolKind::Function(signature) = symbol {
-            this.body = format!(
-                "{} {{\n",
-                crate::symbols::FmtFunction {
-                    name: &crate::symname(name), // FIXME: Generics
-                    signature: &signature,
-                    name_all_args: true
-                }
-            );
-
-            for (idx, (name, ty)) in signature.params.iter().enumerate() {
-                let name = name.clone().unwrap_or_else(|| format!("arg{idx}"));
-                this.variables.push(VariableInfo {
-                    ty: ty.clone(),
-                    name,
-                });
+        let signature = ctx
+            .functions
+            .get_sync(&this.name)
+            .unwrap_or_else(|| panic!("trying to codegen an undeclared function {}", this.name));
+        this.body = format!(
+            "{} {{\n",
+            crate::symbols::FmtFunction {
+                name: &crate::symname(name), // FIXME: Generics
+                signature: &signature,
+                name_all_args: true
             }
-        } else {
-            panic!("Trying to define a non-function symbol {symbol:#?}")
+        );
+
+        for (idx, (name, ty)) in signature.params.iter().enumerate() {
+            let name = name.clone().unwrap_or_else(|| format!("arg{idx}"));
+            this.variables.push(VariableInfo {
+                ty: ty.clone(),
+                name,
+            });
         }
 
         this

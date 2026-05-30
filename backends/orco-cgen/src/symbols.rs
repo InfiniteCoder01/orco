@@ -1,53 +1,6 @@
 use crate::FmtType;
 use orco::types::FunctionSignature;
 
-/// A declaration
-#[derive(Debug)]
-pub enum SymbolKind {
-    /// Function, see [FunctionSignature]
-    Function(FunctionSignature),
-    /// Type alias, aka typedef
-    Type(orco::Type),
-}
-
-/// Formats a symbol for display in C language
-#[allow(missing_docs)]
-pub struct FmtSymbol<'a> {
-    pub name: &'a str,
-    pub kind: &'a SymbolKind,
-}
-
-impl std::fmt::Display for FmtSymbol<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let FmtSymbol { name, kind } = *self;
-
-        match kind {
-            SymbolKind::Function(signature) => {
-                write!(
-                    f,
-                    "{};",
-                    FmtFunction {
-                        name,
-                        signature,
-                        name_all_args: true,
-                    }
-                )
-            }
-            SymbolKind::Type(ty) => {
-                write!(
-                    f,
-                    "typedef {};",
-                    FmtType {
-                        ty,
-                        constant: false,
-                        name: Some(name)
-                    }
-                )
-            }
-        }
-    }
-}
-
 /// Formats function signature
 pub struct FmtFunction<'a> {
     /// Function name
