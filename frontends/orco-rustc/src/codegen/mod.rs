@@ -1,6 +1,6 @@
 use crate::TyCtxt;
 use orco::codegen as oc;
-use orco::codegen::ACFCodegen as _;
+use orco::codegen::AcfCodegen as _;
 use std::collections::HashMap;
 
 mod operand;

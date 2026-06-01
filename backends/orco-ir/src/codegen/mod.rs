@@ -159,12 +159,12 @@ impl oc::BodyCodegen for Codegen<'_, '_> {
         self
     }
 
-    fn acf(&mut self) -> impl oc::ACFCodegen + '_ {
+    fn acf(&mut self) -> impl oc::AcfCodegen + '_ {
         self
     }
 }
 
-impl oc::ACFCodegen for &mut Codegen<'_, '_> {
+impl oc::AcfCodegen for &mut Codegen<'_, '_> {
     fn alloc_label(&mut self) -> oc::Label {
         self.body.labels.push(0);
         oc::Label(self.body.labels.len() - 1)
@@ -175,14 +175,14 @@ impl oc::ACFCodegen for &mut Codegen<'_, '_> {
     }
 
     fn jump(&mut self, label: oc::Label) {
-        self.body.statements.push(ir::Statement::ACFJump(label));
+        self.body.statements.push(ir::Statement::AcfJump(label));
     }
 
     fn cjump(&mut self, condition: oc::Value, label: oc::Label) {
         let condition = self.use_value(condition);
         self.body
             .statements
-            .push(ir::Statement::ACFCJump(condition, label));
+            .push(ir::Statement::AcfCJump(condition, label));
     }
 }
 

@@ -4,8 +4,15 @@ use crate::{Symbol, Type};
 
 /// Implementations of codegen features
 pub mod impls;
+
 mod values;
 pub use values::*;
+
+mod intrinsics;
+pub use intrinsics::*;
+
+mod control_flow;
+pub use control_flow::*;
 
 /// Trait for generating code within a function.
 /// NOTE: whenever an instruction yields a value,
@@ -60,53 +67,15 @@ pub trait BodyCodegen {
         impls::Unimplemented
     }
 
-    /// Get arbitrary control flow instructions, see [ACFCodegen]
-    fn acf(&mut self) -> impl ACFCodegen + '_ {
+    /// Get arbitrary control flow instructions, see [AcfCodegen]
+    fn acf(&mut self) -> impl AcfCodegen + '_ {
         impls::Unimplemented
     }
-}
 
-/// Interface providing intrinsic function implementations.
-pub trait Intrinsics {
-    /// Integer/float addition
-    #[allow(unused_variables)]
-    fn add(&mut self, a: Value, b: Value) -> Value {
-        unimplemented!("add operation");
+    /// Get block control flow instructions, see [BcfCodegen]
+    fn bcf(&mut self) -> impl BcfCodegen + '_ {
+        impls::Unimplemented
     }
-
-    /// Integer/float multiplication
-    #[allow(unused_variables)]
-    fn mul(&mut self, a: Value, b: Value) -> Value {
-        unimplemented!("mul operation");
-    }
-
-    /// Primitive type equality check
-    #[allow(unused_variables)]
-    fn eq(&mut self, a: Value, b: Value) -> Value {
-        unimplemented!("eq operation");
-    }
-}
-
-/// A label ID. See [`ACFCodegen::label`]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Label(pub usize);
-
-/// Arbitrary control flow instructions, such as jumps.
-/// Warning: Not all codegens implement arbitrary control flow
-pub trait ACFCodegen {
-    /// Allocates a label to be placed later
-    fn alloc_label(&mut self) -> Label;
-
-    /// Places a label in the current position.
-    fn label(&mut self, label: Label);
-
-    /// Jump to a label.
-    /// See [`ACFCodegen::label`]
-    fn jump(&mut self, label: Label);
-
-    /// Jumps if condition is true.
-    /// See [`ACFCodegen::label`]
-    fn cjump(&mut self, condition: Value, label: Label);
 }
 
 /// Interface for generating actual code.

@@ -1,5 +1,5 @@
 use crate::ir;
-use oc::ACFCodegen as _;
+use oc::AcfCodegen as _;
 use orco::codegen as oc;
 
 impl super::Backend<'_> {
@@ -222,8 +222,8 @@ impl ir::Statement {
                 codegen.return_(value)
             }
 
-            Self::ACFJump(label) => codegen.acf().jump(map_label(*label)),
-            Self::ACFCJump(value, label) => {
+            Self::AcfJump(label) => codegen.acf().jump(map_label(*label)),
+            Self::AcfCJump(value, label) => {
                 let value = value.codegen(codegen, map_variable);
                 codegen.acf().cjump(value, map_label(*label))
             }

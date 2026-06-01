@@ -148,10 +148,10 @@ pub enum Statement {
     /// See [`oc::BodyCodegen::return`]
     Return(Option<Expression>),
 
-    /// See [`oc::ACFCodegen::jump`]
-    ACFJump(oc::Label),
-    /// See [`oc::ACFCodegen::cjump`]
-    ACFCJump(Expression, oc::Label),
+    /// See [`oc::AcfCodegen::jump`]
+    AcfJump(oc::Label),
+    /// See [`oc::AcfCodegen::cjump`]
+    AcfCJump(Expression, oc::Label),
 }
 
 impl std::fmt::Display for Statement {
@@ -184,8 +184,8 @@ impl std::fmt::Display for Statement {
                 write!(f, ";")?;
             }
 
-            Self::ACFJump(label) => write!(f, "jump label{};", label.0)?,
-            Self::ACFCJump(value, label) => write!(f, "jump label{} if {value};", label.0)?,
+            Self::AcfJump(label) => write!(f, "jump label{};", label.0)?,
+            Self::AcfCJump(value, label) => write!(f, "jump label{} if {value};", label.0)?,
         }
         Ok(())
     }
