@@ -31,7 +31,7 @@ impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
 
         use rustc_middle::mir::Rvalue;
         match rvalue {
-            Rvalue::Use(op) => {
+            Rvalue::Use(op, _) => {
                 if let (Some(place), Some(value)) = (self.place(*place), self.op(op)) {
                     self.codegen.assign(place, value);
                 }

@@ -19,11 +19,7 @@ impl rustc_codegen_ssa::traits::CodegenBackend for OrcoCodegenBackend {
         "cc".to_owned()
     }
 
-    fn codegen_crate(
-        &self,
-        tcx: TyCtxt<'_>,
-        _crate_info: &rustc_codegen_ssa::CrateInfo,
-    ) -> Box<dyn Any> {
+    fn codegen_crate(&self, tcx: TyCtxt<'_>) -> Box<dyn Any> {
         tracing::info!("Name: {}", tcx.crate_name(rustc_hir::def_id::LOCAL_CRATE));
         let items = tcx.hir_crate_items(());
         let backend = orco_cgen::Backend::new();
@@ -38,6 +34,7 @@ impl rustc_codegen_ssa::traits::CodegenBackend for OrcoCodegenBackend {
         _ongoing_codegen: Box<dyn Any>,
         _sess: &Session,
         _outputs: &rustc_session::config::OutputFilenames,
+        _crate_info: &rustc_codegen_ssa::CrateInfo,
     ) -> (
         rustc_codegen_ssa::CompiledModules,
         rustc_data_structures::fx::FxIndexMap<
