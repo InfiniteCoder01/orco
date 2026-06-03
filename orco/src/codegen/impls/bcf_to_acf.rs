@@ -9,7 +9,12 @@ enum BlockType {
     Loop { start: cg::Label, end: cg::Label },
 }
 
-/// Convert block-based control flow to ACF
+/// Convert block-based control flow to ACF.
+/// To use this, add it as a field to your codegen and return
+/// ```
+/// BcfToAcf::bcf(self, |this| &mut this.acf_to_bcf)
+/// ```
+/// in your [`cg::BodyCodegen::bcf`] implementation
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BcfToAcf {
     stack: Vec<BlockType>,
@@ -25,7 +30,6 @@ impl BcfToAcf {
     /// referencing `codegen`. You must also supply a getter
     /// for the [BcfToAcf] instance
     pub fn bcf<'a, CG: cg::BodyCodegen>(
-        &self,
         codegen: &'a mut CG,
         getter: fn(&mut CG) -> &mut BcfToAcf,
     ) -> impl cg::BcfCodegen + 'a {

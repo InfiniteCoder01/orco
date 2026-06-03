@@ -143,7 +143,7 @@ impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
             }
             TerminatorKind::Unreachable => todo!(),
             TerminatorKind::Drop { target, .. } => {
-                self.codegen.acf().jump(oc::Label(target.index()));
+                self.codegen.acf().jump(self.labels[target]);
                 // TODO
             }
             TerminatorKind::Call {
@@ -172,7 +172,8 @@ impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
                 let retval = self.codegen.call(func, args);
                 self.codegen.return_(retval);
             }
-            TerminatorKind::Assert { .. } => {
+            TerminatorKind::Assert { target, .. } => {
+                self.codegen.acf().jump(self.labels[target]);
                 // TODO
             }
             TerminatorKind::Yield { .. } => todo!(),
