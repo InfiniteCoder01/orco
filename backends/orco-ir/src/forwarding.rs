@@ -181,7 +181,7 @@ impl ir::Expression {
                     I::Mul(a, b) => {
                         let a = a.codegen(codegen, map_variable);
                         let b = b.codegen(codegen, map_variable);
-                        codegen.intrinsics().add(a, b)
+                        codegen.intrinsics().mul(a, b)
                     }
                 }
             }

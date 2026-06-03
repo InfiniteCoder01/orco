@@ -42,7 +42,7 @@ impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
                             if ty.is_floating_point() {
                                 self.codegen.fconst(
                                     match value.size().bytes() {
-                                        4 => f32::from_bits(value.to_u32()) as _,
+                                        4 => f32::from_bits(value.to_u32()).into(),
                                         8 => f64::from_bits(value.to_u64()) as _,
                                         sz => panic!(
                                             "invalid or unsupported floating point literal size: {sz}"

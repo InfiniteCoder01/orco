@@ -222,7 +222,7 @@ pub fn body<'a>(
             let ty = crate::types::convert(tcx, local.ty);
             ty.map(|ty| {
                 ctx.codegen
-                    .declare_var(ty, local_names.get(&idx).map(|name| name.as_str()))
+                    .declare_var(ty, local_names.get(&idx).map(rustc_span::Symbol::as_str))
             })
         } else {
             None

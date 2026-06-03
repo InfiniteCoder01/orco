@@ -127,7 +127,10 @@ impl oc::BodyCodegen for Codegen<'_, '_> {
     fn reference(&mut self, place: oc::Place, mutable: bool) -> oc::Value {
         let place = self.cvt_place(place);
         let can_be_mutable = place.get_type(self.backend, &self.body).1;
-        assert!(!(mutable && !can_be_mutable), "can't create mutable reference to an immutable {place}");
+        assert!(
+            !mutable || can_be_mutable,
+            "can't create mutable reference to an immutable {place}"
+        );
 
         self.expr(ir::Expression::Reference(place, mutable))
     }
