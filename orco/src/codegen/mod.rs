@@ -67,19 +67,19 @@ pub trait BodyCodegen {
         impls::Unimplemented
     }
 
-    /// Get arbitrary control flow instructions, see [AcfCodegen]
+    /// Get arbitrary control flow instructions, see [`AcfCodegen`]
     fn acf(&mut self) -> impl AcfCodegen + '_ {
         impls::Unimplemented
     }
 
-    /// Get block control flow instructions, see [BcfCodegen]
+    /// Get block control flow instructions, see [`BcfCodegen`]
     fn bcf(&mut self) -> impl BcfCodegen + '_ {
         impls::Unimplemented
     }
 }
 
 /// Interface for generating actual code.
-/// All the items defined must be declared using [crate::DeclarationBackend] first.
+/// All the items defined must be declared using [`crate::DeclarationBackend`] first.
 pub trait CodegenBackend: Sync {
     /// Define a function
     fn function(&self, name: Symbol) -> impl BodyCodegen;

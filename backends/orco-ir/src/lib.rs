@@ -26,6 +26,7 @@ pub struct Backend<'a> {
 
 impl Backend<'_> {
     #[allow(missing_docs)]
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }

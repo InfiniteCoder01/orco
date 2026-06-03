@@ -154,7 +154,7 @@ impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
                 ..
             } => {
                 let func = self.op(func).expect("trying to call a unit value");
-                let args = args.iter().flat_map(|arg| self.op(&arg.node)).collect();
+                let args = args.iter().filter_map(|arg| self.op(&arg.node)).collect();
                 let retval = self.codegen.call(func, args);
                 if let Some(place) = self.place(*destination) {
                     self.codegen.assign(
@@ -168,7 +168,7 @@ impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
             }
             TerminatorKind::TailCall { func, args, .. } => {
                 let func = self.op(func).expect("trying to call a unit value");
-                let args = args.iter().flat_map(|arg| self.op(&arg.node)).collect();
+                let args = args.iter().filter_map(|arg| self.op(&arg.node)).collect();
                 let retval = self.codegen.call(func, args);
                 self.codegen.return_(retval);
             }

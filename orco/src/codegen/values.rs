@@ -26,6 +26,7 @@ pub enum Place {
 
 impl Place {
     /// A helper function to create [`Self::Field`]
+    #[must_use]
     pub fn field(self, index: usize) -> Self {
         Self::Field(Box::new(self), index)
     }
@@ -39,6 +40,7 @@ impl From<Variable> for Place {
 
 impl Variable {
     /// Quickly convert a variable to [Place]
+    #[must_use]
     pub fn place(self) -> Place {
         self.into()
     }

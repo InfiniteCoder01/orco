@@ -31,6 +31,7 @@ pub struct Body {
 
 impl Body {
     /// Shortcut to access [`Self::variables`]
+    #[must_use]
     pub fn get_variable(&self, variable: orco::codegen::Variable) -> &Variable {
         self.variables
             .get(variable.0)

@@ -15,7 +15,7 @@ extern crate rustc_session;
 extern crate rustc_span;
 extern crate tracing;
 
-/// Extraction and conversion of names from HIR to orco::Symbol
+/// Extraction and conversion of names from HIR to `orco::Symbol`
 pub mod names;
 
 /// Type conversion
@@ -52,7 +52,7 @@ fn convert_fn_attrs(
 }
 
 /// Declare a function from MIR by [`rustc_hir::def_id::LocalDefId`].
-/// The function MUST have a body. For bodyless functions, see [foreign_function]
+/// The function MUST have a body. For bodyless functions, see [`foreign_function`]
 pub fn function<'a>(
     tcx: TyCtxt,
     backend: &impl DeclarationBackend<'a>,
@@ -214,7 +214,7 @@ pub fn declare<'a>(
         .unwrap();
 }
 
-/// This is the entrypoint for a hot plugged rustc_codegen_orco
+/// This is the entrypoint for a hot plugged `rustc_codegen_orco`
 #[unsafe(no_mangle)]
 pub fn __rustc_codegen_backend() -> Box<dyn rustc_codegen_ssa::traits::CodegenBackend> {
     Box::new(rustc_backend::OrcoCodegenBackend)

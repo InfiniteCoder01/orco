@@ -19,13 +19,14 @@ pub struct AcfToBcfStateMachine {
 
 impl AcfToBcfStateMachine {
     #[allow(missing_docs)]
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Returns the implementation of [`cg::AcfCodegen`],
     /// referencing `codegen`. You must also supply a getter
-    /// for the [AcfToBcfStateMachine] instance
+    /// for the [`AcfToBcfStateMachine`] instance
     pub fn acf<CG: cg::BodyCodegen>(
         codegen: &mut CG,
         getter: fn(&mut CG) -> &mut AcfToBcfStateMachine,

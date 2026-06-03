@@ -7,7 +7,7 @@ use std::any::Any;
 use rustc_middle::ty::TyCtxt;
 use rustc_session::Session;
 
-/// rustc_ssa_codegen backend for orco
+/// `rustc_ssa_codegen` backend for orco
 pub struct OrcoCodegenBackend;
 
 impl rustc_codegen_ssa::traits::CodegenBackend for OrcoCodegenBackend {
@@ -25,7 +25,7 @@ impl rustc_codegen_ssa::traits::CodegenBackend for OrcoCodegenBackend {
         let backend = orco_cgen::Backend::new();
         crate::declare(tcx, &backend, items);
         crate::codegen(tcx, &backend, items);
-        print!("{}", backend);
+        print!("{backend}");
         std::process::exit(0)
     }
 

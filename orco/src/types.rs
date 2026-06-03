@@ -181,6 +181,7 @@ pub struct FunctionSignature {
 
 impl FunctionSignature {
     #[allow(missing_docs)]
+    #[must_use]
     pub fn new(
         params: Vec<(Option<String>, Type)>,
         return_type: Option<Type>,

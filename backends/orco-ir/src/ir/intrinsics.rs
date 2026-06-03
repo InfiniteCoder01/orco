@@ -11,13 +11,14 @@ pub enum Intrinsic {
 
 impl Intrinsic {
     /// Weather this intrinsic produces a return value.
-    /// Similar to [super::Statement::is_expression]
+    /// Similar to [`super::Statement::is_expression`]
+    #[must_use]
     pub fn is_expression(&self) -> bool {
         true
     }
 
     /// Get type of the value this intrinsic produces.
-    /// Similar to [super::Statement::get_type]
+    /// Similar to [`super::Statement::get_type`]
     pub fn get_type(&self, backend: &crate::Backend, body: &super::Body) -> orco::Type {
         match self {
             Self::Add(a, _) => a.get_type(backend, body),

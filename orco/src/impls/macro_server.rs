@@ -6,7 +6,7 @@ use crate::{Symbol, Type};
 pub struct MacroServer<'a> {
     /// A map from macro name to it's function
     pub macros: scc::HashMap<Symbol, Macro<'a>>,
-    /// All call_once macros
+    /// All `call_once` macros
     call_once: scc::HashSet<(Symbol, Vec<Type>)>,
 }
 

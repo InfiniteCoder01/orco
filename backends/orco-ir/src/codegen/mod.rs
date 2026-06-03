@@ -90,7 +90,7 @@ impl oc::BodyCodegen for Codegen<'_, '_> {
         self.body.variables.push(ir::Variable {
             ty,
             arg: false,
-            name: name.map(|name| name.to_owned()),
+            name: name.map(std::borrow::ToOwned::to_owned),
         });
         oc::Variable(self.body.variables.len() - 1)
     }
@@ -100,7 +100,7 @@ impl oc::BodyCodegen for Codegen<'_, '_> {
         let value = self.use_value(value);
         self.body
             .statements
-            .push(ir::Statement::Assign(target, value))
+            .push(ir::Statement::Assign(target, value));
     }
 
     fn iconst(&mut self, value: i128, size: orco::types::IntegerSize) -> oc::Value {
@@ -127,9 +127,7 @@ impl oc::BodyCodegen for Codegen<'_, '_> {
     fn reference(&mut self, place: oc::Place, mutable: bool) -> oc::Value {
         let place = self.cvt_place(place);
         let can_be_mutable = place.get_type(self.backend, &self.body).1;
-        if mutable && !can_be_mutable {
-            panic!("can't create mutable reference to an immutable {place}")
-        }
+        assert!(!(mutable && !can_be_mutable), "can't create mutable reference to an immutable {place}");
 
         self.expr(ir::Expression::Reference(place, mutable))
     }
@@ -186,11 +184,11 @@ impl oc::AcfCodegen for &mut Codegen<'_, '_> {
     }
 }
 
-impl std::ops::Drop for Codegen<'_, '_> {
+impl core::ops::Drop for Codegen<'_, '_> {
     fn drop(&mut self) {
         self.backend
             .function_definitions
-            .insert_sync(self.name, std::mem::take(&mut self.body))
+            .insert_sync(self.name, core::mem::take(&mut self.body))
             .unwrap_or_else(|_| panic!("function {} is already defined", self.name));
     }
 }

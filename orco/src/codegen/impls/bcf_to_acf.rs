@@ -22,17 +22,18 @@ pub struct BcfToAcf {
 
 impl BcfToAcf {
     #[allow(missing_docs)]
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Returns the implementation of [`cg::BcfCodegen`],
     /// referencing `codegen`. You must also supply a getter
-    /// for the [BcfToAcf] instance
-    pub fn bcf<'a, CG: cg::BodyCodegen>(
-        codegen: &'a mut CG,
+    /// for the [`BcfToAcf`] instance
+    pub fn bcf<CG: cg::BodyCodegen>(
+        codegen: &mut CG,
         getter: fn(&mut CG) -> &mut BcfToAcf,
-    ) -> impl cg::BcfCodegen + 'a {
+    ) -> impl cg::BcfCodegen + '_ {
         Wrapper { codegen, getter }
     }
 

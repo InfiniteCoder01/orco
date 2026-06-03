@@ -87,9 +87,7 @@ impl std::fmt::Display for FmtType<'_> {
                             ty,
                             constant: false,
                             name: Some(
-                                name.as_deref()
-                                    .map(std::borrow::Cow::Borrowed)
-                                    .unwrap_or_else(|| format!("_{idx}").into())
+                                name.as_deref().map_or_else(|| format!("_{idx}").into(), std::borrow::Cow::Borrowed)
                                     .as_ref()
                             )
                         }

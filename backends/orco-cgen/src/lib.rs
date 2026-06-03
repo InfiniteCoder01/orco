@@ -34,6 +34,7 @@ pub struct Backend<'a> {
 
 impl Backend<'_> {
     #[allow(missing_docs)]
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -179,7 +180,7 @@ impl std::fmt::Display for Backend<'_> {
             sorter.deps.insert(*name, dependencies);
             if matches!(ty, orco::Type::Struct { .. }) {
                 let name = symname(*name);
-                result = writeln!(f, "typedef struct {name}_struct {name};",);
+                result = writeln!(f, "typedef struct {name}_struct {name};");
             }
 
             result.is_ok()

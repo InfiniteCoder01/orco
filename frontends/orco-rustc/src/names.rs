@@ -1,6 +1,7 @@
 use crate::TyCtxt;
 
 /// Convert path to a string
+#[must_use]
 pub fn convert_path(tcx: TyCtxt, def_id: rustc_hir::def_id::DefId) -> String {
     let path = tcx.def_path(def_id);
     let mut s = tcx.crate_name(path.krate).to_string();
@@ -24,6 +25,7 @@ pub fn convert_path(tcx: TyCtxt, def_id: rustc_hir::def_id::DefId) -> String {
 }
 
 /// Extract the pattern name, if there is one concrete name
+#[must_use]
 pub fn pat_name(pat: &rustc_hir::Pat) -> Option<String> {
     use rustc_hir::PatKind as PK;
     match pat.kind {

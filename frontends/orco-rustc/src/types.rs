@@ -2,6 +2,7 @@ use crate::TyCtxt;
 use crate::names::convert_path;
 
 /// Convert a type from rust MIR to orco.
+#[must_use]
 pub fn convert(tcx: TyCtxt, ty: rustc_middle::ty::Ty) -> Option<orco::Type> {
     use rustc_middle::ty::{FloatTy, IntTy, TyKind, UintTy};
     Some(match ty.kind() {
@@ -34,7 +35,7 @@ pub fn convert(tcx: TyCtxt, ty: rustc_middle::ty::Ty) -> Option<orco::Type> {
                 .chain(
                     generics
                         .iter()
-                        .flat_map(|generic| generic.as_term().map(|term| term.to_string())),
+                        .filter_map(|generic| generic.as_term().map(|term| term.to_string())),
                 )
                 .collect::<Vec<_>>()
                 .join("#")
