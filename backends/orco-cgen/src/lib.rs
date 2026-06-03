@@ -224,7 +224,7 @@ impl std::fmt::Display for Backend<'_> {
                 f,
                 "typedef {};",
                 FmtType {
-                    ty: &*ty,
+                    ty: &ty,
                     constant: false,
                     name: Some(&symname(name))
                 }

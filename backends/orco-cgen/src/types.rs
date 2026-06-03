@@ -105,7 +105,7 @@ impl std::fmt::Display for FmtType<'_> {
                         ty,
                         constant: !*pointee_mutable,
                         name: Some(
-                            &format!(
+                            format!(
                                 "*{}{}",
                                 match constant {
                                     false => "const ",

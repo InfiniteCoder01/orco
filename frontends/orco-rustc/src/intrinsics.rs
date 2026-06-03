@@ -27,7 +27,6 @@ pub fn declare<'a>(backend: &impl orco::DeclarationBackend<'a>) {
             Some(rt),
             orco::attrs::FunctionAttributes {
                 inlining: orco::attrs::Inlining::Always,
-                ..orco::attrs::FunctionAttributes::default()
             },
         )
     };
@@ -108,6 +107,7 @@ pub fn codegen(backend: &impl orco::CodegenBackend) {
 }
 
 static BACKEND: std::sync::OnceLock<orco_ir::Backend<'static>> = std::sync::OnceLock::new();
+/// WIP
 pub fn intrinsics() -> &'static orco_ir::Backend<'static> {
     BACKEND.get_or_init(|| {
         let backend = orco_ir::Backend::new();

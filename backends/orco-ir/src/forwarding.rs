@@ -26,7 +26,7 @@ impl super::Backend<'_> {
         self.function_definitions.iter_sync(|name, body| {
             let signature = self.functions.get_sync(name).unwrap();
             let args = (0..signature.params.len())
-                .map(|idx| oc::Variable(idx))
+                .map(oc::Variable)
                 .collect::<Vec<_>>();
             body.codegen(
                 &mut backend.function(*name),
@@ -199,7 +199,7 @@ impl ir::Statement {
         map_label: impl Fn(oc::Label) -> oc::Label,
     ) {
         match self {
-            Self::Comment(comment) => codegen.comment(&comment),
+            Self::Comment(comment) => codegen.comment(comment),
             Self::Assign(place, value) => {
                 let place = place.codegen(codegen, map_variable);
                 let value = value.codegen(codegen, map_variable);

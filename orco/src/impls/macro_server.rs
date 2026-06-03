@@ -34,19 +34,20 @@ impl<'a> MacroServer<'a> {
             .macros
             .get_sync(&name)
             .unwrap_or_else(|| panic!("macro {name} could not be found"));
-        if macro_.call_once {
-            if self.call_once.insert_sync((name, args.to_vec())).is_err() {
-                return;
-            }
+        if macro_.call_once && self.call_once.insert_sync((name, args.to_vec())).is_err() {
+            return;
         }
         (macro_.func)(args);
     }
 }
 
+/// Function that implements a macro
+pub type MacroFn<'a> = Box<dyn Fn(&[Type]) + Send + Sync + 'a>;
+
 /// A single macro wrapper
 pub struct Macro<'a> {
     /// Function to call when macro is invoked
-    pub func: Box<dyn Fn(&[Type]) + Send + Sync + 'a>,
+    pub func: MacroFn<'a>,
     /// Should macro parameters be hashed? See [`crate::DeclarationBackend::macro_`]
     pub call_once: bool,
 }
