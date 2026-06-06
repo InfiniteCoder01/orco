@@ -27,4 +27,9 @@ impl oc::Intrinsics for &mut super::Codegen<'_, '_> {
             a.ty,
         ))
     }
+
+    fn not(&mut self, a: oc::Value) -> oc::Value {
+        let a = self.use_value(a);
+        self.mk_value(ValueInfo::new(format!("!{}", a.expression), a.ty))
+    }
 }

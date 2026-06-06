@@ -88,7 +88,7 @@ impl<CG: cg::BodyCodegen> Wrapper<'_, CG> {
 
         let state_var = self.codegen.declare_var(
             crate::Type::Unsigned(crate::types::IntegerSize::Size),
-            Some("state"),
+            Some("_state"),
         );
 
         let label0 = initial_state(self);

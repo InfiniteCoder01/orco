@@ -1,5 +1,8 @@
 mod expressions;
-pub use expressions::{Expression, Place, Statement};
+pub use expressions::{Expression, Place};
+
+mod statements;
+pub use statements::{AcfStatement, BcfStatement, Statement};
 
 mod intrinsics;
 pub use intrinsics::Intrinsic;
@@ -47,10 +50,11 @@ impl std::fmt::Display for Body {
             if var.arg {
                 write!(f, " = <argument>")?;
             }
+            write!(f, ";")?;
             if let Some(name) = &var.name {
-                write!(f, "// {name}")?;
+                write!(f, " // {name}")?;
             }
-            writeln!(f, ";")?;
+            writeln!(f)?;
         }
 
         let mut statement_idx_to_label = std::collections::HashMap::new();
@@ -58,13 +62,32 @@ impl std::fmt::Display for Body {
             statement_idx_to_label.insert(label, idx);
         }
 
+        let mut indent = 1;
         for (idx, statement) in self.statements.iter().enumerate() {
             if let Some(label) = statement_idx_to_label.get(&idx) {
                 writeln!(f, "label{label}:")?;
             }
 
+            if let Statement::Bcf(bcf) = statement {
+                if matches!(bcf, BcfStatement::Else | BcfStatement::End) {
+                    indent -= 1;
+                }
+            }
+
             for line in statement.to_string().split('\n') {
-                writeln!(f, "  {line}")?;
+                for _ in 0..indent {
+                    write!(f, "  ")?;
+                }
+                writeln!(f, "{line}")?;
+            }
+
+            if let Statement::Bcf(bcf) = statement {
+                if matches!(
+                    bcf,
+                    BcfStatement::If(..) | BcfStatement::Else | BcfStatement::Loop
+                ) {
+                    indent += 1
+                }
             }
         }
         write!(f, "}}")

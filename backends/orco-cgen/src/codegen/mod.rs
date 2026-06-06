@@ -107,8 +107,7 @@ impl oc::BodyCodegen for Codegen<'_, '_> {
     fn declare_var(&mut self, mut ty: orco::Type, name: Option<&str>) -> oc::Variable {
         self.backend.intern_type(&mut ty, false);
         let id = self.variables.len();
-        let mut name =
-            name.map_or_else(|| format!("var{id}"), |name| crate::symname(name.into())); // TODO: Not ideal
+        let mut name = name.map_or_else(|| format!("var{id}"), |name| crate::symname(name.into())); // TODO: Not ideal
         if self.variable_names.contains(&name) {
             for disambiguator in 1.. {
                 let disambiguated = format!("{name}{disambiguator}");

@@ -7,6 +7,10 @@ pub enum Intrinsic {
     Add(Box<Expression>, Box<Expression>),
     /// See [`oc::Intrinsics::mul`]
     Mul(Box<Expression>, Box<Expression>),
+    /// See [`oc::Intrinsics::eq`]
+    Eq(Box<Expression>, Box<Expression>),
+    /// See [`oc::Intrinsics::not`]
+    Not(Box<Expression>),
 }
 
 impl Intrinsic {
@@ -23,6 +27,8 @@ impl Intrinsic {
         match self {
             Self::Add(a, _) => a.get_type(backend, body),
             Self::Mul(a, _) => a.get_type(backend, body),
+            Self::Eq(a, _) => a.get_type(backend, body),
+            Self::Not(a) => a.get_type(backend, body),
         }
     }
 }
@@ -32,6 +38,8 @@ impl std::fmt::Display for Intrinsic {
         match self {
             Intrinsic::Add(a, b) => write!(f, "{a} + {b}"),
             Intrinsic::Mul(a, b) => write!(f, "{a} * {b}"),
+            Intrinsic::Eq(a, b) => write!(f, "{a} == {b}"),
+            Intrinsic::Not(a) => write!(f, "!{a}"),
         }
     }
 }

@@ -33,7 +33,7 @@ going through some of [rust by example](<https://doc.rust-lang.org/stable/rust-b
 - [x] orco-ir: ACF
 - [x] cgen: implement dependency sorting for symbol declarations
 - [x] orco: regular control flow
-- [ ] orco-ir: sea of nodes?
+- [x] orco-ir: catch up on intrinsics and BCF
+- [ ] rustc: implement missing features (full implementation?)
 - [ ] orco: new macro system
 - [ ] orco: Constant expressions inside types (f.e. array size)
-- [ ] rustc: implement missing features (full implementation?)

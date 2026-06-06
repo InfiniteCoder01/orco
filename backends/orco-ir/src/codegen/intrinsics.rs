@@ -12,4 +12,15 @@ impl oc::Intrinsics for &mut super::Codegen<'_, '_> {
         let b = Box::new(self.use_value(b));
         self.expr(ir::Expression::Intrinsic(ir::Intrinsic::Mul(a, b)))
     }
+
+    fn eq(&mut self, a: oc::Value, b: oc::Value) -> oc::Value {
+        let a = Box::new(self.use_value(a));
+        let b = Box::new(self.use_value(b));
+        self.expr(ir::Expression::Intrinsic(ir::Intrinsic::Eq(a, b)))
+    }
+
+    fn not(&mut self, a: oc::Value) -> oc::Value {
+        let a = Box::new(self.use_value(a));
+        self.expr(ir::Expression::Intrinsic(ir::Intrinsic::Not(a)))
+    }
 }
