@@ -66,7 +66,7 @@ pub fn function<'a>(
     let mut params = Vec::with_capacity(sig.inputs().len());
     for (i, ty) in sig.inputs().iter().enumerate() {
         let name = names::pat_name(body.params[i].pat);
-        let Some(ty) = types::convert(backend, tcx, *ty, &()) else {
+        let Some(ty) = types::convert(tcx, backend, *ty, &()) else {
             continue;
         };
         params.push((name, ty));
@@ -75,7 +75,7 @@ pub fn function<'a>(
     backend.function(
         name,
         params,
-        types::convert(backend, tcx, sig.output(), &()),
+        types::convert(tcx, backend, sig.output(), &()),
         convert_fn_attrs(attrs),
     );
 }
@@ -95,7 +95,7 @@ pub fn foreign_function<'a>(
 
     let mut params = Vec::with_capacity(sig.inputs().len());
     for (i, ty) in sig.inputs().iter().enumerate() {
-        let Some(ty) = types::convert(backend, tcx, *ty, &()) else {
+        let Some(ty) = types::convert(tcx, backend, *ty, &()) else {
             continue;
         };
         params.push((idents[i].map(|ident| ident.as_str().to_owned()), ty));
@@ -104,7 +104,7 @@ pub fn foreign_function<'a>(
     backend.function(
         name,
         params,
-        types::convert(backend, tcx, sig.output(), &()),
+        types::convert(tcx, backend, sig.output(), &()),
         convert_fn_attrs(attrs),
     );
 }
@@ -115,15 +115,15 @@ pub fn struct_<'a, 'b: 'a>(
     backend: &impl DeclarationBackend<'a>,
     key: rustc_hir::def_id::DefId,
 ) {
-    let tcx = rustc_data_structures::sync::check_dyn_thread_safe()
-        .expect("You have to enable `-Z threads` (f.e. -Z threads=sync) to be able to use macros")
-        .derive(tcx);
-    let name = names::convert_path(*tcx, key).into();
-    let generics = tcx.generics_of(key);
-    if generics.is_empty() {
+    fn orco_ty<'a>(
+        tcx: TyCtxt,
+        backend: &impl DeclarationBackend<'a>,
+        key: rustc_hir::def_id::DefId,
+        map: impl types::GenericMap,
+    ) -> orco::Type {
         let adt = tcx.adt_def(key);
         let variant = adt.variants().iter().next().unwrap();
-        let orco_ty = orco::Type::Struct {
+        orco::Type::Struct {
             fields: variant
                 .fields
                 .iter()
@@ -136,67 +136,51 @@ pub fn struct_<'a, 'b: 'a>(
                             Some(name)
                         },
                         types::convert(
+                            tcx,
                             backend,
-                            *tcx,
                             tcx.type_of(field.did)
                                 .instantiate_identity()
                                 .skip_norm_wip(),
-                            &(),
+                            &map,
                         )?,
                     ))
                 })
                 .collect::<Vec<_>>(),
-        };
+        }
+    }
 
-        backend.type_(name, orco_ty);
+    let name = names::convert_path(tcx, key);
+    let generics = tcx.generics_of(key);
+    if generics.is_empty() {
+        backend.type_(name.into(), orco_ty(tcx, backend, key, ()));
     } else {
+        let tcx = rustc_data_structures::sync::check_dyn_thread_safe()
+            .expect(
+                "You have to enable `-Z threads` (f.e. `-Z threads=sync`) to be able to use macros",
+            )
+            .derive(tcx);
+
+        let counts = generics.own_counts();
+        let offset = generics.parent_count + counts.lifetimes;
+
+        #[derive(Clone, Copy)]
+        struct Map<'a>(usize, &'a [orco::Type]);
+        impl types::GenericMap for Map<'_> {
+            fn resolve(&self, param: rustc_middle::ty::ParamTy) -> orco::Type {
+                self.1[param.index as usize - self.0].clone()
+            }
+        }
+
         backend.macro_(
-            name,
+            name.as_str().into(),
             move |backend, args| {
-                let mut name = name.to_string();
+                let mut name = name.clone();
                 for arg in args {
                     name.push('_');
                     name.push_str(&arg.hashable_name());
                 }
-                let name = name.into();
 
-                let counts = generics.own_counts();
-                let offset = generics.parent_count + counts.lifetimes;
-                struct Map<'a>(usize, &'a [orco::Type]);
-                impl types::GenericMap for Map<'_> {
-                    fn resolve(&self, param: rustc_middle::ty::ParamTy) -> orco::Type {
-                        self.1[param.index as usize - self.0].clone()
-                    }
-                }
-
-                let adt = tcx.adt_def(key);
-                let variant = adt.variants().iter().next().unwrap();
-                let orco_ty = orco::Type::Struct {
-                    fields: variant
-                        .fields
-                        .iter()
-                        .filter_map(|field| {
-                            let name = field.name.to_string();
-                            Some((
-                                if name.chars().next().is_none_or(|c| c.is_ascii_digit()) {
-                                    None
-                                } else {
-                                    Some(name)
-                                },
-                                types::convert(
-                                    backend,
-                                    *tcx,
-                                    tcx.type_of(field.did)
-                                        .instantiate_identity()
-                                        .skip_norm_wip(),
-                                    &Map(offset, args),
-                                )?,
-                            ))
-                        })
-                        .collect::<Vec<_>>(),
-                };
-
-                backend.type_(name, orco_ty);
+                backend.type_(name.into(), orco_ty(*tcx, backend, key, Map(offset, args)));
             },
             true,
         );

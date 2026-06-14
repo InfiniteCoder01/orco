@@ -6,10 +6,10 @@ use std::collections::HashMap;
 mod operand;
 
 struct CodegenCtx<'a, 'tcx, B, CG> {
-    backend: &'a B,
     tcx: TyCtxt<'tcx>,
+    backend: &'a B,
     codegen: CG,
-    body: &'tcx rustc_middle::mir::Body<'tcx>,
+    body: &'a rustc_middle::mir::Body<'tcx>,
     variables: HashMap<rustc_middle::mir::Local, Option<oc::Variable>>,
     labels: HashMap<rustc_middle::mir::BasicBlock, oc::Label>,
 }
@@ -196,8 +196,8 @@ pub fn body<'a>(
     body: &'a rustc_middle::mir::Body<'a>,
 ) {
     let mut ctx = CodegenCtx {
-        backend,
         tcx,
+        backend,
         codegen,
         body,
         variables: HashMap::with_capacity(body.local_decls.len()),
@@ -223,7 +223,7 @@ pub fn body<'a>(
             // An argument
             Some(oc::Variable(idx.index() - 1))
         } else if !local.ty.is_unit() {
-            let ty = crate::types::convert(backend, tcx, local.ty, &());
+            let ty = crate::types::convert(tcx, backend, local.ty, &());
             ty.map(|ty| {
                 ctx.codegen
                     .declare_var(ty, local_names.get(&idx).map(rustc_span::Symbol::as_str))

@@ -68,10 +68,11 @@ impl std::fmt::Display for Body {
                 writeln!(f, "label{label}:")?;
             }
 
-            if let Statement::Bcf(bcf) = statement {
-                if matches!(bcf, BcfStatement::Else | BcfStatement::End) {
-                    indent -= 1;
-                }
+            if matches!(
+                statement,
+                Statement::Bcf(BcfStatement::Else | BcfStatement::End)
+            ) {
+                indent -= 1;
             }
 
             for line in statement.to_string().split('\n') {
@@ -81,13 +82,11 @@ impl std::fmt::Display for Body {
                 writeln!(f, "{line}")?;
             }
 
-            if let Statement::Bcf(bcf) = statement {
-                if matches!(
-                    bcf,
-                    BcfStatement::If(..) | BcfStatement::Else | BcfStatement::Loop
-                ) {
-                    indent += 1
-                }
+            if matches!(
+                statement,
+                Statement::Bcf(BcfStatement::If(..) | BcfStatement::Else | BcfStatement::Loop)
+            ) {
+                indent += 1
             }
         }
         write!(f, "}}")

@@ -1,7 +1,9 @@
 use crate::TyCtxt;
 use crate::names::convert_path;
 
+/// Resolve generics during type conversion
 pub trait GenericMap {
+    /// Resolve [`rustc_middle::ty::ParamTy`] to [`orco::Type`]
     fn resolve(&self, param: rustc_middle::ty::ParamTy) -> orco::Type;
 }
 
@@ -14,8 +16,8 @@ impl GenericMap for () {
 /// Convert a type from rust MIR to orco.
 #[must_use]
 pub fn convert<'a>(
-    backend: &impl orco::DeclarationBackend<'a>,
     tcx: TyCtxt,
+    backend: &impl orco::DeclarationBackend<'a>,
     ty: rustc_middle::ty::Ty,
     map: &impl GenericMap,
 ) -> Option<orco::Type> {
@@ -51,7 +53,7 @@ pub fn convert<'a>(
                 .iter()
                 .filter_map(|generic| {
                     let ty = generic.as_type()?;
-                    convert(backend, tcx, ty, map)
+                    convert(tcx, backend, ty, map)
                 })
                 .collect::<Vec<_>>();
 
@@ -68,16 +70,16 @@ pub fn convert<'a>(
         TyKind::Foreign(..) => todo!(),
         TyKind::Str => orco::Type::Error,
         TyKind::Array(ty, _size) => {
-            orco::Type::Array(Box::new(convert(backend, tcx, *ty, map)?), 42)
+            orco::Type::Array(Box::new(convert(tcx, backend, *ty, map)?), 42)
         } // TODO: Use size!
         TyKind::Pat(..) => todo!(),
         TyKind::Slice(..) => todo!(),
         TyKind::RawPtr(ty, mutability) => orco::Type::Ptr(
-            Box::new(convert(backend, tcx, *ty, map).unwrap_or(orco::Type::Error)),
+            Box::new(convert(tcx, backend, *ty, map).unwrap_or(orco::Type::Error)),
             mutability.is_mut(),
         ),
         TyKind::Ref(_, ty, mutability) => orco::Type::Ptr(
-            Box::new(convert(backend, tcx, *ty, map).unwrap_or(orco::Type::Error)),
+            Box::new(convert(tcx, backend, *ty, map).unwrap_or(orco::Type::Error)),
             mutability.is_mut(),
         ),
         TyKind::FnDef(..) => todo!(),
@@ -87,9 +89,9 @@ pub fn convert<'a>(
                 params: sig
                     .inputs()
                     .iter()
-                    .flat_map(|ty| convert(backend, tcx, *ty, map))
+                    .flat_map(|ty| convert(tcx, backend, *ty, map))
                     .collect(),
-                return_type: convert(backend, tcx, sig.output(), map).map(Box::new),
+                return_type: convert(tcx, backend, sig.output(), map).map(Box::new),
             }
         }
         TyKind::UnsafeBinder(..) => todo!(),
@@ -103,7 +105,7 @@ pub fn convert<'a>(
         TyKind::Tuple(v) => orco::Type::Struct {
             fields: v
                 .iter()
-                .filter_map(|ty| convert(backend, tcx, ty, map).map(|ty| (None, ty)))
+                .filter_map(|ty| convert(tcx, backend, ty, map).map(|ty| (None, ty)))
                 .collect(),
         },
         TyKind::Alias(..) => todo!(),

@@ -80,7 +80,7 @@ impl<'tcx, B: orco::DeclarationBackend<'tcx>, CG: oc::BodyCodegen> CodegenCtx<'_
                         ),
                         rustc_middle::ty::TyKind::Adt(..) => {
                             let var = self.codegen.declare_var(
-                                crate::types::convert(self.backend, self.tcx, ty, &())?,
+                                crate::types::convert(self.tcx, self.backend, ty, &())?,
                                 Some("zst"),
                             );
                             self.codegen.read(var.into())
