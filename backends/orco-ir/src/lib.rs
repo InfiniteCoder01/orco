@@ -21,7 +21,7 @@ pub struct Backend<'a> {
     /// Definitions
     pub function_definitions: scc::HashMap<orco::Symbol, ir::Body>,
     /// Macro server, default impl
-    pub macros: orco::impls::MacroServer<'a>,
+    pub macros: orco::impls::MacroServer<'a, Self>,
 }
 
 impl Backend<'_> {
@@ -74,14 +74,14 @@ impl<'a> orco::DeclarationBackend<'a> for Backend<'a> {
     fn macro_(
         &self,
         name: orco::Symbol,
-        func: impl Fn(&[orco::Type]) + Send + Sync + 'a,
+        func: impl Fn(&Self, &[orco::Type]) + Send + Sync + 'a,
         call_once: bool,
     ) {
         self.macros.macro_(name, func, call_once)
     }
 
     fn invoke_macro(&self, name: orco::Symbol, args: &[orco::Type]) {
-        self.macros.invoke_macro(name, args)
+        self.macros.invoke_macro(self, name, args)
     }
 }
 

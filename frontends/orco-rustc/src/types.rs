@@ -1,13 +1,28 @@
 use crate::TyCtxt;
 use crate::names::convert_path;
 
+pub trait GenericMap {
+    fn resolve(&self, param: rustc_middle::ty::ParamTy) -> orco::Type;
+}
+
+impl GenericMap for () {
+    fn resolve(&self, param: rustc_middle::ty::ParamTy) -> orco::Type {
+        orco::Type::Symbol(param.name.as_str().into())
+    }
+}
+
 /// Convert a type from rust MIR to orco.
 #[must_use]
-pub fn convert(tcx: TyCtxt, ty: rustc_middle::ty::Ty) -> Option<orco::Type> {
+pub fn convert<'a>(
+    backend: &impl orco::DeclarationBackend<'a>,
+    tcx: TyCtxt,
+    ty: rustc_middle::ty::Ty,
+    map: &impl GenericMap,
+) -> Option<orco::Type> {
     use rustc_middle::ty::{FloatTy, IntTy, TyKind, UintTy};
     Some(match ty.kind() {
         TyKind::Bool => orco::Type::Bool,
-        TyKind::Char => todo!(),
+        TyKind::Char => orco::Type::Char(true),
         TyKind::Int(sz) => orco::Type::Integer(match sz {
             IntTy::Isize => orco::types::IntegerSize::Size,
             IntTy::I8 => orco::types::IntegerSize::Bits(8),
@@ -30,29 +45,53 @@ pub fn convert(tcx: TyCtxt, ty: rustc_middle::ty::Ty) -> Option<orco::Type> {
             FloatTy::F64 => 64,
             FloatTy::F128 => 128,
         }),
-        TyKind::Adt(def, generics) => orco::Type::Symbol(
-            std::iter::once(convert_path(tcx, def.did()))
-                .chain(
-                    generics
-                        .iter()
-                        .filter_map(|generic| generic.as_term().map(|term| term.to_string())),
-                )
-                .collect::<Vec<_>>()
-                .join("#")
-                .into(),
-        ),
+        TyKind::Adt(def, generics) => {
+            let mut name = convert_path(tcx, def.did());
+            let args = generics
+                .iter()
+                .filter_map(|generic| {
+                    let ty = generic.as_type()?;
+                    convert(backend, tcx, ty, map)
+                })
+                .collect::<Vec<_>>();
+
+            if !args.is_empty() {
+                backend.invoke_macro(name.as_str().into(), &args);
+                for arg in args {
+                    name.push('_');
+                    name.push_str(&arg.hashable_name());
+                }
+            }
+
+            orco::Type::Symbol(name.into())
+        }
         TyKind::Foreign(..) => todo!(),
-        TyKind::Str => todo!(),
-        TyKind::Array(ty, _size) => orco::Type::Array(Box::new(convert(tcx, *ty)?), 42), // TODO: Use size!
+        TyKind::Str => orco::Type::Error,
+        TyKind::Array(ty, _size) => {
+            orco::Type::Array(Box::new(convert(backend, tcx, *ty, map)?), 42)
+        } // TODO: Use size!
         TyKind::Pat(..) => todo!(),
         TyKind::Slice(..) => todo!(),
-        TyKind::RawPtr(..) => todo!(),
+        TyKind::RawPtr(ty, mutability) => orco::Type::Ptr(
+            Box::new(convert(backend, tcx, *ty, map).unwrap_or(orco::Type::Error)),
+            mutability.is_mut(),
+        ),
         TyKind::Ref(_, ty, mutability) => orco::Type::Ptr(
-            Box::new(convert(tcx, *ty).unwrap_or(orco::Type::Error)),
+            Box::new(convert(backend, tcx, *ty, map).unwrap_or(orco::Type::Error)),
             mutability.is_mut(),
         ),
         TyKind::FnDef(..) => todo!(),
-        TyKind::FnPtr(..) => todo!(),
+        TyKind::FnPtr(sig, _) => {
+            let sig = sig.skip_binder();
+            orco::Type::FnPtr {
+                params: sig
+                    .inputs()
+                    .iter()
+                    .flat_map(|ty| convert(backend, tcx, *ty, map))
+                    .collect(),
+                return_type: convert(backend, tcx, sig.output(), map).map(Box::new),
+            }
+        }
         TyKind::UnsafeBinder(..) => todo!(),
         TyKind::Dynamic(..) => todo!(),
         TyKind::Closure(..) => todo!(),
@@ -64,11 +103,11 @@ pub fn convert(tcx: TyCtxt, ty: rustc_middle::ty::Ty) -> Option<orco::Type> {
         TyKind::Tuple(v) => orco::Type::Struct {
             fields: v
                 .iter()
-                .filter_map(|ty| convert(tcx, ty).map(|ty| (None, ty)))
+                .filter_map(|ty| convert(backend, tcx, ty, map).map(|ty| (None, ty)))
                 .collect(),
         },
         TyKind::Alias(..) => todo!(),
-        TyKind::Param(param) => orco::Type::Symbol(param.name.as_str().into()), // TODO: Generics?
+        TyKind::Param(param) => map.resolve(*param),
         TyKind::Bound(..) => todo!(),
         TyKind::Placeholder(..) => todo!(),
         TyKind::Infer(var) => panic!("inference variable {var} found in type"),

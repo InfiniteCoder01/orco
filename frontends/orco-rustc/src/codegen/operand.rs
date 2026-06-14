@@ -1,6 +1,6 @@
 use super::{CodegenCtx, oc};
 
-impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
+impl<'tcx, B: orco::DeclarationBackend<'tcx>, CG: oc::BodyCodegen> CodegenCtx<'_, 'tcx, B, CG> {
     pub(super) fn place(&mut self, place: rustc_middle::mir::Place<'tcx>) -> Option<oc::Place> {
         let mut res = oc::Place::Variable(self.variables[&place.local]?);
         for (_, proj) in place.iter_projections() {
@@ -79,9 +79,10 @@ impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
                             oc::Place::Global(crate::names::convert_path(self.tcx, *func).into()),
                         ),
                         rustc_middle::ty::TyKind::Adt(..) => {
-                            let var = self
-                                .codegen
-                                .declare_var(crate::types::convert(self.tcx, ty)?, Some("zst"));
+                            let var = self.codegen.declare_var(
+                                crate::types::convert(self.backend, self.tcx, ty, &())?,
+                                Some("zst"),
+                            );
                             self.codegen.read(var.into())
                         }
                         _ => panic!("Unknown zero-sized const {op:?}"),

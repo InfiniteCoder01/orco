@@ -5,7 +5,8 @@ use std::collections::HashMap;
 
 mod operand;
 
-struct CodegenCtx<'tcx, CG> {
+struct CodegenCtx<'a, 'tcx, B, CG> {
+    backend: &'a B,
     tcx: TyCtxt<'tcx>,
     codegen: CG,
     body: &'tcx rustc_middle::mir::Body<'tcx>,
@@ -13,7 +14,7 @@ struct CodegenCtx<'tcx, CG> {
     labels: HashMap<rustc_middle::mir::BasicBlock, oc::Label>,
 }
 
-impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
+impl<'tcx, B: orco::DeclarationBackend<'tcx>, CG: oc::BodyCodegen> CodegenCtx<'_, 'tcx, B, CG> {
     fn codegen_statement(&mut self, stmt: &rustc_middle::mir::Statement<'tcx>) {
         // self.codegen.comment(&format!("{stmt:#?}"));
 
@@ -107,6 +108,7 @@ impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
         }
 
         // self.codegen.comment(&format!("{:#?}", block.terminator()));
+        println!("{:#?}", block.terminator());
         use rustc_middle::mir::TerminatorKind;
         match &block.terminator().kind {
             TerminatorKind::Goto { target } => self.codegen.acf().jump(self.labels[target]),
@@ -188,11 +190,13 @@ impl<'tcx, CG: oc::BodyCodegen> CodegenCtx<'tcx, CG> {
 /// Codegen a body
 /// Note: Generates dirty code, not meant to be human-readable
 pub fn body<'a>(
+    backend: &impl orco::DeclarationBackend<'a>,
     tcx: TyCtxt<'a>,
     codegen: impl oc::BodyCodegen,
     body: &'a rustc_middle::mir::Body<'a>,
 ) {
     let mut ctx = CodegenCtx {
+        backend,
         tcx,
         codegen,
         body,
@@ -219,7 +223,7 @@ pub fn body<'a>(
             // An argument
             Some(oc::Variable(idx.index() - 1))
         } else if !local.ty.is_unit() {
-            let ty = crate::types::convert(tcx, local.ty);
+            let ty = crate::types::convert(backend, tcx, local.ty, &());
             ty.map(|ty| {
                 ctx.codegen
                     .declare_var(ty, local_names.get(&idx).map(rustc_span::Symbol::as_str))
@@ -241,11 +245,10 @@ pub fn body<'a>(
 
 /// Codegen all the functions using the backend provided.
 /// See [`crate::declare`]
-pub fn codegen(
-    tcx: TyCtxt<'_>,
-    backend: &impl oc::CodegenBackend,
-    items: &rustc_middle::hir::ModuleItems,
-) {
+pub fn codegen<'a, B>(tcx: TyCtxt<'a>, backend: &B, items: &rustc_middle::hir::ModuleItems)
+where
+    B: oc::CodegenBackend + orco::DeclarationBackend<'a>,
+{
     let backend = rustc_data_structures::sync::IntoDynSyncSend(backend);
     items
         .par_items(|item| {
@@ -259,7 +262,12 @@ pub fn codegen(
                 IK::Static(..) => (),
                 IK::Const(..) => (),
                 IK::Fn { .. } => {
-                    body(tcx, backend.function(name), tcx.optimized_mir(key));
+                    body(
+                        *backend,
+                        tcx,
+                        orco::CodegenBackend::function(*backend, name),
+                        tcx.optimized_mir(key),
+                    );
                 }
                 IK::GlobalAsm { .. } => (),
                 IK::Trait { .. } => (),

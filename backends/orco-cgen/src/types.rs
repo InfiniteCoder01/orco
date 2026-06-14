@@ -53,6 +53,8 @@ impl std::fmt::Display for FmtType<'_> {
                 }
             },
             OT::Bool => write!(f, "bool"),
+            OT::Char(false) => write!(f, "char"),
+            OT::Char(true) => write!(f, "wchar_t"),
             OT::Symbol(sym) => write!(f, "{}", crate::symname(*sym)),
 
             OT::Array(ty, sz) => {
@@ -87,7 +89,11 @@ impl std::fmt::Display for FmtType<'_> {
                             ty,
                             constant: false,
                             name: Some(
-                                name.as_deref().map_or_else(|| format!("_{idx}").into(), std::borrow::Cow::Borrowed)
+                                name.as_deref()
+                                    .map_or_else(
+                                        || format!("_{idx}").into(),
+                                        std::borrow::Cow::Borrowed
+                                    )
                                     .as_ref()
                             )
                         }
@@ -106,8 +112,8 @@ impl std::fmt::Display for FmtType<'_> {
                             format!(
                                 "*{}{}",
                                 match constant {
-                                    false => "const ",
-                                    true => "",
+                                    true => "const ",
+                                    false => "",
                                 },
                                 name.unwrap_or_default()
                             )

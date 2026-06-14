@@ -29,7 +29,7 @@ pub struct Backend<'a> {
     /// Interned types
     interned: scc::HashSet<orco::Symbol>,
     /// The default macro handler
-    pub macros: orco::impls::MacroServer<'a>,
+    pub macros: orco::impls::MacroServer<'a, Self>,
 }
 
 impl Backend<'_> {
@@ -123,14 +123,14 @@ impl<'a> orco::DeclarationBackend<'a> for Backend<'a> {
     fn macro_(
         &self,
         name: orco::Symbol,
-        callback: impl Fn(&[orco::Type]) + Send + Sync + 'a,
+        callback: impl Fn(&Self, &[orco::Type]) + Send + Sync + 'a,
         call_once: bool,
     ) {
         self.macros.macro_(name, callback, call_once)
     }
 
     fn invoke_macro(&self, name: orco::Symbol, args: &[orco::Type]) {
-        self.macros.invoke_macro(name, args);
+        self.macros.invoke_macro(self, name, args);
     }
 }
 

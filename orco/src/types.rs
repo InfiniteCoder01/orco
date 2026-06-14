@@ -11,6 +11,8 @@ pub enum Type {
     Float(u16),
     /// A boolean. Should be 1 byte I guess...
     Bool,
+    /// Character, storing it's width (wide vs ascii)
+    Char(bool),
     /// Just a symbol
     Symbol(Symbol),
 
@@ -39,9 +41,11 @@ impl Type {
     /// and human-facing names
     pub fn hashable_name(&self) -> String {
         match self {
-            ty @ (Type::Integer(..) | Type::Unsigned(..) | Type::Float(..) | Type::Bool) => {
-                ty.to_string()
-            }
+            ty @ (Type::Integer(..)
+            | Type::Unsigned(..)
+            | Type::Float(..)
+            | Type::Bool
+            | Type::Char(..)) => ty.to_string(),
 
             Type::Symbol(sym) => sym.to_string(),
             Type::Array(ty, len) => format!("{}[{len}]", ty.hashable_name()),
@@ -86,6 +90,8 @@ impl std::fmt::Display for Type {
             Type::Unsigned(size) => write!(f, "u{size}"),
             Type::Float(size) => write!(f, "f{size}"),
             Type::Bool => write!(f, "bool"),
+            Type::Char(false) => write!(f, "achar"),
+            Type::Char(true) => write!(f, "uchar"),
 
             Type::Symbol(sym) => write!(f, "{sym}"),
             Type::Array(ty, len) => write!(f, "{ty}[{len}]"),

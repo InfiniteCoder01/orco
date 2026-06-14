@@ -66,7 +66,7 @@ pub fn function<'a>(
     let mut params = Vec::with_capacity(sig.inputs().len());
     for (i, ty) in sig.inputs().iter().enumerate() {
         let name = names::pat_name(body.params[i].pat);
-        let Some(ty) = types::convert(tcx, *ty) else {
+        let Some(ty) = types::convert(backend, tcx, *ty, &()) else {
             continue;
         };
         params.push((name, ty));
@@ -75,7 +75,7 @@ pub fn function<'a>(
     backend.function(
         name,
         params,
-        types::convert(tcx, sig.output()),
+        types::convert(backend, tcx, sig.output(), &()),
         convert_fn_attrs(attrs),
     );
 }
@@ -95,7 +95,7 @@ pub fn foreign_function<'a>(
 
     let mut params = Vec::with_capacity(sig.inputs().len());
     for (i, ty) in sig.inputs().iter().enumerate() {
-        let Some(ty) = types::convert(tcx, *ty) else {
+        let Some(ty) = types::convert(backend, tcx, *ty, &()) else {
             continue;
         };
         params.push((idents[i].map(|ident| ident.as_str().to_owned()), ty));
@@ -104,53 +104,109 @@ pub fn foreign_function<'a>(
     backend.function(
         name,
         params,
-        types::convert(tcx, sig.output()),
+        types::convert(backend, tcx, sig.output(), &()),
         convert_fn_attrs(attrs),
     );
 }
 
 /// Declare a struct type from MIR by [`rustc_hir::def_id::LocalDefId`].
-pub fn struct_<'a>(
-    tcx: TyCtxt,
+pub fn struct_<'a, 'b: 'a>(
+    tcx: TyCtxt<'b>,
     backend: &impl DeclarationBackend<'a>,
     key: rustc_hir::def_id::DefId,
 ) {
-    let name = names::convert_path(tcx, key).into();
-    let adt = tcx.adt_def(key);
-    let orco_ty = orco::Type::Struct {
-        fields: adt
-            .variants()
-            .iter()
-            .next()
-            .unwrap()
-            .fields
-            .iter()
-            .filter_map(|field| {
-                let name = field.name.to_string();
-                Some((
-                    if name.chars().next().is_none_or(|c| c.is_ascii_digit()) {
-                        None
-                    } else {
-                        Some(name)
-                    },
-                    types::convert(
-                        tcx,
-                        tcx.type_of(field.did)
-                            .instantiate_identity()
-                            .skip_norm_wip(),
-                    )?,
-                ))
-            })
-            .collect::<Vec<_>>(),
-    };
+    let tcx = rustc_data_structures::sync::check_dyn_thread_safe()
+        .expect("You have to enable `-Z threads` (f.e. -Z threads=sync) to be able to use macros")
+        .derive(tcx);
+    let name = names::convert_path(*tcx, key).into();
+    let generics = tcx.generics_of(key);
+    if generics.is_empty() {
+        let adt = tcx.adt_def(key);
+        let variant = adt.variants().iter().next().unwrap();
+        let orco_ty = orco::Type::Struct {
+            fields: variant
+                .fields
+                .iter()
+                .filter_map(|field| {
+                    let name = field.name.to_string();
+                    Some((
+                        if name.chars().next().is_none_or(|c| c.is_ascii_digit()) {
+                            None
+                        } else {
+                            Some(name)
+                        },
+                        types::convert(
+                            backend,
+                            *tcx,
+                            tcx.type_of(field.did)
+                                .instantiate_identity()
+                                .skip_norm_wip(),
+                            &(),
+                        )?,
+                    ))
+                })
+                .collect::<Vec<_>>(),
+        };
 
-    backend.type_(name, orco_ty);
+        backend.type_(name, orco_ty);
+    } else {
+        backend.macro_(
+            name,
+            move |backend, args| {
+                let mut name = name.to_string();
+                for arg in args {
+                    name.push('_');
+                    name.push_str(&arg.hashable_name());
+                }
+                let name = name.into();
+
+                let counts = generics.own_counts();
+                let offset = generics.parent_count + counts.lifetimes;
+                struct Map<'a>(usize, &'a [orco::Type]);
+                impl types::GenericMap for Map<'_> {
+                    fn resolve(&self, param: rustc_middle::ty::ParamTy) -> orco::Type {
+                        self.1[param.index as usize - self.0].clone()
+                    }
+                }
+
+                let adt = tcx.adt_def(key);
+                let variant = adt.variants().iter().next().unwrap();
+                let orco_ty = orco::Type::Struct {
+                    fields: variant
+                        .fields
+                        .iter()
+                        .filter_map(|field| {
+                            let name = field.name.to_string();
+                            Some((
+                                if name.chars().next().is_none_or(|c| c.is_ascii_digit()) {
+                                    None
+                                } else {
+                                    Some(name)
+                                },
+                                types::convert(
+                                    backend,
+                                    *tcx,
+                                    tcx.type_of(field.did)
+                                        .instantiate_identity()
+                                        .skip_norm_wip(),
+                                    &Map(offset, args),
+                                )?,
+                            ))
+                        })
+                        .collect::<Vec<_>>(),
+                };
+
+                backend.type_(name, orco_ty);
+            },
+            true,
+        );
+    }
 }
 
 /// Declare all the items using the backend provided.
 /// See [`TyCtxt::hir_crate_items`]
-pub fn declare<'a>(
-    tcx: TyCtxt<'a>,
+pub fn declare<'a, 'b: 'a>(
+    tcx: TyCtxt<'b>,
     backend: &impl DeclarationBackend<'a>,
     items: &rustc_middle::hir::ModuleItems,
 ) {
