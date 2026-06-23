@@ -75,14 +75,11 @@ impl<'tcx, B: orco::DeclarationBackend<'tcx>, CG: oc::BodyCodegen> CodegenCtx<'_
                     ConstValue::ZeroSized => match ty.kind() {
                         // TODO: We might need to do more
                         // TODO: Generics
-                        rustc_middle::ty::TyKind::FnDef(func, ..) => self.codegen.read(
-                            oc::Place::Global(crate::names::convert_path(self.tcx, *func).into()),
-                        ),
+                        rustc_middle::ty::TyKind::FnDef(func, generics) => self
+                            .codegen
+                            .read(oc::Place::Global(self.generic_name(*func, generics))),
                         rustc_middle::ty::TyKind::Adt(..) => {
-                            let var = self.codegen.declare_var(
-                                crate::types::convert(self.tcx, self.backend, ty, &())?,
-                                Some("zst"),
-                            );
+                            let var = self.codegen.declare_var(self.convert_ty(ty)?, Some("zst"));
                             self.codegen.read(var.into())
                         }
                         _ => panic!("Unknown zero-sized const {op:?}"),

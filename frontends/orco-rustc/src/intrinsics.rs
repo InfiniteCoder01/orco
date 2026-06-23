@@ -73,7 +73,8 @@ pub fn declare<'a>(backend: &impl orco::DeclarationBackend<'a>) {
 /// Codegens rust's intrinsics
 pub fn codegen(backend: &impl orco::CodegenBackend) {
     integers(|ty| {
-        let mut cg = backend.function(format!("__MulWithOverflow#{}", ty.hashable_name()).into());
+        let mut cg =
+            backend.cg_function(format!("__MulWithOverflow#{}", ty.hashable_name()).into());
         let a = cg.read(orco::codegen::Variable(0).into());
         let b = cg.read(orco::codegen::Variable(1).into());
         let result = cg.declare_var(tuple2(ty.clone(), Type::Bool), None);
@@ -83,7 +84,8 @@ pub fn codegen(backend: &impl orco::CodegenBackend) {
         cg.assign(result.place().field(1), cfalse);
         let result = cg.read(result.into());
         cg.return_(Some(result));
-        let mut cg = backend.function(format!("__AddWithOverflow#{}", ty.hashable_name()).into());
+        let mut cg =
+            backend.cg_function(format!("__AddWithOverflow#{}", ty.hashable_name()).into());
         let a = cg.read(orco::codegen::Variable(0).into());
         let b = cg.read(orco::codegen::Variable(1).into());
         let result = cg.declare_var(tuple2(ty.clone(), Type::Bool), None);
@@ -93,16 +95,16 @@ pub fn codegen(backend: &impl orco::CodegenBackend) {
         cg.assign(result.place().field(1), cfalse);
         let result = cg.read(result.into());
         cg.return_(Some(result));
-        let mut cg = backend.function(format!("__Lt#{}", ty.hashable_name()).into()); // FIXME: HARDCODED
+        let mut cg = backend.cg_function(format!("__Lt#{}", ty.hashable_name()).into()); // FIXME: HARDCODED
         cg.return_(None);
-        let mut cg = backend.function(format!("__Gt#{}", ty.hashable_name()).into()); // FIXME: HARDCODED
+        let mut cg = backend.cg_function(format!("__Gt#{}", ty.hashable_name()).into()); // FIXME: HARDCODED
         cg.return_(None);
-        let mut cg = backend.function(format!("__Eq#{}", ty.hashable_name()).into()); // FIXME: HARDCODED
+        let mut cg = backend.cg_function(format!("__Eq#{}", ty.hashable_name()).into()); // FIXME: HARDCODED
         cg.return_(None);
-        let mut cg = backend.function(format!("__Div#{}", ty.hashable_name()).into()); // FIXME: HARDCODED
+        let mut cg = backend.cg_function(format!("__Div#{}", ty.hashable_name()).into()); // FIXME: HARDCODED
         cg.return_(None);
     });
-    let mut cg = backend.function("__BitAnd#bool".into()); // FIXME: HARDCODED
+    let mut cg = backend.cg_function("__BitAnd#bool".into()); // FIXME: HARDCODED
     cg.return_(None);
 }
 

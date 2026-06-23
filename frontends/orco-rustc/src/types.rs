@@ -1,17 +1,4 @@
 use crate::TyCtxt;
-use crate::names::convert_path;
-
-/// Resolve generics during type conversion
-pub trait GenericMap {
-    /// Resolve [`rustc_middle::ty::ParamTy`] to [`orco::Type`]
-    fn resolve(&self, param: rustc_middle::ty::ParamTy) -> orco::Type;
-}
-
-impl GenericMap for () {
-    fn resolve(&self, param: rustc_middle::ty::ParamTy) -> orco::Type {
-        orco::Type::Symbol(param.name.as_str().into())
-    }
-}
 
 /// Convert a type from rust MIR to orco.
 #[must_use]
@@ -19,7 +6,7 @@ pub fn convert<'a>(
     tcx: TyCtxt,
     backend: &impl orco::DeclarationBackend<'a>,
     ty: rustc_middle::ty::Ty,
-    map: &impl GenericMap,
+    map: GenericMap,
 ) -> Option<orco::Type> {
     use rustc_middle::ty::{FloatTy, IntTy, TyKind, UintTy};
     Some(match ty.kind() {
@@ -47,26 +34,13 @@ pub fn convert<'a>(
             FloatTy::F64 => 64,
             FloatTy::F128 => 128,
         }),
-        TyKind::Adt(def, generics) => {
-            let mut name = convert_path(tcx, def.did());
-            let args = generics
-                .iter()
-                .filter_map(|generic| {
-                    let ty = generic.as_type()?;
-                    convert(tcx, backend, ty, map)
-                })
-                .collect::<Vec<_>>();
-
-            if !args.is_empty() {
-                backend.invoke_macro(name.as_str().into(), &args);
-                for arg in args {
-                    name.push('_');
-                    name.push_str(&arg.hashable_name());
-                }
-            }
-
-            orco::Type::Symbol(name.into())
-        }
+        TyKind::Adt(def, generics) => orco::Type::Symbol(crate::names::generic_name(
+            tcx,
+            backend,
+            def.did(),
+            map,
+            generics,
+        )),
         TyKind::Foreign(..) => todo!(),
         TyKind::Str => orco::Type::Error,
         TyKind::Array(ty, _size) => {
@@ -115,4 +89,79 @@ pub fn convert<'a>(
         TyKind::Infer(var) => panic!("inference variable {var} found in type"),
         TyKind::Error(..) => orco::Type::Error,
     })
+}
+
+/// Resolve generics during type conversion
+#[derive(Clone, Copy, Debug, Default)]
+pub struct GenericMap<'a>(pub usize, pub &'a [orco::Type]);
+
+impl<'a> GenericMap<'a> {
+    #![allow(missing_docs)]
+    pub fn new(generics: &rustc_middle::ty::Generics, args: &'a [orco::Type]) -> Self {
+        let counts = generics.own_counts();
+        let offset = generics.has_self as usize + counts.lifetimes;
+        Self(offset, args)
+    }
+
+    /// Resolve [`rustc_middle::ty::ParamTy`] to [`orco::Type`]
+    pub fn resolve(&self, param: rustc_middle::ty::ParamTy) -> orco::Type {
+        if self.generic() {
+            if param.index == 0 {
+                self.1[0].clone()
+            } else {
+                self.1[param.index as usize - self.0].clone()
+            }
+        } else {
+            orco::Type::Symbol(param.name.as_str().into())
+        }
+    }
+
+    pub fn args(&self) -> &[orco::Type] {
+        self.1
+    }
+
+    /// Whether this has any generics
+    pub fn generic(&self) -> bool {
+        self.0 != 0 || !self.1.is_empty()
+    }
+}
+
+/// Decides, weather to wrap the items in a macro.
+/// `name_key` is passed in separately for ability to
+/// use names from trait declarations
+pub fn wrap_generics<'a, 'tcx: 'a, B>(
+    tcx: TyCtxt<'tcx>,
+    backend: &B,
+    key: rustc_hir::def_id::DefId,
+    name_key: rustc_hir::def_id::DefId,
+    macro_prefix: &str,
+    callback: impl Fn(TyCtxt<'tcx>, &B, orco::Symbol, GenericMap) + Send + Sync + 'a,
+) where
+    B: orco::DeclarationBackend<'a>,
+{
+    let generics = tcx.generics_of(key);
+    let name = crate::names::convert_path(tcx, name_key);
+    if !generics.requires_monomorphization(tcx) {
+        callback(tcx, backend, name.into(), GenericMap::new(generics, &[]));
+    } else {
+        let tcx = rustc_data_structures::sync::check_dyn_thread_safe()
+            .expect(
+                "You have to enable `-Z threads` (f.e. `-Z threads=sync`) to be able to use macros",
+            )
+            .derive(tcx);
+
+        backend.macro_(
+            format!("{macro_prefix}{name}").into(),
+            move |backend, args| {
+                let mut name = name.clone();
+                for arg in args {
+                    name.push('_');
+                    name.push_str(&arg.hashable_name());
+                }
+
+                callback(*tcx, backend, name.into(), GenericMap::new(generics, args));
+            },
+            true,
+        );
+    }
 }

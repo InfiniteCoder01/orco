@@ -2,8 +2,8 @@ use crate::TyCtxt;
 
 /// Convert path to a string
 #[must_use]
-pub fn convert_path(tcx: TyCtxt, def_id: rustc_hir::def_id::DefId) -> String {
-    let path = tcx.def_path(def_id);
+pub fn convert_path(tcx: TyCtxt, key: rustc_hir::def_id::DefId) -> String {
+    let path = tcx.def_path(key);
     let mut s = tcx.crate_name(path.krate).to_string();
     s.reserve(path.data.len() * 16 + 16);
 
@@ -46,4 +46,33 @@ pub fn pat_name(pat: &rustc_hir::Pat) -> Option<String> {
         PK::Slice(..) => None, // Maybe use the `slice`?
         PK::Err(_) => None,
     }
+}
+
+/// Convert path to a string
+#[must_use]
+pub fn generic_name<'a>(
+    tcx: TyCtxt,
+    backend: &impl orco::DeclarationBackend<'a>,
+    key: rustc_hir::def_id::DefId,
+    map: crate::types::GenericMap,
+    args: &rustc_middle::ty::GenericArgs,
+) -> orco::Symbol {
+    let mut name = convert_path(tcx, key);
+    let args = args
+        .iter()
+        .filter_map(|generic| {
+            let ty = generic.as_type()?;
+            crate::types::convert(tcx, backend, ty, map)
+        })
+        .collect::<Vec<_>>();
+
+    if !args.is_empty() {
+        backend.invoke_macro(name.as_str().into(), &args);
+        for arg in args {
+            name.push('_');
+            name.push_str(&arg.hashable_name());
+        }
+    }
+
+    name.into()
 }

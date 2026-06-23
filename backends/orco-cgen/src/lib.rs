@@ -135,7 +135,7 @@ impl<'a> orco::DeclarationBackend<'a> for Backend<'a> {
 }
 
 impl orco::CodegenBackend for crate::Backend<'_> {
-    fn function(&self, name: orco::Symbol) -> impl orco::codegen::BodyCodegen {
+    fn cg_function(&self, name: orco::Symbol) -> impl orco::codegen::BodyCodegen {
         codegen::Codegen::new(self, name)
     }
 }
@@ -265,7 +265,15 @@ fn symname(symbol: orco::Symbol) -> String {
 
     // Take only the method name, not the path
     // FIXME: conflicts...
-    let symbol = &symbol[symbol.rfind([':', '.']).map_or(0, |i| i + 1)..];
+    let mut new_symbol = String::new();
+    for (idx, split) in symbol.split('_').enumerate() {
+        let split = &split[split.rfind([':', '.']).map_or(0, |i| i + 1)..];
+        if idx > 0 {
+            new_symbol.push('_');
+        }
+        new_symbol.push_str(split);
+    }
+    let symbol = new_symbol;
 
     let mut symbol = symbol.replace(|c: char| !c.is_ascii_alphanumeric(), "_");
     if symbol.chars().next().is_none_or(|c| c.is_ascii_digit()) {

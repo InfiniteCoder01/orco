@@ -31,7 +31,7 @@ impl super::Backend<'_> {
                 .map(oc::Variable)
                 .collect::<Vec<_>>();
             body.codegen(
-                &mut backend.function(*name),
+                &mut backend.cg_function(*name),
                 &args,
                 oc::BodyCodegen::return_,
             );

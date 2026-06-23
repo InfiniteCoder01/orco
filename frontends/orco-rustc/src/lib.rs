@@ -53,147 +53,127 @@ fn convert_fn_attrs(
 
 /// Declare a function from MIR by [`rustc_hir::def_id::LocalDefId`].
 /// The function MUST have a body. For bodyless functions, see [`foreign_function`]
-pub fn function<'a>(
-    tcx: TyCtxt,
-    backend: &impl DeclarationBackend<'a>,
-    key: rustc_hir::def_id::LocalDefId,
-) {
-    let name = names::convert_path(tcx, key.to_def_id()).into();
+pub fn function<'a, 'tcx: 'a, B>(tcx: TyCtxt<'tcx>, backend: &B, key: rustc_hir::def_id::LocalDefId)
+where
+    B: DeclarationBackend<'a> + orco::CodegenBackend,
+{
+    let attrs = convert_fn_attrs(tcx.codegen_fn_attrs(key));
     let sig = tcx.fn_sig(key).instantiate_identity().skip_binder();
-    let attrs = tcx.codegen_fn_attrs(key);
     let body = tcx.hir_body_owned_by(key);
 
-    let mut params = Vec::with_capacity(sig.inputs().len());
-    for (i, ty) in sig.inputs().iter().enumerate() {
-        let name = names::pat_name(body.params[i].pat);
-        let Some(ty) = types::convert(tcx, backend, *ty, &()) else {
-            continue;
-        };
-        params.push((name, ty));
-    }
+    types::wrap_generics(
+        tcx,
+        backend,
+        key.to_def_id(),
+        key.to_def_id(),
+        "",
+        move |tcx, backend, name, map| {
+            let mut params = Vec::with_capacity(sig.inputs().len());
+            for (i, ty) in sig.inputs().iter().enumerate() {
+                let name = names::pat_name(body.params[i].pat);
+                let Some(ty) = types::convert(tcx, backend, *ty, map) else {
+                    continue;
+                };
+                params.push((name, ty));
+            }
 
-    backend.function(
-        name,
-        params,
-        types::convert(tcx, backend, sig.output(), &()),
-        convert_fn_attrs(attrs),
+            backend.function(
+                name.into(),
+                params,
+                types::convert(tcx, backend, sig.output(), map),
+                attrs.clone(),
+            );
+        },
     );
 }
 
 /// Declare a foregin function.
 /// Pulls argument names from the slice,
-/// since foreign functions don't have a body.
-pub fn foreign_function<'a>(
-    tcx: TyCtxt,
+/// since foreign functions (or unimplemented trait functions) don't have a body.
+pub fn function_decl<'a, 'tcx: 'a>(
+    tcx: TyCtxt<'tcx>,
     backend: &impl DeclarationBackend<'a>,
     key: rustc_hir::def_id::DefId,
-    idents: &[Option<rustc_span::Ident>],
+    idents: &'tcx [Option<rustc_span::Ident>],
 ) {
-    let name = names::convert_path(tcx, key).into();
+    let attrs = convert_fn_attrs(tcx.codegen_fn_attrs(key));
     let sig = tcx.fn_sig(key).instantiate_identity().skip_binder();
-    let attrs = tcx.codegen_fn_attrs(key);
 
-    let mut params = Vec::with_capacity(sig.inputs().len());
-    for (i, ty) in sig.inputs().iter().enumerate() {
-        let Some(ty) = types::convert(tcx, backend, *ty, &()) else {
-            continue;
-        };
-        params.push((idents[i].map(|ident| ident.as_str().to_owned()), ty));
-    }
+    types::wrap_generics(
+        tcx,
+        backend,
+        key,
+        key,
+        "",
+        move |tcx, backend, name, map| {
+            let mut params = Vec::with_capacity(sig.inputs().len());
+            for (i, ty) in sig.inputs().iter().enumerate() {
+                let Some(ty) = types::convert(tcx, backend, *ty, map) else {
+                    continue;
+                };
+                params.push((idents[i].map(|ident| ident.as_str().to_owned()), ty));
+            }
 
-    backend.function(
-        name,
-        params,
-        types::convert(tcx, backend, sig.output(), &()),
-        convert_fn_attrs(attrs),
+            backend.function(
+                name.into(),
+                params,
+                types::convert(tcx, backend, sig.output(), map),
+                attrs.clone(),
+            );
+        },
     );
 }
 
 /// Declare a struct type from MIR by [`rustc_hir::def_id::LocalDefId`].
-pub fn struct_<'a, 'b: 'a>(
-    tcx: TyCtxt<'b>,
+pub fn struct_<'a, 'tcx: 'a>(
+    tcx: TyCtxt<'tcx>,
     backend: &impl DeclarationBackend<'a>,
     key: rustc_hir::def_id::DefId,
 ) {
-    fn orco_ty<'a>(
-        tcx: TyCtxt,
-        backend: &impl DeclarationBackend<'a>,
-        key: rustc_hir::def_id::DefId,
-        map: impl types::GenericMap,
-    ) -> orco::Type {
-        let adt = tcx.adt_def(key);
-        let variant = adt.variants().iter().next().unwrap();
-        orco::Type::Struct {
-            fields: variant
-                .fields
-                .iter()
-                .filter_map(|field| {
-                    let name = field.name.to_string();
-                    Some((
-                        if name.chars().next().is_none_or(|c| c.is_ascii_digit()) {
-                            None
-                        } else {
-                            Some(name)
-                        },
-                        types::convert(
-                            tcx,
-                            backend,
-                            tcx.type_of(field.did)
-                                .instantiate_identity()
-                                .skip_norm_wip(),
-                            &map,
-                        )?,
-                    ))
-                })
-                .collect::<Vec<_>>(),
-        }
-    }
-
-    let name = names::convert_path(tcx, key);
-    let generics = tcx.generics_of(key);
-    if generics.is_empty() {
-        backend.type_(name.into(), orco_ty(tcx, backend, key, ()));
-    } else {
-        let tcx = rustc_data_structures::sync::check_dyn_thread_safe()
-            .expect(
-                "You have to enable `-Z threads` (f.e. `-Z threads=sync`) to be able to use macros",
-            )
-            .derive(tcx);
-
-        let counts = generics.own_counts();
-        let offset = generics.parent_count + counts.lifetimes;
-
-        #[derive(Clone, Copy)]
-        struct Map<'a>(usize, &'a [orco::Type]);
-        impl types::GenericMap for Map<'_> {
-            fn resolve(&self, param: rustc_middle::ty::ParamTy) -> orco::Type {
-                self.1[param.index as usize - self.0].clone()
+    let adt = tcx.adt_def(key);
+    let variant = adt.variants().iter().next().unwrap();
+    types::wrap_generics(
+        tcx,
+        backend,
+        key,
+        key,
+        "",
+        move |tcx, backend, name, map| {
+            let mut fields = Vec::with_capacity(variant.fields.len());
+            for field in &variant.fields {
+                let name = field.name.to_string();
+                let Some(ty) = types::convert(
+                    tcx,
+                    backend,
+                    tcx.type_of(field.did)
+                        .instantiate_identity()
+                        .skip_norm_wip(),
+                    map,
+                ) else {
+                    continue;
+                };
+                fields.push((
+                    match name.chars().next() {
+                        Some(c) if !c.is_ascii_digit() => Some(name),
+                        _ => None,
+                    },
+                    ty,
+                ));
             }
-        }
-
-        backend.macro_(
-            name.as_str().into(),
-            move |backend, args| {
-                let mut name = name.clone();
-                for arg in args {
-                    name.push('_');
-                    name.push_str(&arg.hashable_name());
-                }
-
-                backend.type_(name.into(), orco_ty(*tcx, backend, key, Map(offset, args)));
-            },
-            true,
-        );
-    }
+            backend.type_(name.into(), orco::Type::Struct { fields });
+        },
+    );
 }
 
 /// Declare all the items using the backend provided.
 /// See [`TyCtxt::hir_crate_items`]
-pub fn declare<'a, 'b: 'a>(
-    tcx: TyCtxt<'b>,
-    backend: &impl DeclarationBackend<'a>,
+pub fn declare<'a, 'tcx: 'a, B>(
+    tcx: TyCtxt<'tcx>,
+    backend: &B,
     items: &rustc_middle::hir::ModuleItems,
-) {
+) where
+    B: DeclarationBackend<'a> + orco::CodegenBackend,
+{
     let backend = rustc_data_structures::sync::IntoDynSyncSend(backend);
     items
         .par_items(|item| {
@@ -215,7 +195,20 @@ pub fn declare<'a, 'b: 'a>(
                 IK::Enum(..) => (),
                 IK::Struct(..) => struct_(tcx, *backend, item.owner_id.to_def_id()),
                 IK::Union(..) => (),
-                IK::Trait { .. } => (),
+                IK::Trait { items, .. } => {
+                    for item in items {
+                        use rustc_hir::TraitItemKind as TIK;
+                        match tcx.hir_trait_item(*item).kind {
+                            TIK::Fn(_, rustc_hir::TraitFn::Required(idents)) => {
+                                function_decl(tcx, *backend, item.owner_id.to_def_id(), idents)
+                            }
+                            TIK::Fn(_, rustc_hir::TraitFn::Provided(..)) => {
+                                function(tcx, *backend, item.owner_id.def_id)
+                            }
+                            _ => (),
+                        }
+                    }
+                }
                 IK::TraitAlias(..) => (),
                 IK::Impl(..) => (),
             }
@@ -226,6 +219,10 @@ pub fn declare<'a, 'b: 'a>(
     items
         .par_impl_items(|item| {
             let item = tcx.hir_impl_item(item);
+            if matches!(item.impl_kind, rustc_hir::ImplItemImplKind::Trait { .. }) {
+                return Ok(());
+            }
+
             use rustc_hir::ImplItemKind as IIK;
             // TODO: All of theese
             match item.kind {
@@ -244,7 +241,7 @@ pub fn declare<'a, 'b: 'a>(
             use rustc_hir::ForeignItemKind as FIK;
             match item.kind {
                 FIK::Fn(_, idents, _) => {
-                    foreign_function(tcx, *backend, item.owner_id.to_def_id(), idents)
+                    function_decl(tcx, *backend, item.owner_id.to_def_id(), idents)
                 }
                 FIK::Static(..) => todo!(),
                 FIK::Type => todo!(),

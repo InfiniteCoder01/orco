@@ -86,7 +86,7 @@ impl<'a> orco::DeclarationBackend<'a> for Backend<'a> {
 }
 
 impl orco::CodegenBackend for Backend<'_> {
-    fn function(&self, name: orco::Symbol) -> impl orco::codegen::BodyCodegen {
+    fn cg_function(&self, name: orco::Symbol) -> impl orco::codegen::BodyCodegen {
         codegen::Codegen::new(self, name)
     }
 }
