@@ -8,9 +8,9 @@ mod value;
 use value::ValueInfo;
 
 /// Implementation of [`oc::BodyCodegen`]
-pub struct Codegen<'a, 'b: 'a> {
+pub struct Codegen<'a> {
     /// Backend context that will recieve the symbol once codegen is done
-    pub backend: &'a Backend<'b>,
+    pub backend: &'a Backend,
     /// Symbol name
     pub name: orco::Symbol,
 
@@ -37,9 +37,9 @@ struct VariableInfo {
     ty: orco::Type,
 }
 
-impl<'a, 'b: 'a> Codegen<'a, 'b> {
+impl<'a> Codegen<'a> {
     #[allow(missing_docs)]
-    pub fn new(ctx: &'a Backend<'b>, name: orco::Symbol) -> Self {
+    pub fn new(ctx: &'a Backend, name: orco::Symbol) -> Self {
         let mut this = Self {
             backend: ctx,
             name,
@@ -93,7 +93,7 @@ impl<'a, 'b: 'a> Codegen<'a, 'b> {
     }
 }
 
-impl oc::BodyCodegen for Codegen<'_, '_> {
+impl oc::BodyCodegen for Codegen<'_> {
     fn comment(&mut self, comment: &str) {
         for line in comment.split('\n') {
             self.line(format_args!("// {line}"));
@@ -226,7 +226,7 @@ impl oc::BodyCodegen for Codegen<'_, '_> {
     }
 }
 
-impl std::ops::Drop for Codegen<'_, '_> {
+impl std::ops::Drop for Codegen<'_> {
     fn drop(&mut self) {
         self.body.push('}');
         self.backend.define(std::mem::take(&mut self.body));

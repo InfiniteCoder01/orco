@@ -13,7 +13,7 @@ impl ValueInfo {
     }
 }
 
-impl super::Codegen<'_, '_> {
+impl super::Codegen<'_> {
     /// Make a value and put it in [`Self::values`]
     pub(super) fn mk_value(&mut self, value: ValueInfo) -> oc::Value {
         let id = oc::Value(self.next_value_id);

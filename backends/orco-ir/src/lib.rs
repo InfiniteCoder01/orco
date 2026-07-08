@@ -13,18 +13,16 @@ mod forwarding;
 
 /// The heart storage
 #[derive(Debug, Default)]
-pub struct Backend<'a> {
+pub struct Backend {
     /// Type aliases
     pub types: scc::HashMap<orco::Symbol, orco::Type>,
     /// Function declarations
     pub functions: scc::HashMap<orco::Symbol, orco::types::FunctionSignature>,
     /// Definitions
     pub function_definitions: scc::HashMap<orco::Symbol, ir::Body>,
-    /// Macro server, default impl
-    pub macros: orco::impls::MacroServer<'a, Self>,
 }
 
-impl Backend<'_> {
+impl Backend {
     #[allow(missing_docs)]
     #[must_use]
     pub fn new() -> Self {
@@ -45,7 +43,7 @@ impl Backend<'_> {
     }
 }
 
-impl<'a> orco::DeclarationBackend<'a> for Backend<'a> {
+impl orco::DeclarationBackend for Backend {
     fn function(
         &self,
         name: orco::Symbol,
@@ -70,28 +68,15 @@ impl<'a> orco::DeclarationBackend<'a> for Backend<'a> {
             .insert_sync(name, ty)
             .unwrap_or_else(|_| panic!("type {name} is already declared"))
     }
-
-    fn macro_(
-        &self,
-        name: orco::Symbol,
-        func: impl Fn(&Self, &[orco::Type]) + Send + Sync + 'a,
-        call_once: bool,
-    ) {
-        self.macros.macro_(name, func, call_once)
-    }
-
-    fn invoke_macro(&self, name: orco::Symbol, args: &[orco::Type]) {
-        self.macros.invoke_macro(self, name, args)
-    }
 }
 
-impl orco::CodegenBackend for Backend<'_> {
+impl orco::CodegenBackend for Backend {
     fn cg_function(&self, name: orco::Symbol) -> impl orco::codegen::BodyCodegen {
         codegen::Codegen::new(self, name)
     }
 }
 
-impl std::fmt::Display for Backend<'_> {
+impl std::fmt::Display for Backend {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut result = Ok(());
         self.types.iter_sync(|name, ty| {

@@ -15,6 +15,8 @@ extern crate rustc_session;
 extern crate rustc_span;
 extern crate tracing;
 
+use rustc_middle::ty::TyCtxt;
+
 /// Extraction and conversion of names from HIR to `orco::Symbol`
 pub mod names;
 
@@ -24,231 +26,125 @@ pub mod types;
 /// rustc backend implementation
 pub mod rustc_backend;
 
-/// Intrinsic implementations
-pub mod intrinsics;
-pub use intrinsics::intrinsics;
+/// Symbol declaration routines
+pub mod symbols;
 
-/// Code generation is used to define functions and other items
-pub mod codegen;
-pub use codegen::codegen;
+// /// Code generation is used to define functions and other items
+// pub mod codegen;
+// pub use codegen::codegen;
 
-use orco::DeclarationBackend;
-use rustc_middle::ty::TyCtxt;
+// /// Intrinsic implementations
+// pub mod intrinsics;
+// pub use intrinsics::intrinsics;
 
-fn convert_fn_attrs(
-    attrs: &rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrs,
-) -> orco::attrs::FunctionAttributes {
-    use orco::attrs as oa;
-    use rustc_hir::attrs as ra;
-    orco::attrs::FunctionAttributes {
-        inlining: match attrs.inline {
-            ra::InlineAttr::None => oa::Inlining::Auto,
-            ra::InlineAttr::Hint => oa::Inlining::Hint,
-            ra::InlineAttr::Always => oa::Inlining::Always,
-            ra::InlineAttr::Never => oa::Inlining::Never,
-            ra::InlineAttr::Force { .. } => oa::Inlining::Always,
-        },
+/// Base context for all declaration/codegen operations
+#[allow(missing_docs)]
+pub struct Context<'cg, 'ms, 'tcx, B> {
+    pub tcx: TyCtxt<'tcx>,
+    pub backend: &'cg B,
+    pub server: &'cg orco::MacroServer<'ms>,
+}
+
+impl<B> Clone for Context<'_, '_, '_, B> {
+    fn clone(&self) -> Self {
+        Self {
+            tcx: self.tcx,
+            backend: self.backend,
+            server: self.server,
+        }
     }
 }
 
-/// Declare a function from MIR by [`rustc_hir::def_id::LocalDefId`].
-/// The function MUST have a body. For bodyless functions, see [`foreign_function`]
-pub fn function<'a, 'tcx: 'a, B>(tcx: TyCtxt<'tcx>, backend: &B, key: rustc_hir::def_id::LocalDefId)
-where
-    B: DeclarationBackend<'a> + orco::CodegenBackend,
-{
-    let attrs = convert_fn_attrs(tcx.codegen_fn_attrs(key));
-    let sig = tcx.fn_sig(key).instantiate_identity().skip_binder();
-    let body = tcx.hir_body_owned_by(key);
+impl<B> Copy for Context<'_, '_, '_, B> {}
 
-    types::wrap_generics(
-        tcx,
-        backend,
-        key.to_def_id(),
-        key.to_def_id(),
-        "",
-        move |tcx, backend, name, map| {
-            let mut params = Vec::with_capacity(sig.inputs().len());
-            for (i, ty) in sig.inputs().iter().enumerate() {
-                let name = names::pat_name(body.params[i].pat);
-                let Some(ty) = types::convert(tcx, backend, *ty, map) else {
-                    continue;
-                };
-                params.push((name, ty));
-            }
-
-            backend.function(
-                name.into(),
-                params,
-                types::convert(tcx, backend, sig.output(), map),
-                attrs.clone(),
-            );
-        },
-    );
+/// Context that passed monomorphization.
+/// Can be used effectively for declarations
+#[allow(missing_docs)]
+pub struct MonoContext<'cg, 'ms, 'tcx, B> {
+    pub context: Context<'cg, 'ms, 'tcx, B>,
+    pub name: orco::Symbol,
+    pub map: types::GenericMap<'cg>,
 }
 
-/// Declare a foregin function.
-/// Pulls argument names from the slice,
-/// since foreign functions (or unimplemented trait functions) don't have a body.
-pub fn function_decl<'a, 'tcx: 'a>(
-    tcx: TyCtxt<'tcx>,
-    backend: &impl DeclarationBackend<'a>,
-    key: rustc_hir::def_id::DefId,
-    idents: &'tcx [Option<rustc_span::Ident>],
-) {
-    let attrs = convert_fn_attrs(tcx.codegen_fn_attrs(key));
-    let sig = tcx.fn_sig(key).instantiate_identity().skip_binder();
-
-    types::wrap_generics(
-        tcx,
-        backend,
-        key,
-        key,
-        "",
-        move |tcx, backend, name, map| {
-            let mut params = Vec::with_capacity(sig.inputs().len());
-            for (i, ty) in sig.inputs().iter().enumerate() {
-                let Some(ty) = types::convert(tcx, backend, *ty, map) else {
-                    continue;
-                };
-                params.push((idents[i].map(|ident| ident.as_str().to_owned()), ty));
-            }
-
-            backend.function(
-                name.into(),
-                params,
-                types::convert(tcx, backend, sig.output(), map),
-                attrs.clone(),
-            );
-        },
-    );
+impl<B> Clone for MonoContext<'_, '_, '_, B> {
+    fn clone(&self) -> Self {
+        Self {
+            context: self.context,
+            name: self.name,
+            map: self.map,
+        }
+    }
 }
 
-/// Declare a struct type from MIR by [`rustc_hir::def_id::LocalDefId`].
-pub fn struct_<'a, 'tcx: 'a>(
-    tcx: TyCtxt<'tcx>,
-    backend: &impl DeclarationBackend<'a>,
-    key: rustc_hir::def_id::DefId,
-) {
-    let adt = tcx.adt_def(key);
-    let variant = adt.variants().iter().next().unwrap();
-    types::wrap_generics(
-        tcx,
-        backend,
-        key,
-        key,
-        "",
-        move |tcx, backend, name, map| {
-            let mut fields = Vec::with_capacity(variant.fields.len());
-            for field in &variant.fields {
-                let name = field.name.to_string();
-                let Some(ty) = types::convert(
-                    tcx,
-                    backend,
-                    tcx.type_of(field.did)
-                        .instantiate_identity()
-                        .skip_norm_wip(),
-                    map,
-                ) else {
-                    continue;
-                };
-                fields.push((
-                    match name.chars().next() {
-                        Some(c) if !c.is_ascii_digit() => Some(name),
-                        _ => None,
-                    },
-                    ty,
-                ));
-            }
-            backend.type_(name.into(), orco::Type::Struct { fields });
-        },
-    );
+impl<B> Copy for MonoContext<'_, '_, '_, B> {}
+
+impl<'cg, 'ms, 'tcx, B> std::ops::Deref for MonoContext<'cg, 'ms, 'tcx, B> {
+    type Target = Context<'cg, 'ms, 'tcx, B>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.context
+    }
 }
 
-/// Declare all the items using the backend provided.
-/// See [`TyCtxt::hir_crate_items`]
-pub fn declare<'a, 'tcx: 'a, B>(
-    tcx: TyCtxt<'tcx>,
-    backend: &B,
-    items: &rustc_middle::hir::ModuleItems,
-) where
-    B: DeclarationBackend<'a> + orco::CodegenBackend,
-{
-    let backend = rustc_data_structures::sync::IntoDynSyncSend(backend);
-    items
-        .par_items(|item| {
-            let item = tcx.hir_item(item);
+impl<B> std::ops::DerefMut for MonoContext<'_, '_, '_, B> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.context
+    }
+}
 
-            use rustc_hir::ItemKind as IK;
-            // TODO: All of theese
-            match item.kind {
-                IK::ExternCrate(..) => (),
-                IK::Use(..) => (),
-                IK::Static(..) => (),
-                IK::Const(..) => (),
-                IK::Fn { .. } => function(tcx, *backend, item.owner_id.def_id),
-                IK::Macro(..) => (),
-                IK::Mod(..) => (),
-                IK::ForeignMod { .. } => (),
-                IK::GlobalAsm { .. } => (),
-                IK::TyAlias(..) => (),
-                IK::Enum(..) => (),
-                IK::Struct(..) => struct_(tcx, *backend, item.owner_id.to_def_id()),
-                IK::Union(..) => (),
-                IK::Trait { items, .. } => {
-                    for item in items {
-                        use rustc_hir::TraitItemKind as TIK;
-                        match tcx.hir_trait_item(*item).kind {
-                            TIK::Fn(_, rustc_hir::TraitFn::Required(idents)) => {
-                                function_decl(tcx, *backend, item.owner_id.to_def_id(), idents)
-                            }
-                            TIK::Fn(_, rustc_hir::TraitFn::Provided(..)) => {
-                                function(tcx, *backend, item.owner_id.def_id)
-                            }
-                            _ => (),
-                        }
+impl<'cg, 'tcx: 'cg, B: Send + Sync> Context<'cg, 'cg, 'tcx, B> {
+    fn wrap_generic(
+        self,
+        key: rustc_hir::def_id::DefId,
+        callback: impl Fn(MonoContext<'_, 'cg, 'tcx, B>) + Send + Sync + 'cg,
+    ) {
+        let generics = self.tcx.generics_of(key);
+        let name = crate::names::convert_path(self.tcx, key);
+        if !generics.requires_monomorphization(self.tcx) {
+            callback(MonoContext {
+                context: self,
+                name: name.into(),
+                map: types::GenericMap::new(generics, &[]),
+            });
+        } else {
+            let tcx = rustc_data_structures::sync::check_dyn_thread_safe()
+            .expect(
+                "You have to enable `-Z threads` (f.e. `-Z threads=sync`) to be able to use macros/generics",
+            )
+            .derive(self.tcx);
+
+            self.server.macro_(
+                name.as_str().into(),
+                move |args| {
+                    let mut name = name.clone();
+                    for arg in args {
+                        name.push('_');
+                        name.push_str(&arg.hashable_name());
                     }
-                }
-                IK::TraitAlias(..) => (),
-                IK::Impl(..) => (),
-            }
-            Ok(())
-        })
-        .unwrap();
 
-    items
-        .par_impl_items(|item| {
-            let item = tcx.hir_impl_item(item);
-            if matches!(item.impl_kind, rustc_hir::ImplItemImplKind::Trait { .. }) {
-                return Ok(());
-            }
+                    callback(MonoContext {
+                        context: Context {
+                            tcx: *tcx,
+                            backend: self.backend,
+                            server: self.server,
+                        },
+                        name: name.into(),
+                        map: types::GenericMap::new(generics, args),
+                    });
+                },
+                true,
+            );
+        }
+    }
+}
 
-            use rustc_hir::ImplItemKind as IIK;
-            // TODO: All of theese
-            match item.kind {
-                IIK::Const(..) => (),
-                IIK::Fn(..) => function(tcx, *backend, item.owner_id.def_id),
-                IIK::Type(..) => (),
-            }
-
-            Ok(())
-        })
-        .unwrap();
-
-    items
-        .par_foreign_items(|item| {
-            let item = tcx.hir_foreign_item(item);
-            use rustc_hir::ForeignItemKind as FIK;
-            match item.kind {
-                FIK::Fn(_, idents, _) => {
-                    function_decl(tcx, *backend, item.owner_id.to_def_id(), idents)
-                }
-                FIK::Static(..) => todo!(),
-                FIK::Type => todo!(),
-            }
-            Ok(())
-        })
-        .unwrap();
+impl<B: orco::DeclarationBackend> MonoContext<'_, '_, '_, B> {
+    /// See [types::convert]
+    #[inline]
+    #[must_use]
+    pub fn convert_ty(self, ty: rustc_middle::ty::Ty) -> Option<orco::Type> {
+        types::convert(self.context, ty, self.map)
+    }
 }
 
 /// This is the entrypoint for a hot plugged `rustc_codegen_orco`

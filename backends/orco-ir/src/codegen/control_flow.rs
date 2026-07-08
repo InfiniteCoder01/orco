@@ -1,6 +1,6 @@
 use super::{Codegen, ir, oc};
 
-impl oc::AcfCodegen for &mut Codegen<'_, '_> {
+impl oc::AcfCodegen for &mut Codegen<'_> {
     fn alloc_label(&mut self) -> oc::Label {
         self.body.labels.push(0);
         oc::Label(self.body.labels.len() - 1)
@@ -26,7 +26,7 @@ impl oc::AcfCodegen for &mut Codegen<'_, '_> {
     }
 }
 
-impl oc::BcfCodegen for &mut Codegen<'_, '_> {
+impl oc::BcfCodegen for &mut Codegen<'_> {
     fn if_(&mut self, condition: oc::Value) {
         let condition = self.use_value(condition);
         self.body

@@ -2,9 +2,8 @@ use crate::TyCtxt;
 
 /// Convert a type from rust MIR to orco.
 #[must_use]
-pub fn convert<'a>(
-    tcx: TyCtxt,
-    backend: &impl orco::DeclarationBackend<'a>,
+pub fn convert<B>(
+    ctx: crate::Context<'_, '_, '_, B>,
     ty: rustc_middle::ty::Ty,
     map: GenericMap,
 ) -> Option<orco::Type> {
@@ -34,26 +33,20 @@ pub fn convert<'a>(
             FloatTy::F64 => 64,
             FloatTy::F128 => 128,
         }),
-        TyKind::Adt(def, generics) => orco::Type::Symbol(crate::names::generic_name(
-            tcx,
-            backend,
-            def.did(),
-            map,
-            generics,
-        )),
+        TyKind::Adt(def, generics) => {
+            orco::Type::Symbol(ctx.generic_name(def.did(), map, generics))
+        }
         TyKind::Foreign(..) => todo!(),
         TyKind::Str => orco::Type::Error,
-        TyKind::Array(ty, _size) => {
-            orco::Type::Array(Box::new(convert(tcx, backend, *ty, map)?), 42)
-        } // TODO: Use size!
+        TyKind::Array(ty, _size) => orco::Type::Array(Box::new(convert(ctx, *ty, map)?), 42), // TODO: Use size!
         TyKind::Pat(..) => todo!(),
         TyKind::Slice(..) => todo!(),
         TyKind::RawPtr(ty, mutability) => orco::Type::Ptr(
-            Box::new(convert(tcx, backend, *ty, map).unwrap_or(orco::Type::Error)),
+            Box::new(convert(ctx, *ty, map).unwrap_or(orco::Type::Error)),
             mutability.is_mut(),
         ),
         TyKind::Ref(_, ty, mutability) => orco::Type::Ptr(
-            Box::new(convert(tcx, backend, *ty, map).unwrap_or(orco::Type::Error)),
+            Box::new(convert(ctx, *ty, map).unwrap_or(orco::Type::Error)),
             mutability.is_mut(),
         ),
         TyKind::FnDef(..) => todo!(),
@@ -63,9 +56,9 @@ pub fn convert<'a>(
                 params: sig
                     .inputs()
                     .iter()
-                    .flat_map(|ty| convert(tcx, backend, *ty, map))
+                    .flat_map(|ty| convert(ctx, *ty, map))
                     .collect(),
-                return_type: convert(tcx, backend, sig.output(), map).map(Box::new),
+                return_type: convert(ctx, sig.output(), map).map(Box::new),
             }
         }
         TyKind::UnsafeBinder(..) => todo!(),
@@ -79,7 +72,7 @@ pub fn convert<'a>(
         TyKind::Tuple(v) => orco::Type::Struct {
             fields: v
                 .iter()
-                .filter_map(|ty| convert(tcx, backend, ty, map).map(|ty| (None, ty)))
+                .filter_map(|ty| convert(ctx, ty, map).map(|ty| (None, ty)))
                 .collect(),
         },
         TyKind::Alias(..) => todo!(),
@@ -126,42 +119,40 @@ impl<'a> GenericMap<'a> {
     }
 }
 
-/// Decides, weather to wrap the items in a macro.
-/// `name_key` is passed in separately for ability to
-/// use names from trait declarations
-pub fn wrap_generics<'a, 'tcx: 'a, B>(
-    tcx: TyCtxt<'tcx>,
-    backend: &B,
-    key: rustc_hir::def_id::DefId,
-    name_key: rustc_hir::def_id::DefId,
-    macro_prefix: &str,
-    callback: impl Fn(TyCtxt<'tcx>, &B, orco::Symbol, GenericMap) + Send + Sync + 'a,
-) where
-    B: orco::DeclarationBackend<'a>,
-{
-    let generics = tcx.generics_of(key);
-    let name = crate::names::convert_path(tcx, name_key);
-    if !generics.requires_monomorphization(tcx) {
-        callback(tcx, backend, name.into(), GenericMap::new(generics, &[]));
-    } else {
-        let tcx = rustc_data_structures::sync::check_dyn_thread_safe()
-            .expect(
-                "You have to enable `-Z threads` (f.e. `-Z threads=sync`) to be able to use macros",
-            )
-            .derive(tcx);
+// /// Decides, weather to wrap the items in a macro.
+// /// `name_key` is passed in separately for ability to
+// /// use names from trait declarations
+// pub fn wrap_generics<'ms, 'tcx: 'ms>(
+//     tcx: TyCtxt<'tcx>,
+//     server: MacroServer<'ms>,
+//     key: rustc_hir::def_id::DefId,
+//     name_key: rustc_hir::def_id::DefId,
+//     macro_prefix: &str,
+//     callback: impl Fn(TyCtxt<'tcx>, orco::Symbol, GenericMap) + Send + Sync + 'ms,
+// ) {
+//     let generics = tcx.generics_of(key);
+//     let name = crate::names::convert_path(tcx, name_key);
+//     if !generics.requires_monomorphization(tcx) {
+//         callback(tcx, name.into(), GenericMap::new(generics, &[]));
+//     } else {
+//         let tcx = rustc_data_structures::sync::check_dyn_thread_safe()
+//             .expect(
+//                 "You have to enable `-Z threads` (f.e. `-Z threads=sync`) to be able to use macros",
+//             )
+//             .derive(tcx);
 
-        backend.macro_(
-            format!("{macro_prefix}{name}").into(),
-            move |backend, args| {
-                let mut name = name.clone();
-                for arg in args {
-                    name.push('_');
-                    name.push_str(&arg.hashable_name());
-                }
+//         server.macro_(
+//             format!("{macro_prefix}{name}").into(),
+//             move |args| {
+//                 let mut name = name.clone();
+//                 for arg in args {
+//                     name.push('_');
+//                     name.push_str(&arg.hashable_name());
+//                 }
 
-                callback(*tcx, backend, name.into(), GenericMap::new(generics, args));
-            },
-            true,
-        );
-    }
-}
+//                 callback(*tcx, name.into(), GenericMap::new(generics, args));
+//             },
+//             true,
+//         );
+//     }
+// }

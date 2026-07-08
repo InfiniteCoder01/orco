@@ -6,9 +6,9 @@ mod control_flow;
 mod intrinsics;
 
 /// Implementation of [`oc::BodyCodegen`]
-pub struct Codegen<'a, 'b: 'a> {
+pub struct Codegen<'a> {
     /// Backend context that will recieve the symbol once codegen is done
-    pub backend: &'a crate::Backend<'b>,
+    pub backend: &'a crate::Backend,
     /// Symbol name
     pub name: orco::Symbol,
     /// Currently generated body
@@ -19,9 +19,9 @@ pub struct Codegen<'a, 'b: 'a> {
     next_value_id: usize,
 }
 
-impl<'a, 'b: 'a> Codegen<'a, 'b> {
+impl<'a> Codegen<'a> {
     #[allow(missing_docs)]
-    pub fn new(backend: &'a crate::Backend<'b>, name: orco::Symbol) -> Self {
+    pub fn new(backend: &'a crate::Backend, name: orco::Symbol) -> Self {
         let mut body = ir::Body::default();
         let function = backend
             .functions
@@ -73,7 +73,7 @@ impl<'a, 'b: 'a> Codegen<'a, 'b> {
     }
 }
 
-impl oc::BodyCodegen for Codegen<'_, '_> {
+impl oc::BodyCodegen for Codegen<'_> {
     fn comment(&mut self, comment: &str) {
         self.body
             .statements
@@ -170,7 +170,7 @@ impl oc::BodyCodegen for Codegen<'_, '_> {
     }
 }
 
-impl core::ops::Drop for Codegen<'_, '_> {
+impl core::ops::Drop for Codegen<'_> {
     fn drop(&mut self) {
         self.backend
             .function_definitions

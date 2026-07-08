@@ -256,120 +256,98 @@ pub fn body<'a, 'tcx: 'a>(
     }
 }
 
-fn cg_item<'a, 'tcx: 'a, B>(tcx: TyCtxt<'tcx>, backend: &B, item: rustc_hir::ItemId)
+pub fn cg_function<'tcx, B>(tcx: TyCtxt<'tcx>, backend: &B, key: DefId)
 where
-    B: oc::CodegenBackend + orco::DeclarationBackend<'tcx>,
+    B: orco::DeclarationBackend + orco::CodegenBackend,
 {
-    let item = tcx.hir_item(item);
-    let key = item.owner_id.def_id;
-
-    use rustc_hir::ItemKind as IK;
-    // TODO: All of theese
-    match item.kind {
-        IK::Static(..) => (),
-        IK::Const(..) => (),
-        IK::Fn { .. } => {
-            crate::types::wrap_generics(
+    crate::types::wrap_generics(
+        tcx,
+        backend,
+        key.into(),
+        key.into(),
+        "cg_",
+        move |tcx, backend, name, map| {
+            if map.generic() {
+                backend.invoke_macro(crate::names::convert_path(tcx, key), map.args());
+            }
+            body(
                 tcx,
                 backend,
-                key.into(),
-                key.into(),
-                "cg_",
-                move |tcx, backend, name, map| {
-                    if map.generic() {
-                        backend.invoke_macro(name, map.args());
-                    }
-                    body(
-                        tcx,
-                        backend,
-                        backend.cg_function(name),
-                        tcx.optimized_mir(key),
-                        map,
-                    );
-                },
+                backend.cg_function(name),
+                tcx.optimized_mir(key),
+                map,
             );
-        }
-        IK::GlobalAsm { .. } => todo!("global_asm!"),
-        IK::Impl(impl_) if let Some(trait_) = impl_.of_trait => {
-            let Some(trait_key) = trait_.trait_ref.trait_def_id() else {
-                return;
-            };
-
-            // TODO: Generics
-            let map = tcx.impl_item_implementor_ids(key);
-            for item in tcx.associated_items(trait_key).in_definition_order() {
-                let (impl_key, is_default_impl) = map
-                    .get(&item.def_id)
-                    .map_or((item.def_id, true), |key| (*key, false));
-                let mut name = crate::names::convert_path(tcx, item.def_id);
-                let trait_name = name.as_str().into();
-
-                let self_ty = crate::types::convert(
-                    tcx,
-                    backend,
-                    tcx.type_of(key).instantiate_identity().skip_norm_wip(),
-                    crate::types::GenericMap::default(),
-                );
-                if let Some(ty) = &self_ty {
-                    name.push('_');
-                    name.push_str(&ty.hashable_name());
-                }
-
-                let trait_generic_args = self_ty.into_iter().collect::<Vec<_>>();
-                backend.invoke_macro(trait_name, &trait_generic_args);
-                let map = if is_default_impl {
-                    crate::types::GenericMap(1, &trait_generic_args)
-                } else {
-                    crate::types::GenericMap::default()
-                };
-
-                body(
-                    tcx,
-                    backend,
-                    backend.cg_function(name.into()),
-                    tcx.optimized_mir(impl_key),
-                    map,
-                );
-            }
-        }
-        IK::Impl(impl_) => {
-            for item in impl_.items {
-                let key = item.owner_id.to_def_id();
-                crate::types::wrap_generics(
-                    tcx,
-                    backend,
-                    key,
-                    key,
-                    "cg_",
-                    move |tcx, backend, name, map| {
-                        if map.generic() {
-                            backend.invoke_macro(name, map.args());
-                        }
-                        body(
-                            tcx,
-                            backend,
-                            backend.cg_function(name.into()),
-                            tcx.optimized_mir(key),
-                            map,
-                        )
-                    },
-                );
-            }
-        }
-        _ => (),
-    }
+        },
+    )
 }
 
 /// Codegen all the functions using the backend provided.
 /// See [`crate::declare`]
 pub fn codegen<'a, B>(tcx: TyCtxt<'a>, backend: &B, items: &rustc_middle::hir::ModuleItems)
 where
-    B: oc::CodegenBackend + orco::DeclarationBackend<'a>,
+    B: oc::CodegenBackend + orco::DeclarationBackend,
 {
     let backend = rustc_data_structures::sync::IntoDynSyncSend(backend);
     items
         .par_items(|item| {
-            cg_item(tcx, *backend, item);
+            let item = tcx.hir_item(item);
+            let key = item.owner_id.def_id;
+
+            use rustc_hir::ItemKind as IK;
+            match item.kind {
+                IK::Static(..) => (),
+                IK::Const(..) => (),
+                IK::Fn { .. } => cg_func(tcx, backend, key),
+                IK::GlobalAsm { .. } => todo!("global_asm!"),
+                IK::Impl(impl_) if let Some(trait_) = impl_.of_trait => {
+                    let Some(trait_key) = trait_.trait_ref.trait_def_id() else {
+                        panic!("[bug?] trait impl of a non-trait?!");
+                    };
+
+                    // TODO: Generics
+                    let map = tcx.impl_item_implementor_ids(key);
+                    for item in tcx.associated_items(trait_key).in_definition_order() {
+                        let (impl_key, is_default_impl) = map
+                            .get(&item.def_id)
+                            .map_or((item.def_id, true), |key| (*key, false));
+                        let mut name = crate::names::convert_path(tcx, item.def_id);
+                        let trait_name = name.as_str().into();
+
+                        let self_ty = crate::types::convert(
+                            tcx,
+                            backend,
+                            tcx.type_of(key).instantiate_identity().skip_norm_wip(),
+                            crate::types::GenericMap::default(),
+                        );
+                        if let Some(ty) = &self_ty {
+                            name.push('_');
+                            name.push_str(&ty.hashable_name());
+                        }
+
+                        let trait_generic_args = self_ty.into_iter().collect::<Vec<_>>();
+                        backend.invoke_macro(trait_name, &trait_generic_args);
+                        let map = if is_default_impl {
+                            crate::types::GenericMap(1, &trait_generic_args)
+                        } else {
+                            crate::types::GenericMap::default()
+                        };
+
+                        body(
+                            tcx,
+                            backend,
+                            backend.cg_function(name.into()),
+                            tcx.optimized_mir(impl_key),
+                            map,
+                        );
+                    }
+                }
+                IK::Impl(impl_) => {
+                    for item in impl_.items {
+                        cg_func(tcx, backend, item.owner_id.to_def_id());
+                    }
+                }
+                _ => (),
+            };
             Ok(())
         })
         .unwrap();

@@ -15,12 +15,13 @@ pub use types::Type;
 /// Attributes are a way to pass information about symbols to the backend
 pub mod attrs;
 
-/// Some backend building blocks
-pub mod impls;
+/// See [`MacroServer`]
+pub mod macro_server;
+pub use macro_server::MacroServer;
 
 /// Declare items before defining them.
 /// Think of it as an interface to generate C headers.
-pub trait DeclarationBackend<'a>: Sync {
+pub trait DeclarationBackend: Sync {
     /// Declare a function (does not have to be defined within this linker unit).
     /// Set `return_type` to [None] if require no return value.
     fn function(
@@ -33,20 +34,4 @@ pub trait DeclarationBackend<'a>: Sync {
 
     /// Declre a type alias, should be used to declare compound types as well
     fn type_(&self, name: Symbol, ty: Type);
-
-    /// Registers a macro. `func` will now be
-    /// called with macro args on [`Self::invoke_macro`].
-    /// If `call_once` is set, will only be called once for a set of args,
-    /// useful for generics
-    /// EXPERIMENTAL
-    fn macro_(
-        &self,
-        name: Symbol,
-        func: impl Fn(&Self, &[Type]) + Send + Sync + 'a,
-        call_once: bool,
-    );
-
-    /// Invokes a macro registered by [`Self::macro_`]
-    /// EXPERIMENTAL
-    fn invoke_macro(&self, name: Symbol, args: &[Type]);
 }

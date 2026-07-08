@@ -19,7 +19,7 @@ pub use codegen::Codegen;
 
 /// Root backend struct
 #[derive(Debug, Default)]
-pub struct Backend<'a> {
+pub struct Backend {
     /// Type aliases
     pub types: scc::HashMap<orco::Symbol, orco::Type>,
     /// Function declarations
@@ -28,11 +28,9 @@ pub struct Backend<'a> {
     definitions: scc::Stack<String>,
     /// Interned types
     interned: scc::HashSet<orco::Symbol>,
-    /// The default macro handler
-    pub macros: orco::impls::MacroServer<'a, Self>,
 }
 
-impl Backend<'_> {
+impl Backend {
     #[allow(missing_docs)]
     #[must_use]
     pub fn new() -> Self {
@@ -87,7 +85,7 @@ impl Backend<'_> {
     }
 }
 
-impl<'a> orco::DeclarationBackend<'a> for Backend<'a> {
+impl orco::DeclarationBackend for Backend {
     fn function(
         &self,
         name: orco::Symbol,
@@ -119,22 +117,9 @@ impl<'a> orco::DeclarationBackend<'a> for Backend<'a> {
             .insert_sync(name, ty)
             .unwrap_or_else(|_| panic!("type {name} is already declared"))
     }
-
-    fn macro_(
-        &self,
-        name: orco::Symbol,
-        callback: impl Fn(&Self, &[orco::Type]) + Send + Sync + 'a,
-        call_once: bool,
-    ) {
-        self.macros.macro_(name, callback, call_once)
-    }
-
-    fn invoke_macro(&self, name: orco::Symbol, args: &[orco::Type]) {
-        self.macros.invoke_macro(self, name, args);
-    }
 }
 
-impl orco::CodegenBackend for crate::Backend<'_> {
+impl orco::CodegenBackend for crate::Backend {
     fn cg_function(&self, name: orco::Symbol) -> impl orco::codegen::BodyCodegen {
         codegen::Codegen::new(self, name)
     }
@@ -154,7 +139,7 @@ pub fn type_dependencies(ty: &orco::Type, dependencies: &mut Vec<orco::Symbol>) 
     }
 }
 
-impl std::fmt::Display for Backend<'_> {
+impl std::fmt::Display for Backend {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "#include <stdint.h>")?;
         writeln!(f, "#include <stddef.h>")?;

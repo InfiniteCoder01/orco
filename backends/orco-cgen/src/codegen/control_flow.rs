@@ -1,7 +1,7 @@
 use super::{Codegen, oc};
 use std::fmt::Write as _;
 
-impl oc::AcfCodegen for &mut Codegen<'_, '_> {
+impl oc::AcfCodegen for &mut Codegen<'_> {
     fn alloc_label(&mut self) -> oc::Label {
         self.next_label_id += 1;
         oc::Label(self.next_label_id - 1)
@@ -21,7 +21,7 @@ impl oc::AcfCodegen for &mut Codegen<'_, '_> {
     }
 }
 
-impl oc::BcfCodegen for &mut Codegen<'_, '_> {
+impl oc::BcfCodegen for &mut Codegen<'_> {
     fn if_(&mut self, condition: oc::Value) {
         let condition = self.use_value(condition).expression;
         self.line(format_args!("if ({condition}) {{"));

@@ -48,31 +48,32 @@ pub fn pat_name(pat: &rustc_hir::Pat) -> Option<String> {
     }
 }
 
-/// Convert path to a string
-#[must_use]
-pub fn generic_name<'a>(
-    tcx: TyCtxt,
-    backend: &impl orco::DeclarationBackend<'a>,
-    key: rustc_hir::def_id::DefId,
-    map: crate::types::GenericMap,
-    args: &rustc_middle::ty::GenericArgs,
-) -> orco::Symbol {
-    let mut name = convert_path(tcx, key);
-    let args = args
-        .iter()
-        .filter_map(|generic| {
-            let ty = generic.as_type()?;
-            crate::types::convert(tcx, backend, ty, map)
-        })
-        .collect::<Vec<_>>();
+impl<B> crate::Context<'_, '_, '_, B> {
+    /// Resolve and instantiate a generic, returning it's symbol name
+    #[must_use]
+    pub fn generic_name<'a>(
+        self,
+        key: rustc_hir::def_id::DefId,
+        map: crate::types::GenericMap,
+        args: &rustc_middle::ty::GenericArgs,
+    ) -> orco::Symbol {
+        let mut name = convert_path(self.tcx, key);
+        let args = args
+            .iter()
+            .filter_map(|generic| {
+                let ty = generic.as_type()?;
+                crate::types::convert(self, ty, map)
+            })
+            .collect::<Vec<_>>();
 
-    if !args.is_empty() {
-        backend.invoke_macro(name.as_str().into(), &args);
-        for arg in args {
-            name.push('_');
-            name.push_str(&arg.hashable_name());
+        if !args.is_empty() {
+            self.server.invoke_macro(name.as_str().into(), &args);
+            for arg in args {
+                name.push('_');
+                name.push_str(&arg.hashable_name());
+            }
         }
-    }
 
-    name.into()
+        name.into()
+    }
 }

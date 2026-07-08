@@ -4,9 +4,9 @@ use orco::codegen as oc;
 mod expression;
 mod statements;
 
-impl super::Backend<'_> {
+impl super::Backend {
     /// Declare all symbols from this IR in another [`orco::DeclarationBackend`]
-    pub fn declare<'a>(&self, backend: &impl orco::DeclarationBackend<'a>) {
+    pub fn declare<'a>(&self, backend: &impl orco::DeclarationBackend) {
         self.types.iter_sync(|name, ty| {
             backend.type_(*name, ty.clone());
             true
