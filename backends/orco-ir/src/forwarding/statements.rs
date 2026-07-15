@@ -1,90 +1,74 @@
 use super::{ir, oc};
 
-impl ir::Statement {
-    /// Codegen this statement into another [`oc::BodyCodegen`],
-    /// mapping all variables and labels (ACF)
-    pub(super) fn codegen(
-        &self,
-        codegen: &mut impl oc::BodyCodegen,
-        map_variable: &impl Fn(oc::Variable) -> oc::Variable,
-        map_label: impl Fn(oc::Label) -> oc::Label,
-    ) {
-        match self {
-            Self::Comment(comment) => codegen.comment(comment),
-            Self::Assign(place, value) => {
-                let place = place.codegen(codegen, map_variable);
-                let value = value.codegen(codegen, map_variable);
-                codegen.assign(place, value)
+impl<CG: oc::BodyCodegen> super::FwdCtx<'_, CG> {
+    #[inline]
+    pub fn label(&self, label: oc::Label) -> oc::Label {
+        self.label_map[label.0]
+    }
+
+    /// Codegen [`ir::Statement`] into another [`oc::BodyCodegen`]
+    pub fn stmt(&mut self, stmt: &ir::Statement) {
+        match stmt {
+            ir::Statement::Comment(comment) => self.cg.comment(comment),
+            ir::Statement::Assign(place, expr) => {
+                let place = self.place(place);
+                let expr = self.expr(expr);
+                self.cg.assign(place, expr)
             }
-            Self::Call(func, args) => {
-                let func = func.codegen(codegen, map_variable);
-                let args = args
-                    .iter()
-                    .map(|arg| arg.codegen(codegen, map_variable))
-                    .collect();
-                if let Some(value) = codegen.call(func, args) {
-                    codegen.mk_tmp(value);
+            ir::Statement::Call(func, args) => {
+                let func = self.expr(func);
+                let args = args.iter().map(|arg| self.expr(arg)).collect();
+                if let Some(value) = self.cg.call(func, args) {
+                    self.cg.mk_tmp(value);
                 }
             }
-            Self::Return(value) => {
-                let value = value
-                    .as_ref()
-                    .map(|value| value.codegen(codegen, map_variable));
-                codegen.return_(value)
+            ir::Statement::Return(expr) => {
+                let value = expr.as_ref().map(|expr| self.expr(expr));
+                self.cg.return_(value)
             }
 
-            Self::Acf(acf) => acf.codegen(codegen, map_variable, map_label),
-            Self::Bcf(bcf) => bcf.codegen(codegen, map_variable),
+            ir::Statement::Acf(acf) => self.acf(acf),
+            ir::Statement::Bcf(bcf) => self.bcf(bcf),
         }
     }
-}
 
-impl ir::AcfStatement {
-    /// Codegen this statement into another [`oc::BodyCodegen`],
-    /// mapping all variables and labels (ACF)
-    fn codegen(
-        &self,
-        codegen: &mut impl oc::BodyCodegen,
-        map_variable: &impl Fn(oc::Variable) -> oc::Variable,
-        map_label: impl Fn(oc::Label) -> oc::Label,
-    ) {
+    /// Codegen [`ir::AcfStatement`] into another [`oc::BodyCodegen`]
+    fn acf(&mut self, stmt: &ir::AcfStatement) {
         use oc::AcfCodegen as _;
-        match self {
-            Self::Jump(label) => codegen.acf().jump(map_label(*label)),
-            Self::Cjump(value, label) => {
-                let value = value.codegen(codegen, map_variable);
-                codegen.acf().cjump(value, map_label(*label))
+        match stmt {
+            ir::AcfStatement::Jump(label) => {
+                let label = self.label(*label);
+                self.cg.acf().jump(label)
+            }
+            ir::AcfStatement::Cjump(expr, label) => {
+                let expr = self.expr(expr);
+                let label = self.label(*label);
+                self.cg.acf().cjump(expr, label)
             }
         }
     }
-}
 
-impl ir::BcfStatement {
     /// Codegen this statement into another [`oc::BodyCodegen`],
     /// mapping all variables and labels (ACF)
-    fn codegen(
-        &self,
-        codegen: &mut impl oc::BodyCodegen,
-        map_variable: &impl Fn(oc::Variable) -> oc::Variable,
-    ) {
+    fn bcf(&mut self, stmt: &ir::BcfStatement) {
         use oc::BcfCodegen as _;
-        match self {
-            Self::If(value) => {
-                let value = value.codegen(codegen, map_variable);
-                codegen.bcf().if_(value)
+        match stmt {
+            ir::BcfStatement::If(expr) => {
+                let expr = self.expr(expr);
+                self.cg.bcf().if_(expr)
             }
-            Self::Else => codegen.bcf().else_(),
-            Self::End => codegen.bcf().end(),
-            Self::Loop => codegen.bcf().loop_(),
-            Self::Break => codegen.bcf().break_(),
-            Self::Continue => codegen.bcf().continue_(),
-            Self::Cbreak(value) => {
-                let value = value.codegen(codegen, map_variable);
-                codegen.bcf().cbreak(value)
+            ir::BcfStatement::Else => self.cg.bcf().else_(),
+            ir::BcfStatement::End => self.cg.bcf().end(),
+            ir::BcfStatement::Loop => self.cg.bcf().loop_(),
+            ir::BcfStatement::Break => self.cg.bcf().break_(),
+            ir::BcfStatement::Continue => self.cg.bcf().continue_(),
+            ir::BcfStatement::Cbreak(expr) => {
+                let expr = self.expr(expr);
+                self.cg.bcf().cbreak(expr)
             }
-            Self::Ccontinue(value) => {
-                let value = value.codegen(codegen, map_variable);
-                codegen.bcf().ccontinue(value)
+            ir::BcfStatement::Ccontinue(expr) => {
+                let expr = self.expr(expr);
+                self.cg.bcf().ccontinue(expr)
             }
         }
     }

@@ -82,5 +82,5 @@ pub trait BodyCodegen {
 /// All the items defined must be declared using [`crate::DeclarationBackend`] first.
 pub trait CodegenBackend: Sync {
     /// Define a function
-    fn cg_function(&self, name: Symbol) -> impl BodyCodegen;
+    fn cg_function(&self, name: Symbol, generic_params: Vec<Type>) -> impl BodyCodegen;
 }

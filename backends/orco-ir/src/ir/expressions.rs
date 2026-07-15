@@ -8,8 +8,8 @@ use orco::codegen as oc;
 pub enum Place {
     /// Just variable access
     Variable(oc::Variable),
-    /// Global symbol access
-    Global(orco::Symbol),
+    /// Global symbol access, includes generics
+    Global(orco::Symbol, Vec<Type>),
     /// Pointer dereference
     Deref(Box<Expression>),
     /// Field access, using 0-based field index
@@ -18,28 +18,30 @@ pub enum Place {
 
 impl Place {
     /// Returns type and mutability
-    pub fn get_type(&self, backend: &crate::Backend, body: &super::Body) -> (Type, bool) {
+    pub fn get_type(&self, store: &crate::Store, body: &super::Body) -> (Type, bool) {
         match self {
             Self::Variable(variable) => {
                 let variable = body.get_variable(*variable);
                 (variable.ty.clone(), true)
             }
-            Self::Global(name) => (
-                backend
+            Self::Global(name, generics) => (
+                store
                     .functions
-                    .get_sync(name)
+                    .pin()
+                    .get(name)
                     .unwrap_or_else(|| panic!("undeclared symbol {name}"))
+                    .instantiate(store, generics)
                     .ptr_type(),
                 false,
             ),
-            Self::Deref(expr) => match backend.inline_type_aliases(expr.get_type(backend, body)) {
+            Self::Deref(expr) => match store.inline_type_aliases(expr.get_type(store, body)) {
                 Type::Ptr(ty, mutable) => (*ty, mutable),
                 ty => panic!("trying to dereference non-pointer type {ty}"),
             },
             Self::Field(place, idx) => {
-                let (ty, mutable) = place.get_type(backend, body);
+                let (ty, mutable) = place.get_type(store, body);
                 (
-                    match backend.inline_type_aliases(ty) {
+                    match store.inline_type_aliases(ty) {
                         Type::Struct { mut fields } => fields.swap_remove(*idx).1,
                         ty => panic!("trying to access field _{idx} on non-struct type {ty}"),
                     },
@@ -54,7 +56,9 @@ impl std::fmt::Display for Place {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Place::Variable(var) => write!(f, "_{}", var.0),
-            Place::Global(name) => write!(f, "{name}"),
+            Place::Global(name, generics) => {
+                write!(f, "{name}{}", orco::types::fmt_generics(generics))
+            }
             Place::Deref(expr) => write!(f, "*{expr}"),
             Place::Field(place, idx) => write!(f, "{place}._{idx}"),
         }
@@ -85,24 +89,24 @@ pub enum Expression {
 
 impl Expression {
     /// Get type of the value this statement produces
-    pub fn get_type(&self, backend: &crate::Backend, body: &super::Body) -> Type {
+    pub fn get_type(&self, store: &crate::Store, body: &super::Body) -> Type {
         match self {
             Self::IConst(_, size) => Type::Integer(*size),
             Self::UConst(_, size) => Type::Unsigned(*size),
             Self::FConst(_, size) => Type::Float(*size),
             Self::BConst(_) => Type::Bool,
-            Self::Read(place) => place.get_type(backend, body).0,
+            Self::Read(place) => place.get_type(store, body).0,
             Self::Reference(place, mutable) => {
-                Type::Ptr(Box::new(place.get_type(backend, body).0), *mutable)
+                Type::Ptr(Box::new(place.get_type(store, body).0), *mutable)
             }
-            Self::Call(func, ..) => match func.get_type(backend, body) {
+            Self::Call(func, ..) => match func.get_type(store, body) {
                 Type::FnPtr { return_type, .. } => {
                     return_type.map_or(Type::Error, |ty| *ty.clone())
                 }
                 _ => Type::Error,
             },
 
-            Self::Intrinsic(intrinsic) => intrinsic.get_type(backend, body),
+            Self::Intrinsic(intrinsic) => intrinsic.get_type(store, body),
         }
     }
 }

@@ -2,11 +2,7 @@ use crate::TyCtxt;
 
 /// Convert a type from rust MIR to orco.
 #[must_use]
-pub fn convert<B>(
-    ctx: crate::Context<'_, '_, '_, B>,
-    ty: rustc_middle::ty::Ty,
-    map: GenericMap,
-) -> Option<orco::Type> {
+pub fn convert(tcx: TyCtxt, ty: rustc_middle::ty::Ty) -> Option<orco::Type> {
     use rustc_middle::ty::{FloatTy, IntTy, TyKind, UintTy};
     Some(match ty.kind() {
         TyKind::Bool => orco::Type::Bool,
@@ -33,20 +29,21 @@ pub fn convert<B>(
             FloatTy::F64 => 64,
             FloatTy::F128 => 128,
         }),
-        TyKind::Adt(def, generics) => {
-            orco::Type::Symbol(ctx.generic_name(def.did(), map, generics))
-        }
+        TyKind::Adt(def, generics) => orco::Type::Symbol(
+            crate::names::convert_path(tcx, def.did()).into(),
+            convert_generic_args(tcx, generics),
+        ),
         TyKind::Foreign(..) => todo!(),
         TyKind::Str => orco::Type::Error,
-        TyKind::Array(ty, _size) => orco::Type::Array(Box::new(convert(ctx, *ty, map)?), 42), // TODO: Use size!
+        TyKind::Array(ty, _size) => orco::Type::Array(Box::new(convert(tcx, *ty)?), 42), // TODO: Use size!
         TyKind::Pat(..) => todo!(),
         TyKind::Slice(..) => todo!(),
         TyKind::RawPtr(ty, mutability) => orco::Type::Ptr(
-            Box::new(convert(ctx, *ty, map).unwrap_or(orco::Type::Error)),
+            Box::new(convert(tcx, *ty).unwrap_or(orco::Type::Error)),
             mutability.is_mut(),
         ),
         TyKind::Ref(_, ty, mutability) => orco::Type::Ptr(
-            Box::new(convert(ctx, *ty, map).unwrap_or(orco::Type::Error)),
+            Box::new(convert(tcx, *ty).unwrap_or(orco::Type::Error)),
             mutability.is_mut(),
         ),
         TyKind::FnDef(..) => todo!(),
@@ -56,9 +53,9 @@ pub fn convert<B>(
                 params: sig
                     .inputs()
                     .iter()
-                    .flat_map(|ty| convert(ctx, *ty, map))
+                    .flat_map(|ty| convert(tcx, *ty))
                     .collect(),
-                return_type: convert(ctx, sig.output(), map).map(Box::new),
+                return_type: convert(tcx, sig.output()).map(Box::new),
             }
         }
         TyKind::UnsafeBinder(..) => todo!(),
@@ -72,11 +69,11 @@ pub fn convert<B>(
         TyKind::Tuple(v) => orco::Type::Struct {
             fields: v
                 .iter()
-                .filter_map(|ty| convert(ctx, ty, map).map(|ty| (None, ty)))
+                .filter_map(|ty| convert(tcx, ty).map(|ty| (None, ty)))
                 .collect(),
         },
         TyKind::Alias(..) => todo!(),
-        TyKind::Param(param) => map.resolve(*param),
+        TyKind::Param(param) => orco::Type::Param(param.name.as_str().into()),
         TyKind::Bound(..) => todo!(),
         TyKind::Placeholder(..) => todo!(),
         TyKind::Infer(var) => panic!("inference variable {var} found in type"),
@@ -84,75 +81,30 @@ pub fn convert<B>(
     })
 }
 
-/// Resolve generics during type conversion
-#[derive(Clone, Copy, Debug, Default)]
-pub struct GenericMap<'a>(pub usize, pub &'a [orco::Type]);
-
-impl<'a> GenericMap<'a> {
-    #![allow(missing_docs)]
-    pub fn new(generics: &rustc_middle::ty::Generics, args: &'a [orco::Type]) -> Self {
-        let counts = generics.own_counts();
-        let offset = generics.has_self as usize + counts.lifetimes;
-        Self(offset, args)
-    }
-
-    /// Resolve [`rustc_middle::ty::ParamTy`] to [`orco::Type`]
-    pub fn resolve(&self, param: rustc_middle::ty::ParamTy) -> orco::Type {
-        if self.generic() {
-            if param.index == 0 {
-                self.1[0].clone()
-            } else {
-                self.1[param.index as usize - self.0].clone()
-            }
-        } else {
-            orco::Type::Symbol(param.name.as_str().into())
-        }
-    }
-
-    pub fn args(&self) -> &[orco::Type] {
-        self.1
-    }
-
-    /// Whether this has any generics
-    pub fn generic(&self) -> bool {
-        self.0 != 0 || !self.1.is_empty()
+/// Convert MIR generic argument into [`orco::Type`]
+pub fn convert_generic_arg(tcx: TyCtxt, arg: rustc_middle::ty::GenericArg) -> Option<orco::Type> {
+    use rustc_middle::ty::GenericArgKind as GAK;
+    match arg.kind() {
+        GAK::Lifetime(_) => None,
+        GAK::Type(ty) => convert(tcx, ty),
+        GAK::Const(value) => todo!("const generics: {value}"),
     }
 }
 
-// /// Decides, weather to wrap the items in a macro.
-// /// `name_key` is passed in separately for ability to
-// /// use names from trait declarations
-// pub fn wrap_generics<'ms, 'tcx: 'ms>(
-//     tcx: TyCtxt<'tcx>,
-//     server: MacroServer<'ms>,
-//     key: rustc_hir::def_id::DefId,
-//     name_key: rustc_hir::def_id::DefId,
-//     macro_prefix: &str,
-//     callback: impl Fn(TyCtxt<'tcx>, orco::Symbol, GenericMap) + Send + Sync + 'ms,
-// ) {
-//     let generics = tcx.generics_of(key);
-//     let name = crate::names::convert_path(tcx, name_key);
-//     if !generics.requires_monomorphization(tcx) {
-//         callback(tcx, name.into(), GenericMap::new(generics, &[]));
-//     } else {
-//         let tcx = rustc_data_structures::sync::check_dyn_thread_safe()
-//             .expect(
-//                 "You have to enable `-Z threads` (f.e. `-Z threads=sync`) to be able to use macros",
-//             )
-//             .derive(tcx);
+/// Convert a list of generic args, see [`convert_generic_arg`]
+pub fn convert_generic_args(tcx: TyCtxt, args: &rustc_middle::ty::GenericArgs) -> Vec<orco::Type> {
+    args.iter()
+        .flat_map(|arg| convert_generic_arg(tcx, arg))
+        .collect()
+}
 
-//         server.macro_(
-//             format!("{macro_prefix}{name}").into(),
-//             move |args| {
-//                 let mut name = name.clone();
-//                 for arg in args {
-//                     name.push('_');
-//                     name.push_str(&arg.hashable_name());
-//                 }
-
-//                 callback(*tcx, name.into(), GenericMap::new(generics, args));
-//             },
-//             true,
-//         );
-//     }
-// }
+pub fn convert_generic_params(tcx: TyCtxt, key: rustc_hir::def_id::DefId) -> Vec<orco::Type> {
+    let generics = tcx.generics_of(key);
+    let mut types = generics
+        .parent
+        .map_or_else(Default::default, |key| convert_generic_params(tcx, key));
+    for param in &generics.own_params {
+        types.push(orco::Type::Param(param.name.as_str().into()));
+    }
+    types
+}

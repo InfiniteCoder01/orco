@@ -8,5 +8,4 @@ description.workspace = true
 repository.workspace = true
 
 [dependencies]
-scc.workspace = true
 sinter = "0.1.1"

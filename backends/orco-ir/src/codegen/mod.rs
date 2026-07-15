@@ -7,10 +7,12 @@ mod intrinsics;
 
 /// Implementation of [`oc::BodyCodegen`]
 pub struct Codegen<'a> {
-    /// Backend context that will recieve the symbol once codegen is done
-    pub backend: &'a crate::Backend,
+    /// Store that will recieve the symbol once codegen is done
+    pub store: &'a crate::Store,
     /// Symbol name
     pub name: orco::Symbol,
+    /// Generic params
+    pub generic_params: Vec<orco::Type>,
     /// Currently generated body
     pub body: ir::Body,
     /// Currently unused values
@@ -21,15 +23,19 @@ pub struct Codegen<'a> {
 
 impl<'a> Codegen<'a> {
     #[allow(missing_docs)]
-    pub fn new(backend: &'a crate::Backend, name: orco::Symbol) -> Self {
+    pub fn new(
+        store: &'a crate::Store,
+        name: orco::Symbol,
+        generic_params: Vec<orco::Type>,
+    ) -> Self {
         let mut body = ir::Body::default();
-        let function = backend
-            .functions
-            .get_sync(&name)
+        let decls = store.functions.pin();
+        let function = decls
+            .get(&name)
             .unwrap_or_else(|| panic!("trying to codegen undeclared function {name}"));
 
-        body.variables.reserve(function.params.len());
-        for (name, ty) in &function.params {
+        body.variables.reserve(function.signature.params.len());
+        for (name, ty) in &function.signature.params {
             body.variables.push(ir::Variable {
                 ty: ty.clone(),
                 arg: true,
@@ -38,8 +44,9 @@ impl<'a> Codegen<'a> {
         }
 
         Self {
-            backend,
+            store,
             name,
+            generic_params,
             body,
             values: HashMap::new(),
             next_value_id: 0,
@@ -66,7 +73,7 @@ impl<'a> Codegen<'a> {
     pub fn cvt_place(&mut self, place: oc::Place) -> ir::Place {
         match place {
             oc::Place::Variable(variable) => ir::Place::Variable(variable),
-            oc::Place::Global(name) => ir::Place::Global(name),
+            oc::Place::Global(name, generics) => ir::Place::Global(name, generics),
             oc::Place::Deref(value) => ir::Place::Deref(Box::new(self.use_value(value))),
             oc::Place::Field(place, idx) => ir::Place::Field(Box::new(self.cvt_place(*place)), idx),
         }
@@ -84,7 +91,7 @@ impl oc::BodyCodegen for Codegen<'_> {
         self.values
             .get(&id)
             .unwrap_or_else(|| panic!("invalid value id {id}"))
-            .get_type(self.backend, &self.body)
+            .get_type(self.store, &self.body)
     }
 
     fn declare_var(&mut self, ty: orco::Type, name: Option<&str>) -> oc::Variable {
@@ -127,7 +134,7 @@ impl oc::BodyCodegen for Codegen<'_> {
 
     fn reference(&mut self, place: oc::Place, mutable: bool) -> oc::Value {
         let place = self.cvt_place(place);
-        let can_be_mutable = place.get_type(self.backend, &self.body).1;
+        let can_be_mutable = place.get_type(self.store, &self.body).1;
         assert!(
             !mutable || can_be_mutable,
             "can't create mutable reference to an immutable {place}"
@@ -138,7 +145,7 @@ impl oc::BodyCodegen for Codegen<'_> {
 
     fn call(&mut self, func: oc::Value, args: Vec<oc::Value>) -> Option<oc::Value> {
         let func = self.use_value(func);
-        let has_retval = match func.get_type(self.backend, &self.body) {
+        let has_retval = match func.get_type(self.store, &self.body) {
             orco::Type::FnPtr { return_type, .. } => return_type.is_some(),
             ty => panic!("trying to call non-function {func}, which is of type {ty}"),
         };
@@ -172,9 +179,15 @@ impl oc::BodyCodegen for Codegen<'_> {
 
 impl core::ops::Drop for Codegen<'_> {
     fn drop(&mut self) {
-        self.backend
-            .function_definitions
-            .insert_sync(self.name, core::mem::take(&mut self.body))
+        self.store
+            .function_bodies
+            .pin()
+            .get_or_insert_with(self.name, Default::default)
+            .pin()
+            .try_insert(
+                core::mem::take(&mut self.generic_params),
+                core::mem::take(&mut self.body),
+            )
             .unwrap_or_else(|_| panic!("function {} is already defined", self.name));
     }
 }

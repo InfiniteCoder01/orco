@@ -2,7 +2,7 @@ use super::{Expression, Place};
 use orco::codegen as oc;
 
 /// Basic statements
-#[derive(Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum Statement {
     /// See [`oc::BodyCodegen::comment`]
     Comment(String),
@@ -59,7 +59,7 @@ impl std::fmt::Display for Statement {
 
 /// Arbitrary control flow statements.
 /// See [`oc::AcfCodegen`]
-#[derive(Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum AcfStatement {
     /// See [`oc::AcfCodegen::jump`]
     Jump(oc::Label),
@@ -78,7 +78,7 @@ impl std::fmt::Display for AcfStatement {
 
 /// Block-like control flow statements (classic, flattened).
 /// See [`oc::BcfCodegen`]
-#[derive(Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum BcfStatement {
     /// See [`oc::BcfCodegen::if_`]
     If(Expression),

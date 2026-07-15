@@ -19,7 +19,7 @@ pub struct Variable {
 }
 
 /// A function body
-#[derive(Debug, Default, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, PartialEq, PartialOrd)]
 pub struct Body {
     /// All variables used in the body.
     /// Index this with [`orco::codegen::Variable::0`]

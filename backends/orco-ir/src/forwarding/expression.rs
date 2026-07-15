@@ -1,77 +1,74 @@
 use super::{ir, oc};
 
-impl ir::Place {
-    /// Convert this place into [`oc::Place`],
+impl<CG: oc::BodyCodegen> super::FwdCtx<'_, CG> {
+    #[inline]
+    pub fn var(&self, var: oc::Variable) -> oc::Variable {
+        self.variable_map[var.0]
+    }
+
+    /// Convert [`ir::Place`] into [`oc::Place`],
     /// while generating code for inner expressions using
-    /// [`ir::Expression::codegen`]
-    pub(super) fn codegen(
-        &self,
-        codegen: &mut impl oc::BodyCodegen,
-        map_variable: &impl Fn(oc::Variable) -> oc::Variable,
-    ) -> oc::Place {
-        match self {
-            ir::Place::Variable(variable) => map_variable(*variable).into(),
-            ir::Place::Global(symbol) => oc::Place::Global(*symbol),
-            ir::Place::Deref(value) => oc::Place::Deref(value.codegen(codegen, map_variable)),
-            ir::Place::Field(place, idx) => place.codegen(codegen, map_variable).field(*idx),
+    /// [`Self::expr`]
+    pub fn place(&mut self, place: &ir::Place) -> oc::Place {
+        match place {
+            ir::Place::Variable(variable) => self.var(*variable).into(),
+            ir::Place::Global(symbol, generics) => oc::Place::Global(
+                *symbol,
+                generics
+                    .iter()
+                    .map(|ty| ty.copy_instantiate(&self.type_map))
+                    .collect(),
+            ),
+            ir::Place::Deref(expr) => oc::Place::Deref(self.expr(expr)),
+            ir::Place::Field(place, idx) => self.place(place).field(*idx),
         }
     }
-}
 
-impl ir::Expression {
-    /// Codegen this expression into another [`oc::BodyCodegen`],
-    /// mapping all variables
-    pub(super) fn codegen(
-        &self,
-        codegen: &mut impl oc::BodyCodegen,
-        map_variable: &impl Fn(oc::Variable) -> oc::Variable,
-    ) -> oc::Value {
-        match self {
-            Self::IConst(value, size) => codegen.iconst(*value, *size),
-            Self::UConst(value, size) => codegen.uconst(*value, *size),
-            Self::FConst(value, size) => codegen.fconst(*value, *size),
-            Self::BConst(value) => codegen.bconst(*value),
-            Self::Read(place) => {
-                let place = place.codegen(codegen, map_variable);
-                codegen.read(place)
+    /// Codegen [`ir::Expression`] into another [`oc::BodyCodegen`]
+    pub fn expr(&mut self, expr: &ir::Expression) -> oc::Value {
+        match expr {
+            ir::Expression::IConst(value, size) => self.cg.iconst(*value, *size),
+            ir::Expression::UConst(value, size) => self.cg.uconst(*value, *size),
+            ir::Expression::FConst(value, size) => self.cg.fconst(*value, *size),
+            ir::Expression::BConst(value) => self.cg.bconst(*value),
+            ir::Expression::Read(place) => {
+                let place = self.place(place);
+                self.cg.read(place)
             }
-            Self::Reference(place, mutable) => {
-                let place = place.codegen(codegen, map_variable);
-                codegen.reference(place, *mutable)
+            ir::Expression::Reference(place, mutable) => {
+                let place = self.place(place);
+                self.cg.reference(place, *mutable)
             }
-            Self::Call(func, args) => {
-                let func = func.codegen(codegen, map_variable);
-                let args = args
-                    .iter()
-                    .map(|arg| arg.codegen(codegen, map_variable))
-                    .collect();
-                codegen
+            ir::Expression::Call(func, args) => {
+                let func = self.expr(func);
+                let args = args.iter().map(|arg| self.expr(arg)).collect();
+                self.cg
                     .call(func, args)
                     .unwrap_or_else(|| panic!("trying to use value from calling a void function"))
             }
 
-            Self::Intrinsic(intrinsic) => {
+            ir::Expression::Intrinsic(intrinsic) => {
                 use crate::ir::Intrinsic as I;
                 use oc::Intrinsics as IT;
                 match intrinsic {
                     I::Add(a, b) => {
-                        let a = a.codegen(codegen, map_variable);
-                        let b = b.codegen(codegen, map_variable);
-                        codegen.intrinsics().add(a, b)
+                        let a = self.expr(a);
+                        let b = self.expr(b);
+                        self.cg.intrinsics().add(a, b)
                     }
                     I::Mul(a, b) => {
-                        let a = a.codegen(codegen, map_variable);
-                        let b = b.codegen(codegen, map_variable);
-                        codegen.intrinsics().mul(a, b)
+                        let a = self.expr(a);
+                        let b = self.expr(b);
+                        self.cg.intrinsics().mul(a, b)
                     }
                     I::Eq(a, b) => {
-                        let a = a.codegen(codegen, map_variable);
-                        let b = b.codegen(codegen, map_variable);
-                        codegen.intrinsics().eq(a, b)
+                        let a = self.expr(a);
+                        let b = self.expr(b);
+                        self.cg.intrinsics().eq(a, b)
                     }
                     I::Not(a) => {
-                        let a = a.codegen(codegen, map_variable);
-                        codegen.intrinsics().not(a)
+                        let a = self.expr(a);
+                        self.cg.intrinsics().not(a)
                     }
                 }
             }

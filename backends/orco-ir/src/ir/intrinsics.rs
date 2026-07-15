@@ -23,12 +23,12 @@ impl Intrinsic {
 
     /// Get type of the value this intrinsic produces.
     /// Similar to [`super::Statement::get_type`]
-    pub fn get_type(&self, backend: &crate::Backend, body: &super::Body) -> orco::Type {
+    pub fn get_type(&self, store: &crate::Store, body: &super::Body) -> orco::Type {
         match self {
-            Self::Add(a, _) => a.get_type(backend, body),
-            Self::Mul(a, _) => a.get_type(backend, body),
-            Self::Eq(a, _) => a.get_type(backend, body),
-            Self::Not(a) => a.get_type(backend, body),
+            Self::Add(a, _) => a.get_type(store, body),
+            Self::Mul(a, _) => a.get_type(store, body),
+            Self::Eq(a, _) => a.get_type(store, body),
+            Self::Not(a) => a.get_type(store, body),
         }
     }
 }

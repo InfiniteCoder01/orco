@@ -13,8 +13,8 @@ pub enum Type {
     Bool,
     /// Character, storing it's width (wide vs ascii)
     Char(bool),
-    /// Just a symbol
-    Symbol(Symbol),
+    /// Points to a type alias, includes generics
+    Symbol(Symbol, Vec<Type>),
 
     /// An array type (`Type[size]`)
     Array(Box<Type>, usize),
@@ -32,6 +32,8 @@ pub enum Type {
         /// Return type
         return_type: Option<Box<Type>>,
     },
+    /// Type parameter (aka generic)
+    Param(Symbol),
     /// An error type, can also be used in a pointer to make it a pointer to anything
     Error,
 }
@@ -45,9 +47,17 @@ impl Type {
             | Type::Unsigned(..)
             | Type::Float(..)
             | Type::Bool
-            | Type::Char(..)) => ty.to_string(),
+            | Type::Char(..)
+            | Type::Param(..)) => ty.to_string(),
 
-            Type::Symbol(sym) => sym.to_string(),
+            Type::Symbol(sym, generics) => format!(
+                "{sym}<{}>",
+                generics
+                    .iter()
+                    .map(|ty| ty.hashable_name())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
             Type::Array(ty, len) => format!("{}[{len}]", ty.hashable_name()),
             Type::Struct { fields } => fields
                 .iter()
@@ -81,6 +91,55 @@ impl Type {
             Type::Error => "<error>".to_owned(),
         }
     }
+
+    /// Replace all instances of [`Type::Param`] with symbols from `map` (if present)
+    pub fn instantiate(&mut self, map: &std::collections::HashMap<Symbol, Type>) {
+        match self {
+            Type::Integer(..)
+            | Type::Unsigned(..)
+            | Type::Float(..)
+            | Type::Bool
+            | Type::Char(..) => (),
+            Type::Symbol(_, generics) => {
+                for ty in generics {
+                    ty.instantiate(map);
+                }
+            }
+            Type::Array(ty, _) => ty.instantiate(map),
+            Type::Struct { fields } => {
+                for (_, ty) in fields {
+                    ty.instantiate(map);
+                }
+            }
+            Type::Ptr(ty, _) => {
+                ty.instantiate(map);
+            }
+            Type::FnPtr {
+                params,
+                return_type,
+            } => {
+                for param in params {
+                    param.instantiate(map);
+                }
+                if let Some(ty) = return_type {
+                    ty.instantiate(map);
+                }
+            }
+            Type::Param(name) => {
+                if let Some(ty) = map.get(name) {
+                    ty.clone_into(self);
+                }
+            }
+            Type::Error => (),
+        }
+    }
+
+    /// Same as [`Self::instantiate`], but clones the type in the process
+    pub fn copy_instantiate(&self, map: &std::collections::HashMap<Symbol, Type>) -> Self {
+        let mut instance = self.clone();
+        instance.instantiate(map);
+        instance
+    }
 }
 
 impl std::fmt::Display for Type {
@@ -93,7 +152,7 @@ impl std::fmt::Display for Type {
             Type::Char(false) => write!(f, "achar"),
             Type::Char(true) => write!(f, "uchar"),
 
-            Type::Symbol(sym) => write!(f, "{sym}"),
+            Type::Symbol(sym, generics) => write!(f, "{sym}{}", fmt_generics(generics)),
             Type::Array(ty, len) => write!(f, "{ty}[{len}]"),
             Type::Struct { fields } => {
                 write!(f, "{{{}", if f.alternate() { '\n' } else { ' ' })?;
@@ -150,9 +209,28 @@ impl std::fmt::Display for Type {
                     None => write!(f, ") -> void"),
                 }
             }
+            Type::Param(name) => write!(f, "#{name}"),
             Type::Error => write!(f, "<error>"),
         }
     }
+}
+
+/// Format generic args using <> notation
+pub fn fmt_generics(generics: &[Type]) -> String {
+    if generics.is_empty() {
+        return String::new();
+    }
+
+    let mut buffer = String::from("<");
+    use std::fmt::Write as _;
+    for (idx, ty) in generics.iter().enumerate() {
+        if idx > 0 {
+            buffer.push_str(", ");
+        }
+        write!(&mut buffer, "{ty}").unwrap();
+    }
+    buffer.push('>');
+    buffer
 }
 
 /// Integer size
@@ -205,6 +283,16 @@ impl FunctionSignature {
         Type::FnPtr {
             params: self.params.iter().map(|(_, ty)| ty.clone()).collect(),
             return_type: self.return_type.clone().map(Box::new),
+        }
+    }
+
+    /// See [Type::instantiate]
+    pub fn instantiate(&mut self, map: &std::collections::HashMap<Symbol, Type>) {
+        for (_, ty) in &mut self.params {
+            ty.instantiate(map);
+        }
+        if let Some(ty) = &mut self.return_type {
+            ty.instantiate(map);
         }
     }
 }

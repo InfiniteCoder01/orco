@@ -16,8 +16,8 @@ pub struct Value(pub usize);
 pub enum Place {
     /// Just variable access
     Variable(Variable),
-    /// Global symbol access
-    Global(Symbol),
+    /// Global symbol access, includes generics
+    Global(Symbol, Vec<crate::Type>),
     /// Pointer dereference
     Deref(Value),
     /// Field access, using 0-based field index

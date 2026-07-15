@@ -16,4 +16,4 @@ orco = { path = "orco" }
 orco-ir = { path = "backends/orco-ir" }
 orco-cgen = { path = "backends/orco-cgen" }
 
-scc = "3.4.2"
+papaya = "0.2.4"

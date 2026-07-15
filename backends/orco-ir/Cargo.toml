@@ -7,5 +7,5 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-scc.workspace = true
+papaya.workspace = true
 orco.workspace = true
