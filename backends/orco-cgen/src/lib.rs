@@ -10,24 +10,29 @@
 pub mod types;
 use types::FmtType;
 
+/// Type interning and creation of "unified names" (see [`Backend::unified_type_name`]).
+mod type_names;
+
 /// Symbol container types
 pub mod symbols;
 
-/// Code generation, used to generate function bodies.
-pub mod codegen;
-pub use codegen::Codegen;
+// /// Code generation, used to generate function bodies.
+// pub mod codegen;
+// pub use codegen::Codegen;
+
+use papaya::HashMap;
 
 /// Root backend struct
 #[derive(Debug, Default)]
 pub struct Backend {
     /// Type aliases
-    pub types: scc::HashMap<orco::Symbol, orco::Type>,
-    /// Function declarations
-    pub functions: scc::HashMap<orco::Symbol, orco::types::FunctionSignature>,
-    /// Definitions
-    definitions: scc::Stack<String>,
+    pub types: HashMap<orco::Symbol, orco::Type>,
     /// Interned types
-    interned: scc::HashSet<orco::Symbol>,
+    interned: HashMap<orco::Type, orco::Symbol>,
+    /// Function declarations
+    pub functions: HashMap<orco::Symbol, orco::types::FunctionSignature>,
+    /// Definitions
+    definitions: std::sync::Mutex<Vec<String>>,
 }
 
 impl Backend {
@@ -39,49 +44,30 @@ impl Backend {
 
     /// Add a definition
     pub fn define(&self, code: String) {
-        self.definitions.push(code);
+        self.definitions.lock().unwrap().push(code);
     }
 
-    /// If ty is a type alias (but not a struct), inlines it.
-    /// Does not inline inner types
-    pub fn inline_type_aliases(&self, ty: orco::Type, inline_struct: bool) -> orco::Type {
-        match ty {
-            orco::Type::Symbol(symbol) => {
-                let symbol = self
-                    .types
-                    .get_sync(&symbol)
-                    .unwrap_or_else(|| panic!("undeclared type {symbol}"));
-                if inline_struct || !matches!(*symbol, orco::Type::Struct { .. }) {
-                    self.inline_type_aliases(symbol.clone(), inline_struct)
-                } else {
-                    ty
-                }
+    /// Get the name of the symbol used in generated C code ("mangling")
+    pub fn cname(&self, name: orco::Symbol) -> String {
+        // Take only the method name, not the path
+        // FIXME: conflicts...
+        let mut new_name = String::new();
+        for (idx, split) in name.split([',', '<', '>']).enumerate() {
+            let split = &split[split.rfind([':', '.']).map_or(0, |i| i + 1)..];
+            if idx > 0 {
+                new_name.push('_');
             }
-            ty => ty,
+            new_name.push_str(split);
         }
-    }
 
-    /// Intern the following type and it's insides.
-    pub fn intern_type(&self, ty: &mut orco::Type, named: bool) {
-        match ty {
-            orco::Type::Array(ty, _) => {
-                self.intern_type(ty.as_mut(), false) // TODO: More work on arrays
-            }
-            orco::Type::Struct { fields } if named => {
-                for (_, ty) in fields {
-                    self.intern_type(ty, false);
-                }
-            }
-            orco::Type::Struct { fields } if !named => {
-                let sym = orco::Symbol::new(&format!("s {}", ty.hashable_name()));
-                let ty = std::mem::replace(ty, orco::Type::Symbol(sym));
-                if self.interned.insert_sync(sym).is_ok() {
-                    use orco::DeclarationBackend as _;
-                    self.type_(sym, ty);
-                }
-            }
-            _ => (),
+        let mut new_name = new_name
+            .replace(|c: char| !c.is_ascii_alphanumeric(), "_")
+            .replace("__", "_");
+        if new_name.chars().next().is_none_or(|c| c.is_ascii_digit()) {
+            new_name.insert(0, '_');
         }
+
+        new_name
     }
 }
 
@@ -89,18 +75,21 @@ impl orco::DeclarationBackend for Backend {
     fn function(
         &self,
         name: orco::Symbol,
+        generics: Vec<orco::Type>,
         mut params: Vec<(Option<String>, orco::Type)>,
         mut return_type: Option<orco::Type>,
         attrs: orco::attrs::FunctionAttributes,
     ) {
+        let name = self.generic_name(name, &generics);
         for (_, ty) in &mut params {
-            self.intern_type(ty, false);
+            self.intern_type(ty, None);
         }
         if let Some(rt) = &mut return_type {
-            self.intern_type(rt, false);
+            self.intern_type(rt, None);
         }
         self.functions
-            .insert_sync(
+            .pin()
+            .try_insert(
                 name,
                 orco::types::FunctionSignature {
                     params,
@@ -108,31 +97,40 @@ impl orco::DeclarationBackend for Backend {
                     attrs,
                 },
             )
-            .unwrap_or_else(|_| panic!("function {name} is already declared"))
+            .unwrap_or_else(|_| panic!("function {name} is already declared"));
     }
 
-    fn type_(&self, name: orco::Symbol, mut ty: orco::Type) {
-        self.intern_type(&mut ty, true);
+    fn type_(&self, name: orco::Symbol, generics: Vec<orco::Type>, mut ty: orco::Type) {
+        let name = self.generic_name(name, &generics);
+        self.intern_type(&mut ty, Some(name));
         self.types
-            .insert_sync(name, ty)
-            .unwrap_or_else(|_| panic!("type {name} is already declared"))
+            .pin()
+            .try_insert(name, ty)
+            .unwrap_or_else(|_| panic!("type {name} is already declared"));
     }
 }
 
-impl orco::CodegenBackend for crate::Backend {
-    fn cg_function(&self, name: orco::Symbol) -> impl orco::codegen::BodyCodegen {
-        codegen::Codegen::new(self, name)
-    }
-}
+// impl orco::CodegenBackend for crate::Backend {
+//     fn cg_function(
+//         &self,
+//         name: orco::Symbol,
+//         generics: Vec<orco::Type>,
+//     ) -> impl orco::codegen::BodyCodegen {
+//         let name = self.generic_name(name, &generics);
+//         codegen::Codegen::new(self, name)
+//     }
+// }
 
 /// Adds all symbols this type uses into `dependencies`
-pub fn type_dependencies(ty: &orco::Type, dependencies: &mut Vec<orco::Symbol>) {
+fn type_dependencies(backend: &Backend, ty: &orco::Type, dependencies: &mut Vec<orco::Symbol>) {
     match ty {
-        orco::Type::Symbol(name) => dependencies.push(*name),
-        orco::Type::Array(ty, sz) if *sz > 0 => type_dependencies(ty, dependencies),
+        orco::Type::Symbol(name, generics) => {
+            dependencies.push(backend.generic_name(*name, generics))
+        }
+        orco::Type::Array(ty, sz) if *sz > 0 => type_dependencies(backend, ty, dependencies),
         orco::Type::Struct { fields } => {
             for (_, ty) in fields {
-                type_dependencies(ty, dependencies);
+                type_dependencies(backend, ty, dependencies);
             }
         }
         _ => (),
@@ -157,20 +155,18 @@ impl std::fmt::Display for Backend {
             order: Vec<orco::Symbol>,
         }
 
+        let types = self.types.pin();
         let mut sorter = TopSorter::default();
-        let mut result = Ok(());
-        self.types.iter_sync(|name, ty| {
+        for (name, ty) in types.into_iter() {
             let mut dependencies = Vec::new();
-            type_dependencies(ty, &mut dependencies);
+            type_dependencies(self, ty, &mut dependencies);
             sorter.deps.insert(*name, dependencies);
-            if matches!(ty, orco::Type::Struct { .. }) {
-                let name = symname(*name);
-                result = writeln!(f, "typedef struct {name}_struct {name};");
-            }
 
-            result.is_ok()
-        });
-        result?;
+            if matches!(ty, orco::Type::Struct { .. }) {
+                let name = self.cname(*name);
+                writeln!(f, "typedef struct {name} {name};")?;
+            }
+        }
 
         fn topsort(name: orco::Symbol, sorter: &mut TopSorter) {
             use std::collections::hash_map::Entry;
@@ -195,14 +191,13 @@ impl std::fmt::Display for Backend {
             sorter.order.push(name);
         }
 
-        self.types.iter_sync(|name, _| {
+        for (name, _) in types.into_iter() {
             topsort(*name, &mut sorter);
-            true
-        });
+        }
         writeln!(f)?;
 
         for name in sorter.order {
-            let Some(ty) = self.types.get_sync(&name) else {
+            let Some(ty) = types.get(&name) else {
                 continue;
             };
 
@@ -210,60 +205,35 @@ impl std::fmt::Display for Backend {
                 f,
                 "typedef {};",
                 FmtType {
+                    backend: self,
                     ty: &ty,
                     constant: false,
-                    name: Some(&symname(name))
+                    name: Some(&self.cname(name))
                 }
             )?;
         }
 
         writeln!(f)?;
 
-        self.functions.iter_sync(|name, signature| {
-            result = writeln!(
+        for (name, signature) in self.functions.pin().into_iter() {
+            writeln!(
                 f,
                 "{};",
                 symbols::FmtFunction {
-                    name: &symname(*name),
+                    backend: self,
+                    name: &self.cname(*name),
                     signature,
                     name_all_args: false,
                 }
-            );
-
-            result.is_ok()
-        });
-        result?;
+            )?;
+        }
 
         writeln!(f)?;
 
-        for def in self.definitions.iter(&scc::Guard::new()) {
+        for def in self.definitions.lock().unwrap().iter() {
             writeln!(f, "{def}\n")?;
         }
 
         Ok(())
     }
-}
-
-/// Get the name of the symbol used in generated code
-fn symname(symbol: orco::Symbol) -> String {
-    // TODO: Needs work
-
-    // Take only the method name, not the path
-    // FIXME: conflicts...
-    let mut new_symbol = String::new();
-    for (idx, split) in symbol.split('_').enumerate() {
-        let split = &split[split.rfind([':', '.']).map_or(0, |i| i + 1)..];
-        if idx > 0 {
-            new_symbol.push('_');
-        }
-        new_symbol.push_str(split);
-    }
-    let symbol = new_symbol;
-
-    let mut symbol = symbol.replace(|c: char| !c.is_ascii_alphanumeric(), "_");
-    if symbol.chars().next().is_none_or(|c| c.is_ascii_digit()) {
-        symbol.insert(0, '_');
-    }
-
-    symbol
 }

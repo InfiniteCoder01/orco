@@ -24,8 +24,8 @@ impl rustc_codegen_ssa::traits::CodegenBackend for OrcoCodegenBackend {
         // rustc_middle::mir::write_mir_pretty(tcx, &mut std::io::stdout()).unwrap();
 
         let items = tcx.hir_crate_items(());
-        // let backend = orco_cgen::Backend::new();
-        let backend = orco_ir::Store::new();
+        let backend = orco_cgen::Backend::new();
+        // let backend = orco_ir::Store::new();
         crate::declare(tcx, &backend, items);
         // crate::codegen(tcx, &backend, items);
         print!("{backend}");

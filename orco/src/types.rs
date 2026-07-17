@@ -39,59 +39,6 @@ pub enum Type {
 }
 
 impl Type {
-    /// Returns a type name that could be used for hashing, mangling
-    /// and human-facing names
-    pub fn hashable_name(&self) -> String {
-        match self {
-            ty @ (Type::Integer(..)
-            | Type::Unsigned(..)
-            | Type::Float(..)
-            | Type::Bool
-            | Type::Char(..)
-            | Type::Param(..)) => ty.to_string(),
-
-            Type::Symbol(sym, generics) => format!(
-                "{sym}<{}>",
-                generics
-                    .iter()
-                    .map(|ty| ty.hashable_name())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ),
-            Type::Array(ty, len) => format!("{}[{len}]", ty.hashable_name()),
-            Type::Struct { fields } => fields
-                .iter()
-                .map(|(_, ty)| ty.hashable_name())
-                .collect::<Vec<_>>()
-                .join(" "),
-            Type::Ptr(ty, mutable) => {
-                format!(
-                    "*{} {}",
-                    match mutable {
-                        true => "mut",
-                        false => "const",
-                    },
-                    ty.hashable_name()
-                )
-            }
-            Type::FnPtr {
-                params,
-                return_type,
-            } => format!(
-                "({}) -> {}",
-                params
-                    .iter()
-                    .map(Type::hashable_name)
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                return_type
-                    .as_deref()
-                    .map_or("void".to_owned(), Type::hashable_name)
-            ),
-            Type::Error => "<error>".to_owned(),
-        }
-    }
-
     /// Replace all instances of [`Type::Param`] with symbols from `map` (if present)
     pub fn instantiate(&mut self, map: &std::collections::HashMap<Symbol, Type>) {
         match self {
@@ -139,6 +86,48 @@ impl Type {
         let mut instance = self.clone();
         instance.instantiate(map);
         instance
+    }
+
+    /// Check if this type contains type params
+    pub fn has_params(&self) -> bool {
+        match self {
+            Type::Integer(..) => false,
+            Type::Unsigned(..) => false,
+            Type::Float(..) => false,
+            Type::Bool => false,
+            Type::Char(..) => false,
+            Type::Symbol(_, generics) => {
+                for generic in generics {
+                    if generic.has_params() {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::Array(ty, _) => ty.has_params(),
+            Type::Struct { fields } => {
+                for (_, field) in fields {
+                    if field.has_params() {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::Ptr(ty, _) => ty.has_params(),
+            Type::FnPtr {
+                params,
+                return_type,
+            } => {
+                for param in params {
+                    if param.has_params() {
+                        return true;
+                    }
+                }
+                return_type.as_deref().is_some_and(Type::has_params)
+            }
+            Type::Param(..) => true,
+            Type::Error => false,
+        }
     }
 }
 

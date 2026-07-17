@@ -3,6 +3,7 @@
 /// also wraps optional name (variable name, parameter name, type name in typedef)
 #[allow(missing_docs)]
 pub struct FmtType<'a> {
+    pub backend: &'a crate::Backend,
     pub ty: &'a orco::Type,
     pub constant: bool,
     pub name: Option<&'a str>,
@@ -10,7 +11,12 @@ pub struct FmtType<'a> {
 
 impl std::fmt::Display for FmtType<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let FmtType { ty, constant, name } = *self;
+        let FmtType {
+            backend,
+            ty,
+            constant,
+            name,
+        } = *self;
 
         use orco::Type as OT;
         use orco::types::IntegerSize as IS;
@@ -55,13 +61,16 @@ impl std::fmt::Display for FmtType<'_> {
             OT::Bool => write!(f, "bool"),
             OT::Char(false) => write!(f, "char"),
             OT::Char(true) => write!(f, "wchar_t"),
-            OT::Symbol(sym) => write!(f, "{}", crate::symname(*sym)),
+            OT::Symbol(sym, generics) => {
+                write!(f, "{}", backend.cname(backend.generic_name(*sym, generics)))
+            }
 
             OT::Array(ty, sz) => {
                 return write!(
                     f,
                     "{}[{sz}]",
                     FmtType {
+                        backend,
                         ty,
                         constant: false,
                         name
@@ -86,6 +95,7 @@ impl std::fmt::Display for FmtType<'_> {
                         f,
                         "  {};",
                         FmtType {
+                            backend,
                             ty,
                             constant: false,
                             name: Some(
@@ -106,6 +116,7 @@ impl std::fmt::Display for FmtType<'_> {
                     f,
                     "{}",
                     FmtType {
+                        backend,
                         ty,
                         constant: !*pointee_mutable,
                         name: Some(
@@ -130,9 +141,10 @@ impl std::fmt::Display for FmtType<'_> {
                     f,
                     "{}",
                     FmtType {
+                        backend,
                         ty: return_type
                             .as_deref()
-                            .unwrap_or(&orco::Type::Symbol("void".into())),
+                            .unwrap_or(&orco::Type::Symbol("void".into(), Vec::new())),
                         constant: false,
                         name: Some(&format!(
                             "{}({})",
@@ -140,6 +152,7 @@ impl std::fmt::Display for FmtType<'_> {
                             params
                                 .iter()
                                 .map(|ty| FmtType {
+                                    backend,
                                     ty,
                                     constant: false,
                                     name
@@ -151,6 +164,7 @@ impl std::fmt::Display for FmtType<'_> {
                     }
                 );
             }
+            OT::Param(name) => panic!("generic param #{name} in a C type"),
             OT::Error => write!(f, "<error-type>"),
         }?;
         if let Some(name) = name {

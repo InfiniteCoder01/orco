@@ -12,4 +12,4 @@ rustc_private = true
 [dependencies]
 orco.workspace = true
 orco-ir.workspace = true
-# orco-cgen.workspace = true
+orco-cgen.workspace = true

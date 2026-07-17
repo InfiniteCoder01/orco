@@ -36,7 +36,7 @@ going through some of [rust by example](<https://doc.rust-lang.org/stable/rust-b
 - [x] orco-ir: catch up on intrinsics and BCF
 - [x] orco: new generics
 - [x] orco-ir: new generics
-- [ ] rustc: new generics
-- [ ] orco-cgen: new generics
+- [x] rustc: new generics
+- [x] orco-cgen: new generics
 - [ ] rustc: implement missing features (full implementation?)
 - [ ] orco: Constant expressions inside types (f.e. array size)

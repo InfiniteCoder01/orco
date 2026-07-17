@@ -3,6 +3,8 @@ use orco::types::FunctionSignature;
 
 /// Formats function signature
 pub struct FmtFunction<'a> {
+    /// A reference to the backend (for name conversion/mangling)
+    pub backend: &'a crate::Backend,
     /// Function name
     pub name: &'a str,
     /// Function signature
@@ -14,6 +16,7 @@ pub struct FmtFunction<'a> {
 impl std::fmt::Display for FmtFunction<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let FmtFunction {
+            backend,
             name,
             signature,
             name_all_args,
@@ -39,6 +42,7 @@ impl std::fmt::Display for FmtFunction<'_> {
                 sig_noret,
                 "{}",
                 FmtType {
+                    backend,
                     ty,
                     constant: false,
                     name: match name {
@@ -53,10 +57,11 @@ impl std::fmt::Display for FmtFunction<'_> {
         write!(sig_noret, ")")?;
 
         FmtType {
+            backend,
             ty: signature
                 .return_type
                 .as_ref()
-                .unwrap_or(&orco::Type::Symbol("void".into())),
+                .unwrap_or(&orco::Type::Symbol("void".into(), Vec::new())),
             constant: false,
             name: Some(&sig_noret),
         }
