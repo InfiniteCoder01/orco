@@ -13,6 +13,7 @@ pub type TypeMap = std::collections::HashMap<orco::Symbol, Type>;
 pub fn match_ty(param: &Type, arg: &Type, map: &mut TypeMap, store: &Store) -> Option<()> {
     use Type::*;
     let param = store.inline_type_aliases(param.clone());
+    let original_arg = arg.clone();
     let arg = store.inline_type_aliases(arg.clone());
     match (param, arg) {
         (param @ (Integer(_) | Unsigned(_) | Float(_) | Bool | Char(_)), arg) if arg == param => {
@@ -44,8 +45,8 @@ pub fn match_ty(param: &Type, arg: &Type, map: &mut TypeMap, store: &Store) -> O
                 return_type: arg_return_type,
             },
         ) => todo!(),
-        (Param(name), arg) if !matches!(arg, Error) => {
-            map.insert(name, arg.clone());
+        (Param(name), arg) if !matches!(original_arg, Error) => {
+            map.insert(name, original_arg.clone());
             Some(())
         }
         _ => None,

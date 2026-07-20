@@ -22,13 +22,16 @@ impl rustc_codegen_ssa::traits::CodegenBackend for OrcoCodegenBackend {
     fn codegen_crate(&self, tcx: TyCtxt<'_>) -> Box<dyn Any> {
         tracing::info!("Name: {}", tcx.crate_name(rustc_hir::def_id::LOCAL_CRATE));
         // rustc_middle::mir::write_mir_pretty(tcx, &mut std::io::stdout()).unwrap();
-
         let items = tcx.hir_crate_items(());
+
+        let ir = orco_ir::Store::new();
+        crate::declare(tcx, &ir, items);
+        // crate::codegen(tcx, &ir, items);
+
         let backend = orco_cgen::Backend::new();
-        // let backend = orco_ir::Store::new();
-        crate::declare(tcx, &backend, items);
-        // crate::codegen(tcx, &backend, items);
+        ir.declare_mono(&backend);
         print!("{backend}");
+
         std::process::exit(0)
     }
 

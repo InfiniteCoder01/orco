@@ -10,7 +10,7 @@
 pub mod types;
 use types::FmtType;
 
-/// Type interning and creation of "unified names" (see [`Backend::unified_type_name`]).
+/// Type interning and name conversion
 mod type_names;
 
 /// Symbol container types
@@ -52,17 +52,18 @@ impl Backend {
         // Take only the method name, not the path
         // FIXME: conflicts...
         let mut new_name = String::new();
-        for (idx, split) in name.split([',', '<', '>']).enumerate() {
+        for split in name.split([',', '<', '>', '{', '}']) {
             let split = &split[split.rfind([':', '.']).map_or(0, |i| i + 1)..];
-            if idx > 0 {
-                new_name.push('_');
+            if !split.is_empty() {
+                match new_name.chars().last() {
+                    None | Some('_') => (),
+                    _ => new_name.push('_'),
+                }
+                new_name.push_str(split);
             }
-            new_name.push_str(split);
         }
 
-        let mut new_name = new_name
-            .replace(|c: char| !c.is_ascii_alphanumeric(), "_")
-            .replace("__", "_");
+        let mut new_name = new_name.replace(|c: char| !c.is_ascii_alphanumeric(), "_");
         if new_name.chars().next().is_none_or(|c| c.is_ascii_digit()) {
             new_name.insert(0, '_');
         }

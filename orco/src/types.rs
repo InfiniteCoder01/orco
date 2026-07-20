@@ -154,7 +154,8 @@ impl std::fmt::Display for Type {
 
                     match name {
                         Some(name) => write!(f, "{name}: ")?,
-                        None => write!(f, "_{idx}: ")?,
+                        None if f.alternate() => write!(f, "_{idx}: ")?,
+                        None => (),
                     }
 
                     ty.fmt(f)?;

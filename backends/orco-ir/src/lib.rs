@@ -17,7 +17,7 @@ pub mod generics;
 mod forwarding;
 
 use generics::Specialized;
-use papaya::HashMap;
+use papaya::{HashMap, HashSet};
 
 /// Function declaration, see [`Store::functions`]
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -37,6 +37,10 @@ pub struct Store {
     pub functions: HashMap<orco::Symbol, FunctionDecl>,
     /// Function definitions
     pub function_bodies: HashMap<orco::Symbol, Specialized<ir::Body>>,
+
+    /// List of generic params to monomorphize types
+    pub type_instances: HashSet<(orco::Symbol, Vec<orco::Type>)>,
+    // pub function_instances: HashMap<orco::Symbol, HashSet<Vec<orco::Type>>>,
 }
 
 impl Store {
@@ -67,6 +71,25 @@ impl Store {
             });
         }
         ty
+    }
+
+    /// Find a best-matching type for a set of generics
+    pub fn get_type(
+        &self,
+        name: orco::Symbol,
+        generics: &[orco::Type],
+        callback: impl FnOnce(&orco::Type, generics::TypeMap),
+    ) {
+        let types = self.types.pin();
+        let specs = types
+            .get(&name)
+            .unwrap_or_else(|| panic!("undeclared type {name}"));
+        generics::match_specialization(&specs, generics, self, callback).unwrap_or_else(|| {
+            panic!(
+                "no matching specialization for {name}{}",
+                orco::types::fmt_generics(generics)
+            )
+        })
     }
 
     /// Find a best-matching function body for a set of generics

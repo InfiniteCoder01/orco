@@ -2,11 +2,12 @@ use crate::ir;
 use orco::codegen as oc;
 
 mod expression;
+mod generics;
 mod statements;
 
 impl super::Store {
     /// Declare all symbols from this IR in another [`orco::DeclarationBackend`]
-    pub fn declare<'a>(&self, backend: &impl orco::DeclarationBackend) {
+    pub fn declare(&self, backend: &impl orco::DeclarationBackend) {
         for (name, specs) in self.types.pin().iter() {
             for (generics, ty) in specs.pin().iter() {
                 backend.type_(*name, generics.clone(), ty.clone());

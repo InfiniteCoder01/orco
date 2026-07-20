@@ -80,14 +80,14 @@ impl std::fmt::Display for FmtType<'_> {
             OT::Struct { fields } if fields.is_empty() => {
                 write!(f, "struct")?;
                 if let Some(name) = name {
-                    write!(f, " {name}_struct")?;
+                    write!(f, " {name}")?;
                 }
                 write!(f, " {{}}")
             }
             OT::Struct { fields } => {
                 write!(f, "struct")?;
                 if let Some(name) = name {
-                    write!(f, " {name}_struct")?;
+                    write!(f, " {name}")?;
                 }
                 writeln!(f, " {{")?;
                 for (idx, (name, ty)) in fields.iter().enumerate() {
