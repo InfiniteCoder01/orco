@@ -29,6 +29,7 @@ impl rustc_codegen_ssa::traits::CodegenBackend for OrcoCodegenBackend {
         // crate::codegen(tcx, &ir, items);
 
         let backend = orco_cgen::Backend::new();
+        ir.monomorphize();
         ir.declare_mono(&backend);
         print!("{backend}");
 

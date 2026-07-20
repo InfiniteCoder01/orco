@@ -39,8 +39,9 @@ pub struct Store {
     pub function_bodies: HashMap<orco::Symbol, Specialized<ir::Body>>,
 
     /// List of generic params to monomorphize types
-    pub type_instances: HashSet<(orco::Symbol, Vec<orco::Type>)>,
-    // pub function_instances: HashMap<orco::Symbol, HashSet<Vec<orco::Type>>>,
+    type_instances: HashSet<(orco::Symbol, Vec<orco::Type>)>,
+    /// List of generic params to monomorphize functions
+    function_instances: HashSet<(orco::Symbol, Vec<orco::Type>)>,
 }
 
 impl Store {

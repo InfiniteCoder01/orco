@@ -3,7 +3,6 @@
 //! is generally the reference for other backends
 //! See [Backend]
 // TODO: ABI
-// TODO: Extra type interning
 #![warn(missing_docs)]
 
 /// Type formatting & other things
@@ -158,7 +157,7 @@ impl std::fmt::Display for Backend {
 
         let types = self.types.pin();
         let mut sorter = TopSorter::default();
-        for (name, ty) in types.into_iter() {
+        for (name, ty) in types.iter() {
             let mut dependencies = Vec::new();
             type_dependencies(self, ty, &mut dependencies);
             sorter.deps.insert(*name, dependencies);
@@ -192,7 +191,7 @@ impl std::fmt::Display for Backend {
             sorter.order.push(name);
         }
 
-        for (name, _) in types.into_iter() {
+        for (name, _) in types.iter() {
             topsort(*name, &mut sorter);
         }
         writeln!(f)?;
@@ -216,7 +215,7 @@ impl std::fmt::Display for Backend {
 
         writeln!(f)?;
 
-        for (name, signature) in self.functions.pin().into_iter() {
+        for (name, signature) in self.functions.pin().iter() {
             writeln!(
                 f,
                 "{};",
