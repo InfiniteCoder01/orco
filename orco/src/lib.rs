@@ -18,7 +18,7 @@ pub mod attrs;
 /// Declare items before defining them.
 /// Think of it as an interface to generate C headers (uh oh generics...).
 /// For adding generic params, see [`Type::Param`]
-pub trait DeclarationBackend: Sync {
+pub trait DeclarationBackend {
     /// Declare a function (does not have to be defined within this linker unit).
     /// Set `return_type` to [None] if require no return value.
     /// Specializations declared during codegen

@@ -18,7 +18,7 @@ pub use control_flow::*;
 /// NOTE: whenever an instruction yields a value,
 /// it may be reordered or removed, until the value gets used.
 /// Use [`Self::mk_tmp`] to convert values to variables
-pub trait BodyCodegen {
+pub trait BodyCodegen: Intrinsics + AcfCodegen + BcfCodegen {
     /// Leave a comment. Mainly for source2source backends
     fn comment(&mut self, comment: &str) {
         let _ = comment;
@@ -61,26 +61,11 @@ pub trait BodyCodegen {
 
     /// Return a value from the current function.
     fn return_(&mut self, value: Option<Value>);
-
-    /// Get intrinsic functions, see [Intrinsics]
-    fn intrinsics(&mut self) -> impl Intrinsics + '_ {
-        impls::Unimplemented
-    }
-
-    /// Get arbitrary control flow instructions, see [`AcfCodegen`]
-    fn acf(&mut self) -> impl AcfCodegen + '_ {
-        impls::Unimplemented
-    }
-
-    /// Get block control flow instructions, see [`BcfCodegen`]
-    fn bcf(&mut self) -> impl BcfCodegen + '_ {
-        impls::Unimplemented
-    }
 }
 
 /// Interface for generating actual code.
 /// All the items defined must be declared using [`crate::DeclarationBackend`] first.
 pub trait CodegenBackend: Sync {
     /// Define a function
-    fn cg_function(&self, name: Symbol, generic_params: Vec<Type>) -> impl BodyCodegen;
+    fn cg_function(&self, name: Symbol, generic_params: Vec<Type>) -> Box<dyn BodyCodegen>;
 }

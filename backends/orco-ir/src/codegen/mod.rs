@@ -191,3 +191,13 @@ impl core::ops::Drop for Codegen<'_> {
             .unwrap_or_else(|_| panic!("function {} is already defined", self.name));
     }
 }
+
+impl orco::CodegenBackend for Store {
+    fn cg_function(
+        &self,
+        name: orco::Symbol,
+        generic_params: Vec<orco::Type>,
+    ) -> impl orco::codegen::BodyCodegen {
+        codegen::Codegen::new(self, name, generic_params)
+    }
+}

@@ -6,26 +6,28 @@
 /// Intermediate representation for code
 pub mod ir;
 
-/// Code generation impl
-pub mod codegen;
+// /// Code generation impl
+// pub mod codegen;
 
 /// Utilities to work with generics and specializations
 pub mod generics;
 
-/// IR forwarding - invoking another backend
-/// to generate code from the IR
-mod forwarding;
+// /// IR forwarding - invoking another backend
+// /// to generate code from the IR
+// mod forwarding;
 
 use generics::Specialized;
 use papaya::{HashMap, HashSet};
 
 /// Function declaration, see [`Store::functions`]
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FunctionDecl {
+pub struct Function {
     #[allow(missing_docs)]
     pub generic_params: Vec<orco::Type>,
     #[allow(missing_docs)]
     pub signature: orco::types::FunctionSignature,
+    /// List of definitions (generic specializations)
+    pub bodies: Specialized<ir::Body>,
 }
 
 /// The heart storage
@@ -34,9 +36,7 @@ pub struct Store {
     /// Type aliases
     pub types: HashMap<orco::Symbol, Specialized<orco::Type>>,
     /// Function declarations
-    pub functions: HashMap<orco::Symbol, FunctionDecl>,
-    /// Function definitions
-    pub function_bodies: HashMap<orco::Symbol, Specialized<ir::Body>>,
+    pub functions: HashMap<orco::Symbol, Function>,
 
     /// List of generic params to monomorphize types
     type_instances: HashSet<(orco::Symbol, Vec<orco::Type>)>,
@@ -145,16 +145,6 @@ impl orco::DeclarationBackend for Store {
             .pin()
             .try_insert(generic_params, ty)
             .unwrap_or_else(|_| panic!("type {name} is already declared"));
-    }
-}
-
-impl orco::CodegenBackend for Store {
-    fn cg_function(
-        &self,
-        name: orco::Symbol,
-        generic_params: Vec<orco::Type>,
-    ) -> impl orco::codegen::BodyCodegen {
-        codegen::Codegen::new(self, name, generic_params)
     }
 }
 
