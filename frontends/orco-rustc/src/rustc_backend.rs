@@ -24,14 +24,10 @@ impl rustc_codegen_ssa::traits::CodegenBackend for OrcoCodegenBackend {
         // rustc_middle::mir::write_mir_pretty(tcx, &mut std::io::stdout()).unwrap();
         let items = tcx.hir_crate_items(());
 
-        let ir = orco_ir::Store::new();
-        crate::declare(tcx, &ir, items);
+        let module = orco::Module::new();
+        crate::declare(tcx, &module, items);
         // crate::codegen(tcx, &ir, items);
-
-        let backend = orco_cgen::Backend::new();
-        ir.monomorphize();
-        ir.declare_mono(&backend);
-        print!("{backend}");
+        print!("{module}");
 
         std::process::exit(0)
     }

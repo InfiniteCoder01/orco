@@ -9,3 +9,4 @@ repository.workspace = true
 
 [dependencies]
 sinter = "0.1.1"
+papaya.workspace = true

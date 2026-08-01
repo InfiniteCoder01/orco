@@ -90,6 +90,6 @@ impl super::Backend {
             }
         }
 
-        format!("{name}{}", orco::types::fmt_generics(generics)).into()
+        format!("{name}{}", orco::types::fmt_generic_args(generics)).into()
     }
 }

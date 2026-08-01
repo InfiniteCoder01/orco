@@ -88,7 +88,7 @@ impl Store {
         generics::match_specialization(&specs, generics, self, callback).unwrap_or_else(|| {
             panic!(
                 "no matching specialization for {name}{}",
-                orco::types::fmt_generics(generics)
+                orco::types::fmt_generic_args(generics)
             )
         })
     }
@@ -107,7 +107,7 @@ impl Store {
         generics::match_specialization(&specs, generics, self, callback).unwrap_or_else(|| {
             panic!(
                 "no matching specialization for {name}{}",
-                orco::types::fmt_generics(generics)
+                orco::types::fmt_generic_args(generics)
             )
         })
     }
@@ -152,7 +152,11 @@ impl std::fmt::Display for Store {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (name, specs) in self.types.pin().iter() {
             for (spec, ty) in specs.pin().iter() {
-                writeln!(f, "type {name}{} = {ty};", orco::types::fmt_generics(spec))?;
+                writeln!(
+                    f,
+                    "type {name}{} = {ty};",
+                    orco::types::fmt_generic_args(spec)
+                )?;
             }
         }
 
@@ -164,7 +168,7 @@ impl std::fmt::Display for Store {
                 f,
                 "{}fn {name}{}{};",
                 decl.signature.attrs,
-                orco::types::fmt_generics(&decl.generic_params),
+                orco::types::fmt_generic_args(&decl.generic_params),
                 decl.signature,
             )?;
 
@@ -173,7 +177,7 @@ impl std::fmt::Display for Store {
             };
 
             for (spec, body) in defs.pin().iter() {
-                writeln!(f, "for {} {body}", orco::types::fmt_generics(spec)).unwrap();
+                writeln!(f, "for {} {body}", orco::types::fmt_generic_args(spec)).unwrap();
             }
 
             writeln!(f)?;

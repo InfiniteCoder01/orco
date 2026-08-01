@@ -57,7 +57,7 @@ impl std::fmt::Display for Place {
         match self {
             Place::Variable(var) => write!(f, "_{}", var.0),
             Place::Global(name, generics) => {
-                write!(f, "{name}{}", orco::types::fmt_generics(generics))
+                write!(f, "{name}{}", orco::types::fmt_generic_args(generics))
             }
             Place::Deref(expr) => write!(f, "*{expr}"),
             Place::Field(place, idx) => write!(f, "{place}._{idx}"),

@@ -29,9 +29,9 @@ pub mod rustc_backend;
 /// Symbol declaration routines
 pub mod symbols;
 
-/// Code generation is used to define functions and other items
-pub mod codegen;
-pub use codegen::codegen;
+// /// Code generation is used to define functions and other items
+// pub mod codegen;
+// pub use codegen::codegen;
 
 // /// Intrinsic implementations
 // pub mod intrinsics;
@@ -39,23 +39,15 @@ pub use codegen::codegen;
 
 /// Base context for all declaration/codegen operations
 #[allow(missing_docs)]
-pub struct Context<'tcx, 'b, B> {
+#[derive(Clone, Copy)]
+pub struct Context<'tcx, 'module> {
     pub tcx: TyCtxt<'tcx>,
-    pub backend: &'b B,
+    pub module: &'module orco::Module,
 }
 
-impl<B> Copy for Context<'_, '_, B> {}
-impl<B> Clone for Context<'_, '_, B> {
-    fn clone(&self) -> Self {
-        Self {
-            tcx: self.tcx,
-            backend: self.backend,
-        }
-    }
-}
-
-impl<B> Context<'_, '_, B> {
+impl Context<'_, '_> {
     /// Shorthand for calling [`names::convert_path`]
+    #[inline(always)]
     pub fn convert_path(
         self,
         key: impl rustc_middle::query::IntoQueryKey<rustc_hir::def_id::DefId>,
@@ -64,32 +56,31 @@ impl<B> Context<'_, '_, B> {
     }
 
     /// Shorthand for calling [`types::convert`]
+    #[inline(always)]
     pub fn convert_ty(self, ty: rustc_middle::ty::Ty) -> Option<orco::Type> {
         types::convert(self.tcx, ty)
     }
 
     /// Shorthand for calling [`types::convert_generic_params`]
+    #[inline(always)]
     pub fn convert_generics(
         self,
         key: impl rustc_middle::query::IntoQueryKey<rustc_hir::def_id::DefId>,
-    ) -> Vec<orco::Type> {
+    ) -> Vec<orco::Symbol> {
         types::convert_generic_params(self.tcx, key.into_query_key())
     }
 }
 
 /// Declare all the items using the backend provided.
 /// See [`TyCtxt::hir_crate_items`]
-pub fn declare<B>(tcx: TyCtxt, backend: &B, items: &rustc_middle::hir::ModuleItems)
-where
-    B: orco::DeclarationBackend + Send + Sync,
-{
-    let backend = rustc_data_structures::sync::IntoDynSyncSend(backend);
+pub fn declare(tcx: TyCtxt, module: &orco::Module, items: &rustc_middle::hir::ModuleItems) {
+    let module = rustc_data_structures::sync::IntoDynSyncSend(module);
     items
         .par_items(|item| {
             let item = tcx.hir_item(item);
             let ctx = Context {
                 tcx,
-                backend: *backend,
+                module: *module,
             };
 
             use rustc_hir::ItemKind as IK;
@@ -109,18 +100,18 @@ where
                 IK::Struct(..) => ctx.struct_(item.owner_id.to_def_id()),
                 IK::Union(..) => (),
                 IK::Trait { items, .. } => {
-                    for item in items {
-                        use rustc_hir::TraitItemKind as TIK;
-                        match ctx.tcx.hir_trait_item(*item).kind {
-                            TIK::Fn(_, rustc_hir::TraitFn::Required(idents)) => {
-                                ctx.function_decl(item.owner_id.to_def_id(), idents)
-                            }
-                            TIK::Fn(_, rustc_hir::TraitFn::Provided(..)) => {
-                                ctx.function(item.owner_id.def_id)
-                            }
-                            _ => (),
-                        }
-                    }
+                    // for item in items {
+                    //     use rustc_hir::TraitItemKind as TIK;
+                    //     match ctx.tcx.hir_trait_item(*item).kind {
+                    //         TIK::Fn(_, rustc_hir::TraitFn::Required(idents)) => {
+                    //             ctx.function_decl(item.owner_id.to_def_id(), idents)
+                    //         }
+                    //         TIK::Fn(_, rustc_hir::TraitFn::Provided(..)) => {
+                    //             ctx.function(item.owner_id.def_id)
+                    //         }
+                    //         _ => (),
+                    //     }
+                    // }
                 }
                 IK::TraitAlias(..) => (),
                 IK::Impl(..) => (),
@@ -138,7 +129,7 @@ where
 
             let ctx = Context {
                 tcx,
-                backend: *backend,
+                module: *module,
             };
 
             use rustc_hir::ImplItemKind as IIK;
@@ -158,7 +149,7 @@ where
             let item = tcx.hir_foreign_item(item);
             let ctx = Context {
                 tcx,
-                backend: *backend,
+                module: *module,
             };
 
             use rustc_hir::ForeignItemKind as FIK;

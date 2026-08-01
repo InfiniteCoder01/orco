@@ -141,7 +141,7 @@ impl std::fmt::Display for Type {
             Type::Char(false) => write!(f, "achar"),
             Type::Char(true) => write!(f, "uchar"),
 
-            Type::Symbol(sym, generics) => write!(f, "{sym}{}", fmt_generics(generics)),
+            Type::Symbol(sym, generics) => write!(f, "{sym}{}", fmt_generic_args(generics)),
             Type::Array(ty, len) => write!(f, "{ty}[{len}]"),
             Type::Struct { fields } => {
                 write!(f, "{{{}", if f.alternate() { '\n' } else { ' ' })?;
@@ -205,8 +205,26 @@ impl std::fmt::Display for Type {
     }
 }
 
-/// Format generic args using <> notation
-pub fn fmt_generics(generics: &[Type]) -> String {
+/// Format generic parameters using <> notation
+pub fn fmt_generic_params(generics: &[Symbol]) -> String {
+    if generics.is_empty() {
+        return String::new();
+    }
+
+    let mut buffer = String::from("<");
+    use std::fmt::Write as _;
+    for (idx, ty) in generics.iter().enumerate() {
+        if idx > 0 {
+            buffer.push_str(", ");
+        }
+        write!(&mut buffer, "{ty}").unwrap();
+    }
+    buffer.push('>');
+    buffer
+}
+
+/// Format generic arguments using <> notation
+pub fn fmt_generic_args(generics: &[Type]) -> String {
     if generics.is_empty() {
         return String::new();
     }
@@ -242,32 +260,7 @@ impl std::fmt::Display for IntegerSize {
     }
 }
 
-/// Function signature without a name
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FunctionSignature {
-    /// Parameter types with optional names
-    pub params: Vec<(Option<String>, Type)>,
-    /// Return type
-    pub return_type: Option<Type>,
-    /// Function attributes
-    pub attrs: crate::attrs::FunctionAttributes,
-}
-
-impl FunctionSignature {
-    #[allow(missing_docs)]
-    #[must_use]
-    pub fn new(
-        params: Vec<(Option<String>, Type)>,
-        return_type: Option<Type>,
-        attrs: crate::attrs::FunctionAttributes,
-    ) -> Self {
-        Self {
-            params,
-            return_type,
-            attrs,
-        }
-    }
-
+impl crate::Function {
     /// Get function pointer type for this function signature
     pub fn ptr_type(&self) -> Type {
         Type::FnPtr {
@@ -283,33 +276,6 @@ impl FunctionSignature {
         }
         if let Some(ty) = &mut self.return_type {
             ty.instantiate(map);
-        }
-    }
-}
-
-impl std::fmt::Display for FunctionSignature {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(")?;
-
-        for (idx, (name, ty)) in self.params.iter().enumerate() {
-            if idx > 0 {
-                write!(f, ", ")?;
-            }
-
-            match name {
-                Some(name) => write!(f, "{name:}: ")?,
-                None => write!(f, "_{idx}: ")?,
-            }
-
-            ty.fmt(f)?;
-        }
-
-        match &self.return_type {
-            Some(ty) => {
-                write!(f, ") -> ")?;
-                ty.fmt(f)
-            }
-            None => write!(f, ") -> void"),
         }
     }
 }

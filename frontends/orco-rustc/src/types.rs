@@ -98,13 +98,14 @@ pub fn convert_generic_args(tcx: TyCtxt, args: &rustc_middle::ty::GenericArgs) -
         .collect()
 }
 
-pub fn convert_generic_params(tcx: TyCtxt, key: rustc_hir::def_id::DefId) -> Vec<orco::Type> {
+/// Get a list of generic param names
+pub fn convert_generic_params(tcx: TyCtxt, key: rustc_hir::def_id::DefId) -> Vec<orco::Symbol> {
     let generics = tcx.generics_of(key);
     let mut types = generics
         .parent
         .map_or_else(Default::default, |key| convert_generic_params(tcx, key));
     for param in &generics.own_params {
-        types.push(orco::Type::Param(param.name.as_str().into()));
+        types.push(param.name.as_str().into());
     }
     types
 }

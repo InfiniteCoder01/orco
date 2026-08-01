@@ -14,10 +14,7 @@ fn convert_fn_attrs(
     }
 }
 
-impl<B> crate::Context<'_, '_, B>
-where
-    B: orco::DeclarationBackend,
-{
+impl crate::Context<'_, '_> {
     /// Declare a function from MIR by [`rustc_hir::def_id::LocalDefId`].
     /// The function MUST have a body. For bodyless functions, see [`Self::function_decl`]
     pub fn function(self, key: rustc_hir::def_id::LocalDefId) {
@@ -34,12 +31,14 @@ where
             params.push((name, ty));
         }
 
-        self.backend.function(
+        self.module.functions.pin().insert(
             self.convert_path(key),
-            self.convert_generics(key),
-            params,
-            self.convert_ty(sig.output()),
-            attrs.clone(),
+            orco::Function {
+                generics: self.convert_generics(key),
+                params,
+                return_type: self.convert_ty(sig.output()),
+                attrs,
+            },
         );
     }
 
@@ -62,12 +61,14 @@ where
             params.push((idents[i].map(|ident| ident.as_str().to_owned()), ty));
         }
 
-        self.backend.function(
+        self.module.functions.pin().insert(
             self.convert_path(key),
-            self.convert_generics(key),
-            params,
-            self.convert_ty(sig.output()),
-            attrs.clone(),
+            orco::Function {
+                generics: self.convert_generics(key),
+                params,
+                return_type: self.convert_ty(sig.output()),
+                attrs,
+            },
         );
     }
 
@@ -96,10 +97,12 @@ where
                 ty,
             ));
         }
-        self.backend.type_(
+        self.module.types.pin().insert(
             self.convert_path(key),
-            self.convert_generics(key),
-            orco::Type::Struct { fields },
+            orco::TypeAlias {
+                generics: self.convert_generics(key),
+                type_: orco::Type::Struct { fields },
+            },
         );
     }
 }
