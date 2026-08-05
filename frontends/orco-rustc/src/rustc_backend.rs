@@ -26,7 +26,7 @@ impl rustc_codegen_ssa::traits::CodegenBackend for OrcoCodegenBackend {
 
         let module = orco::Module::new();
         crate::declare(tcx, &module, items);
-        // crate::codegen(tcx, &ir, items);
+        crate::codegen(tcx, &module, items);
         print!("{module}");
 
         std::process::exit(0)

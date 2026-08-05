@@ -11,9 +11,13 @@ pub use types::Type;
 /// Attributes are a way to pass information about symbols to the backend
 pub mod attrs;
 
+/// Body IR
+pub mod ir;
+pub use ir::Body;
+
 use papaya::HashMap;
 /// A single compilation unit
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Module {
     /// Type declarations (aliases)
     pub types: HashMap<Symbol, TypeAlias>,
@@ -42,7 +46,12 @@ impl std::fmt::Display for Module {
         writeln!(f)?;
 
         for (name, func) in self.functions.pin().iter() {
-            writeln!(f, "{}fn {name}{};", func.attrs, func,)?;
+            write!(f, "{}fn {name}{}", func.attrs, func)?;
+            if let Some(body) = func.body.get() {
+                writeln!(f, " {body}\n")?;
+            } else {
+                writeln!(f, ";")?;
+            }
         }
 
         Ok(())
@@ -59,7 +68,7 @@ pub struct TypeAlias {
 }
 
 /// Function decl & body
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Function {
     /// Type parameters
     pub generics: Vec<Symbol>,
@@ -69,6 +78,23 @@ pub struct Function {
     pub return_type: Option<Type>,
     /// Function attributes
     pub attrs: crate::attrs::FunctionAttributes,
+    /// Function body
+    pub body: std::sync::OnceLock<Body>,
+}
+
+impl Function {
+    /// Generate a function body with all argument variables pre-added
+    pub fn create_def(&self) -> Body {
+        let mut body = Body::new();
+        for (name, ty) in self.params.iter().cloned() {
+            body.variables.push(ir::Variable {
+                ty,
+                arg: true,
+                name,
+            });
+        }
+        body
+    }
 }
 
 impl std::fmt::Display for Function {

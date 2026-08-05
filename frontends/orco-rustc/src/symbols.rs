@@ -38,6 +38,7 @@ impl crate::Context<'_, '_> {
                 params,
                 return_type: self.convert_ty(sig.output()),
                 attrs,
+                body: std::sync::OnceLock::new(),
             },
         );
     }
@@ -68,6 +69,7 @@ impl crate::Context<'_, '_> {
                 params,
                 return_type: self.convert_ty(sig.output()),
                 attrs,
+                body: std::sync::OnceLock::new(),
             },
         );
     }
