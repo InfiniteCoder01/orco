@@ -1,5 +1,5 @@
 use crate::TyCtxt;
-use ir::Instruction as Instr;
+use ir::{AcfInstr, Instr};
 use orco::ir;
 use std::collections::HashMap;
 
@@ -10,7 +10,6 @@ struct CodegenCtx<'tcx, 'a> {
     ir_body: ir::Body,
     rs_body: &'a rustc_middle::mir::Body<'tcx>,
     variables: HashMap<rustc_middle::mir::Local, ir::VariableId>,
-    // labels: HashMap<rustc_middle::mir::BasicBlock, oc::Label>,
 }
 
 impl<'tcx, 'a> std::ops::Deref for CodegenCtx<'tcx, 'a> {
@@ -22,13 +21,11 @@ impl<'tcx, 'a> std::ops::Deref for CodegenCtx<'tcx, 'a> {
 }
 
 impl<'tcx> CodegenCtx<'tcx, '_> {
-    fn instr(&mut self, instr: Instr) {
-        self.ir_body.instructions.push(instr);
+    fn instr(&mut self, instr: impl Into<Instr>) {
+        self.ir_body.instructions.push(instr.into());
     }
 
     fn codegen_statement(&mut self, stmt: &rustc_middle::mir::Statement<'tcx>) {
-        // self.codegen.comment(&format!("{stmt:#?}"));
-
         use rustc_middle::mir::StatementKind;
         let (place, rvalue) = match &stmt.kind {
             StatementKind::Assign(assign) => assign.as_ref(),
@@ -123,43 +120,60 @@ impl<'tcx> CodegenCtx<'tcx, '_> {
         }
     }
 
-    fn codegen_block(&mut self, block: rustc_middle::mir::BasicBlock) {
-        // self.codegen.acf().label(self.labels[&block]);
-        let block = &self.rs_body[block];
+    /// Codegen a basic block, inserting a label to it.
+    /// Previous and next blocks are needed for optimization of jumps.
+    fn codegen_block(
+        &mut self,
+        block: rustc_middle::mir::BasicBlock,
+        prev: Option<rustc_middle::mir::BasicBlock>,
+        next: Option<rustc_middle::mir::BasicBlock>,
+    ) {
+        let predecessors = self.rs_body.basic_blocks.predecessors();
+        type Pred<'a> = &'a [rustc_middle::mir::BasicBlock];
+        if &*predecessors[block] != prev.as_ref().map_or::<Pred, _>(&[], core::slice::from_ref) {
+            self.instr(Instr::Acf(AcfInstr::Label(ir::LabelId(block.as_u32()))));
+        }
 
+        let block = &self.rs_body[block];
         for stmt in &block.statements {
             self.codegen_statement(stmt);
         }
 
-        // self.codegen.comment(&format!("{:#?}", block.terminator()));
+        let next_block = move |this: &mut Self, block| {
+            if next != Some(block) {
+                this.instr(AcfInstr::Jump(ir::LabelId(block.as_u32())));
+            }
+        };
+
         use rustc_middle::mir::TerminatorKind;
         match &block.terminator().kind {
-            TerminatorKind::Goto { target } => {
-                //self.codegen.acf().jump(self.labels[target]),
-            }
+            TerminatorKind::Goto { target } => next_block(self, *target),
             TerminatorKind::SwitchInt { discr, targets } => {
-                //         use oc::Intrinsics as _;
-                //         for (value, target) in targets.iter() {
-                //             let discr = self.op(discr).expect("SwitchInt on unit discriminant");
-                //             let value = match self.codegen.type_of(discr.0) {
-                //                 orco::Type::Integer(is) => self.codegen.iconst(value as _, is),
-                //                 orco::Type::Unsigned(is) => self.codegen.uconst(value as _, is),
-                //                 orco::Type::Bool => {
-                //                     assert!(
-                //                         [0, 1].contains(&value),
-                //                         "invalid bool branch in SwitchInt: {value} (expected 0 or 1)"
-                //                     );
-                //                     self.codegen.bconst(value != 0)
-                //                 }
-                //                 orco::Type::Symbol(name) => {
-                //                     todo!("symbol discriminant type in SwitchInt ({name})")
-                //                 }
-                //                 ty => panic!("invalid discriminant type in SwitchInt: {ty}"),
-                //             };
-                //             let condition = self.codegen.intrinsics().eq(discr, value);
-                //             self.codegen.acf().cjump(condition, self.labels[&target]);
-                //         }
-                //         self.codegen.acf().jump(self.labels[&targets.otherwise()]);
+                for (value, target) in targets.iter() {
+                    self.instr(AcfInstr::CJump(ir::LabelId(target.as_u32())));
+                    // TODO!!!
+                    // self.instr(Intrinsic::Eq);
+
+                    let idx = self.ir_body.instructions.len();
+                    self.op(discr);
+                    match self.ir_body.value_ty(idx) {
+                        orco::Type::Integer(is) => self.instr(Instr::IConst(value as _, is)),
+                        orco::Type::Unsigned(is) => self.instr(Instr::UConst(value as _, is)),
+                        orco::Type::Bool => {
+                            assert!(
+                                [0, 1].contains(&value),
+                                "invalid bool branch in SwitchInt: {value} (expected 0 or 1)"
+                            );
+                            self.instr(Instr::BConst(value != 0))
+                        }
+                        orco::Type::Symbol(name, _) => {
+                            todo!("symbol discriminant type in SwitchInt ({name})")
+                        }
+                        ty => panic!("invalid discriminant type in SwitchInt: {ty}"),
+                    }
+                }
+
+                next_block(self, targets.otherwise())
             }
             TerminatorKind::UnwindResume => (),
             TerminatorKind::UnwindTerminate(..) => todo!(),
@@ -168,6 +182,9 @@ impl<'tcx> CodegenCtx<'tcx, '_> {
                     .variables
                     .get(&rustc_middle::mir::RETURN_PLACE)
                     .copied();
+                if next.is_none() && value.is_none() {
+                    return; // TODO: Idk if it's useful or not
+                }
                 self.instr(Instr::Return(value.is_some()));
                 if let Some(value) = value {
                     self.instr(Instr::Var(value));
@@ -175,7 +192,7 @@ impl<'tcx> CodegenCtx<'tcx, '_> {
             }
             TerminatorKind::Unreachable => todo!(),
             TerminatorKind::Drop { target, .. } => {
-                // self.codegen.acf().jump(self.labels[target]);
+                self.instr(AcfInstr::Jump(ir::LabelId(target.as_u32())));
                 // TODO
             }
             TerminatorKind::Call {
@@ -194,9 +211,9 @@ impl<'tcx> CodegenCtx<'tcx, '_> {
                 //         retval.expect("can't use the return value of a unit function"),
                 //     );
                 // }
-                // if let Some(target) = target {
-                //     self.codegen.acf().jump(oc::Label(target.index()));
-                // }
+                if let Some(target) = target {
+                    next_block(self, *target);
+                }
             }
             TerminatorKind::TailCall { func, args, .. } => {
                 // let func = self.op(func).expect("trying to call a unit value");
@@ -205,8 +222,8 @@ impl<'tcx> CodegenCtx<'tcx, '_> {
                 // self.codegen.return_(retval);
             }
             TerminatorKind::Assert { target, .. } => {
-                // self.codegen.acf().jump(self.labels[target]);
                 // TODO
+                next_block(self, *target);
             }
             TerminatorKind::Yield { .. } => todo!(),
             TerminatorKind::CoroutineDrop => todo!(),
@@ -231,31 +248,13 @@ pub fn body<'tcx>(
         variables: HashMap::new(),
     };
 
-    let mut local_names = HashMap::new();
-    for info in &rs_body.var_debug_info {
-        use rustc_middle::mir::VarDebugInfoContents as VDIC;
-        match info.value {
-            VDIC::Place(place) => {
-                if !place.projection.is_empty() && local_names.contains_key(&place.local) {
-                    continue;
-                }
-                local_names.insert(place.local, info.name);
-            }
-            VDIC::Const(..) => (),
-        }
-    }
-
     for (idx, local) in rs_body.local_decls.iter_enumerated() {
         let var = if (1..rs_body.arg_count + 1).contains(&idx.index()) {
             // An argument
             Some(ir::VariableId(idx.index() as u32 - 1))
         } else {
-            ctx.convert_ty(local.ty).map(|ty| {
-                let id = ctx.ir_body.declare_var(ty);
-                ctx.ir_body.var_mut(id).name =
-                    local_names.get(&idx).map(rustc_span::Symbol::to_string);
-                id
-            })
+            ctx.convert_ty(local.ty)
+                .map(|ty| ctx.ir_body.declare_var(ty, None))
         };
 
         if let Some(var) = var {
@@ -263,17 +262,36 @@ pub fn body<'tcx>(
         }
     }
 
-    // for idx in rs_body.basic_blocks.indices() {
-    //     ctx.labels.insert(idx, ctx.codegen.acf().alloc_label());
-    // }
+    for info in &rs_body.var_debug_info {
+        use rustc_middle::mir::VarDebugInfoContents as VDIC;
+        match info.value {
+            VDIC::Place(place) => {
+                let var = ctx.ir_body.var_mut(ctx.variables[&place.local]);
+                if !place.projection.is_empty() && var.name.is_some() {
+                    continue;
+                }
+                var.name = Some(info.name.to_string());
+            }
+            VDIC::Const(..) => (),
+        }
+    }
 
-    for block in rs_body.basic_blocks.reverse_postorder() {
-        ctx.codegen_block(*block);
+    for _ in rs_body.basic_blocks.indices() {
+        ctx.ir_body.alloc_label(Some("bb".to_owned()));
+    }
+
+    let blocks = rs_body.basic_blocks.reverse_postorder();
+    let mut prev = None;
+    for (idx, &block) in blocks.iter().enumerate() {
+        let next = blocks.get(idx + 1).copied();
+        ctx.codegen_block(block, prev, next);
+        prev = Some(block);
     }
 
     ctx.ir_body
 }
 
+/// Codegen a single function by key, inserting it's body into the module
 pub fn cg_function(ctx: super::Context, key: rustc_hir::def_id::DefId) {
     let functions = ctx.module.functions.pin();
     let path = ctx.convert_path(key);
@@ -281,7 +299,10 @@ pub fn cg_function(ctx: super::Context, key: rustc_hir::def_id::DefId) {
         .get(&path)
         .unwrap_or_else(|| panic!("trying to define an undeclared function {path}"));
     let ir_body = body(ctx, function.create_def(), ctx.tcx.optimized_mir(key));
-    function.body.set(ir_body);
+    function
+        .body
+        .set(ir_body)
+        .unwrap_or_else(|_| panic!("trying to define function {path} twice"));
 }
 
 /// Codegen all the functions using the backend provided.

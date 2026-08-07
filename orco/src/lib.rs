@@ -87,7 +87,7 @@ impl Function {
     pub fn create_def(&self) -> Body {
         let mut body = Body::new();
         for (name, ty) in self.params.iter().cloned() {
-            body.variables.push(ir::Variable {
+            body.variables.push(ir::VariableInfo {
                 ty,
                 arg: true,
                 name,

@@ -1,36 +1,24 @@
 mod instr;
-pub use instr::Instruction;
+pub use instr::{AcfInstruction as AcfInstr, Instruction as Instr};
 
-/// Id of a variable (index into variables list).
-/// It is known that all function arguments have sequential IDs, starting from index 0.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct VariableId(pub u32);
+mod variable;
+pub use variable::{VariableId, VariableInfo};
 
-impl std::fmt::Display for VariableId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{}", self.0)
-    }
-}
-
-/// Info about one variable in a body.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Variable {
-    /// Type of this variable.
-    pub ty: crate::Type,
-    /// Wether this variable comes from function arguments.
-    pub arg: bool,
-    /// Debug name.
-    pub name: Option<String>,
-}
+mod label;
+pub use label::LabelId;
 
 /// A function body.
 #[derive(Clone, Debug, Default, PartialEq, PartialOrd)]
 pub struct Body {
     /// All variables used in the body.
-    /// Index this with [`orco::codegen::Variable::0`].
-    pub variables: Vec<Variable>,
-    /// A list of instructions, with values following stack-based order.
-    pub instructions: Vec<Instruction>,
+    /// Index this with [`VariableId::0`].
+    pub variables: Vec<VariableInfo>,
+    /// Debug names attached to labels.
+    /// Index this with [`LabelId::0`].
+    pub label_names: Vec<Option<String>>,
+    /// A list of instructions, with values following inverse stack-based order.
+    /// See [`Instr`]
+    pub instructions: Vec<Instr>,
 }
 
 impl Body {
@@ -39,30 +27,27 @@ impl Body {
         Self::default()
     }
 
-    pub fn declare_var(&mut self, ty: crate::Type) -> VariableId {
-        let id = VariableId(self.variables.len() as _);
-        self.variables.push(Variable {
-            ty,
-            arg: false,
-            name: None,
-        });
-        id
-    }
-
-    pub fn var(&self, id: VariableId) -> &Variable {
-        self.variables
-            .get(id.0 as usize)
-            .unwrap_or_else(|| panic!("invalid variable id {id}"))
-    }
-
-    pub fn var_mut(&mut self, id: VariableId) -> &mut Variable {
-        self.variables
-            .get_mut(id.0 as usize)
-            .unwrap_or_else(|| panic!("invalid variable id {id}"))
-    }
-
-    pub fn var_debug_name(&self, id: VariableId) -> String {
-        format!("{}{id}", self.var(id).name.as_deref().unwrap_or("_"))
+    /// Get type of a value generated at index.
+    pub fn value_ty(&self, idx: usize) -> crate::Type {
+        use crate::Type;
+        match self.instructions[idx] {
+            Instr::IConst(_, size) => Type::Integer(size),
+            Instr::UConst(_, size) => Type::Unsigned(size),
+            Instr::FConst(_, size) => Type::Float(size),
+            Instr::BConst(_) => Type::Bool,
+            Instr::Var(id) => self.var(id).ty.clone(),
+            Instr::Field(field_idx) => {
+                let ty = self.value_ty(idx + 1);
+                let Type::Struct { mut fields } = ty else {
+                    panic!("trying to access field #{field_idx} on a non-struct type {ty}");
+                };
+                fields.swap_remove(field_idx as _).1
+            }
+            Instr::Assign => Type::Error,
+            Instr::Acf(..) => Type::Error,
+            Instr::Return(..) => Type::Error,
+            Instr::Error => Type::Error,
+        }
     }
 
     pub fn debug_instr(
@@ -71,13 +56,13 @@ impl Body {
         f: &mut std::fmt::Formatter<'_>,
     ) -> Result<usize, std::fmt::Error> {
         match self.instructions[idx] {
-            Instruction::Var(id) => write!(f, "{}", self.var_debug_name(id)).map(|_| idx + 1),
-            Instruction::Assign => {
+            Instr::Var(id) => write!(f, "{}", self.var_debug_name(id)).map(|_| idx + 1),
+            Instr::Assign => {
                 idx = self.debug_instr(idx + 1, f)?;
                 write!(f, " = ")?;
                 self.debug_instr(idx, f)
             }
-            Instruction::Return(has_value) => {
+            Instr::Return(has_value) => {
                 write!(f, "return")?;
                 if has_value {
                     write!(f, " ")?;
@@ -85,6 +70,34 @@ impl Body {
                 } else {
                     Ok(idx + 1)
                 }
+            }
+
+            Instr::Field(field_idx) => {
+                let ty = self.value_ty(idx + 1);
+                idx = self.debug_instr(idx + 1, f)?;
+                let crate::Type::Struct { fields } = ty else {
+                    panic!("trying to access field #{field_idx} on a non-struct type {ty}");
+                };
+
+                match &fields[field_idx as usize].0 {
+                    Some(name) => write!(f, ".{name}")?,
+                    None => write!(f, ".field_{field_idx}")?,
+                }
+
+                Ok(idx)
+            }
+
+            Instr::Acf(AcfInstr::Label(label)) => {
+                write!(f, "{}:", self.label_debug_name(label)).map(|_| idx + 1)
+            }
+            Instr::Acf(AcfInstr::Jump(label)) => {
+                write!(f, "jump {}", self.label_debug_name(label)).map(|_| idx + 1)
+            }
+            Instr::Acf(AcfInstr::CJump(label)) => {
+                write!(f, "if ")?;
+                idx = self.debug_instr(idx + 1, f)?;
+                write!(f, " jump {}", self.label_debug_name(label))?;
+                Ok(idx)
             }
 
             instr => {
@@ -130,6 +143,12 @@ impl std::fmt::Display for Body {
 
         let mut idx = 0;
         while idx < self.instructions.len() {
+            if matches!(self.instructions[idx], Instr::Acf(AcfInstr::Label(..))) {
+                idx = self.debug_instr(idx, f)?;
+                writeln!(f)?;
+                continue;
+            }
+
             write!(f, "  ")?;
             idx = self.debug_instr(idx, f)?;
             writeln!(f, ";")?;

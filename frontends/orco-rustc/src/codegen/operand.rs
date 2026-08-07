@@ -1,4 +1,4 @@
-use super::{CodegenCtx, Instr, ir};
+use super::{CodegenCtx, Instr};
 
 impl CodegenCtx<'_, '_> {
     pub(super) fn place(&mut self, place: rustc_middle::mir::Place) {
@@ -6,7 +6,7 @@ impl CodegenCtx<'_, '_> {
             use rustc_middle::mir::ProjectionElem as PE;
             match proj {
                 PE::Deref => todo!(),
-                PE::Field(_field, _) => todo!(),
+                PE::Field(field, _) => self.instr(Instr::Field(field.as_u32())),
                 PE::Index(_) => todo!(),
                 PE::ConstantIndex { .. } => todo!(),
                 PE::Subslice { .. } => todo!(),
@@ -68,8 +68,7 @@ impl CodegenCtx<'_, '_> {
                 // TyKind::FnDef(func, generics) => self.instr(self.generic_name(*func, generics)),
                 TyKind::Adt(..) => {
                     self.convert_ty(ty).map(|ty| {
-                        let var = self.ir_body.declare_var(ty);
-                        self.ir_body.var_mut(var).name.insert("zst".to_owned());
+                        let var = self.ir_body.declare_var(ty, Some("zst".to_owned()));
                         self.instr(Instr::Var(var));
                     });
                 }

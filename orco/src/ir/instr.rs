@@ -1,3 +1,6 @@
+/// Single instruction can be thought of a node in the AST-like IR,
+/// with it's children being flat written into a list of instructions right after.
+/// See [`super::Body::instructions`]
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub enum Instruction {
     /// Signed integer constant
@@ -11,8 +14,13 @@ pub enum Instruction {
 
     /// Load the variable
     Var(super::VariableId),
+    /// Access a field at index
+    Field(u32),
     /// Assign the value to a place last expression references
     Assign,
+
+    /// See [`AcfInstruction`]
+    Acf(AcfInstruction),
 
     /// Returns the value (if any)
     Return(bool),
@@ -26,7 +34,12 @@ impl Instruction {
             Self::IConst(..) | Self::UConst(..) | Self::FConst(..) | Self::BConst(..) => 0,
 
             Self::Var(..) => 0,
+            Self::Field(..) => 1,
             Self::Assign => 2,
+
+            Self::Acf(AcfInstruction::Label(..)) => 0,
+            Self::Acf(AcfInstruction::Jump(..)) => 0,
+            Self::Acf(AcfInstruction::CJump(..)) => 1,
 
             Self::Return(has_value) => has_value as _,
             Self::Error => 0,
@@ -38,7 +51,10 @@ impl Instruction {
             Self::IConst(..) | Self::UConst(..) | Self::FConst(..) | Self::BConst(..) => true,
 
             Self::Var(..) => true,
+            Self::Field(..) => true,
             Self::Assign => false,
+
+            Self::Acf(..) => false,
 
             Self::Return(..) => false,
             Self::Error => true,
@@ -55,10 +71,40 @@ impl std::fmt::Display for Instruction {
             Self::BConst(value) => write!(f, "{value}"),
 
             Self::Var(id) => write!(f, "?{id}"),
+            Self::Field(idx) => write!(f, "field_{idx}"),
             Self::Assign => write!(f, "assign"),
+
+            Self::Acf(instr) => instr.fmt(f),
 
             Self::Return(..) => write!(f, "return"),
             Self::Error => write!(f, "error"),
         }
+    }
+}
+
+/// Arbitrary control flow instructions.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum AcfInstruction {
+    /// Just places a label here, allowing jump to this point.
+    Label(super::LabelId),
+    /// Unconditionally jump to a label.
+    Jump(super::LabelId),
+    /// Conditionally jump to a label.
+    CJump(super::LabelId),
+}
+
+impl std::fmt::Display for AcfInstruction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Label(label) => write!(f, "label {label}"),
+            Self::Jump(label) => write!(f, "jump {label}"),
+            Self::CJump(label) => write!(f, "cjump {label}"),
+        }
+    }
+}
+
+impl From<AcfInstruction> for Instruction {
+    fn from(instr: AcfInstruction) -> Self {
+        Self::Acf(instr)
     }
 }
