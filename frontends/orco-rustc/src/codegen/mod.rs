@@ -1,5 +1,5 @@
 use crate::TyCtxt;
-use ir::Instr;
+use ir::{Instr, Intrinsic};
 use orco::ir;
 use std::collections::HashMap;
 
@@ -151,8 +151,7 @@ impl<'tcx> CodegenCtx<'tcx, '_> {
             TerminatorKind::SwitchInt { discr, targets } => {
                 for (value, target) in targets.iter() {
                     self.instr(Instr::AcfCJump(ir::LabelId(target.as_u32())));
-                    // TODO!!!
-                    // self.instr(Intrinsic::Eq);
+                    self.instr(Intrinsic::Eq);
 
                     let idx = self.ir_body.instructions.len();
                     self.op(discr);

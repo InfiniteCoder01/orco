@@ -68,7 +68,7 @@ impl std::fmt::Display for Intrinsic {
             Self::Mul => write!(f, "*"),
             Self::Div => write!(f, "/"),
             Self::Mod => write!(f, "%"),
-            Self::Eq => write!(f, "="),
+            Self::Eq => write!(f, "=="),
             Self::AggregateInt(..) => {
                 write!(f, "int")
             }

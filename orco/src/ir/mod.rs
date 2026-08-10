@@ -145,6 +145,7 @@ impl Body {
             }
 
             Instr::Intrinsic(intr) if intr.infix() => {
+                idx += 1;
                 write!(f, "(")?;
                 for i in 0..intr.arg_count() {
                     if i > 0 {
