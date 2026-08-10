@@ -5,10 +5,13 @@ mod variable;
 pub use variable::{VariableId, VariableInfo};
 
 mod symbol_ref;
-pub use symbol_ref::{SymbolId, SymbolRef};
+pub use symbol_ref::{SymbolId, SymbolUse};
 
 mod label;
 pub use label::LabelId;
+
+mod intrinsics;
+pub use intrinsics::Intrinsic;
 
 /// A function body.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -16,11 +19,11 @@ pub struct Body {
     /// All variables used in the body.
     /// Index this with [`VariableId::0`].
     pub variables: Vec<VariableInfo>,
-    /// All symbols referenced in this body
-    pub symbols: Vec<SymbolRef>,
-    /// Reverse map of all [`SymbolRef`] inside [`Self::symbols`]
-    /// to their respecive [`SymbolId`]
-    interned_symbols: std::collections::HashMap<SymbolRef, SymbolId>,
+    /// All symbols referenced in this body.
+    pub symbols: Vec<SymbolUse>,
+    /// Reverse map of all used symbols inside [`Self::symbols`]
+    /// to their respecive [`SymbolId`] for quick interning.
+    interned_symbols: std::collections::HashMap<(crate::Symbol, Vec<crate::Type>), SymbolId>,
     /// Debug names attached to labels.
     /// Index this with [`LabelId::0`].
     pub label_names: Vec<Option<String>>,
@@ -36,6 +39,7 @@ impl Body {
     }
 
     /// Get type of a value generated at index.
+    /// Requires module access for global symbols.
     pub fn value_ty(&self, idx: usize) -> crate::Type {
         use crate::Type;
         match self.instructions[idx] {
@@ -44,7 +48,7 @@ impl Body {
             Instr::FConst(_, size) => Type::Float(size),
             Instr::BConst(_) => Type::Bool,
 
-            Instr::Global(_) => todo!(),
+            Instr::Global(id) => self.symbol(id).ty.clone(),
             Instr::Var(id) => self.var(id).ty.clone(),
             Instr::Field(field_idx) => {
                 let ty = self.value_ty(idx + 1);
@@ -63,6 +67,9 @@ impl Body {
                 };
                 return_type.map_or(Type::Error, |ty| *ty)
             }
+            Instr::Intrinsic(intr) => intr
+                .type_override()
+                .unwrap_or_else(|| self.value_ty(idx + 1)),
             Instr::Return(..) => Type::Error,
             Instr::Error => Type::Error,
         }
@@ -135,6 +142,18 @@ impl Body {
             Instr::Call(args) => {
                 idx = self.debug_instr(idx + 1, f)?;
                 debug_args(idx, f, args)
+            }
+
+            Instr::Intrinsic(intr) if intr.infix() => {
+                write!(f, "(")?;
+                for i in 0..intr.arg_count() {
+                    if i > 0 {
+                        write!(f, " {intr} ")?;
+                    }
+                    idx = self.debug_instr(idx, f)?;
+                }
+                write!(f, ")")?;
+                Ok(idx)
             }
 
             instr => {

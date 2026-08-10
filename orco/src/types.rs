@@ -40,7 +40,7 @@ pub enum Type {
 
 impl Type {
     /// Replace all instances of [`Type::Param`] with symbols from `map` (if present)
-    pub fn instantiate(&mut self, map: &std::collections::HashMap<Symbol, Type>) {
+    pub fn instantiate(&mut self, map: &std::collections::HashMap<Symbol, &Type>) {
         match self {
             Type::Integer(..)
             | Type::Unsigned(..)
@@ -73,7 +73,7 @@ impl Type {
                 }
             }
             Type::Param(name) => {
-                if let Some(ty) = map.get(name) {
+                if let Some(&ty) = map.get(name) {
                     ty.clone_into(self);
                 }
             }
@@ -82,7 +82,7 @@ impl Type {
     }
 
     /// Same as [`Self::instantiate`], but clones the type in the process
-    pub fn copy_instantiate(&self, map: &std::collections::HashMap<Symbol, Type>) -> Self {
+    pub fn copy_instantiate(&self, map: &std::collections::HashMap<Symbol, &Type>) -> Self {
         let mut instance = self.clone();
         instance.instantiate(map);
         instance
@@ -269,13 +269,13 @@ impl crate::Function {
         }
     }
 
-    /// See [Type::instantiate]
-    pub fn instantiate(&mut self, map: &std::collections::HashMap<Symbol, Type>) {
-        for (_, ty) in &mut self.params {
-            ty.instantiate(map);
-        }
-        if let Some(ty) = &mut self.return_type {
-            ty.instantiate(map);
-        }
+    /// Generates generic param to arg map for use with [Type::instantiate].
+    pub fn generic_map<'a>(&self, args: &'a [Type]) -> std::collections::HashMap<Symbol, &'a Type> {
+        assert_eq!(
+            args.len(),
+            self.params.len(),
+            "wrong number of generic arguments supplied"
+        );
+        self.generics.iter().copied().zip(args.iter()).collect()
     }
 }

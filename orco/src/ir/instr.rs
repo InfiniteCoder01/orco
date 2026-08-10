@@ -6,7 +6,7 @@ pub enum Instruction {
     /// Signed integer constant.
     IConst(i32, crate::types::IntegerSize),
     /// Unsigned integer constant.
-    UConst(i32, crate::types::IntegerSize),
+    UConst(u32, crate::types::IntegerSize),
     /// Float constant.
     FConst(f32, u16),
     /// Bool constant.
@@ -32,6 +32,8 @@ pub enum Instruction {
     Call(u32),
     /// Returns the value (if any).
     Return(bool),
+    /// Intrinsic. See [`super::Intrinsic`].
+    Intrinsic(super::Intrinsic),
     /// Error value.
     Error,
 }
@@ -54,6 +56,7 @@ impl Instruction {
 
             Self::Call(args) => args + 1,
             Self::Return(has_value) => has_value as _,
+            Self::Intrinsic(intr) => intr.arg_count(),
             Self::Error => 0,
         }
     }
@@ -78,6 +81,7 @@ impl std::fmt::Display for Instruction {
 
             Self::Call(_) => write!(f, "call"),
             Self::Return(..) => write!(f, "return"),
+            Self::Intrinsic(intr) => intr.fmt(f),
             Self::Error => write!(f, "error"),
         }
     }

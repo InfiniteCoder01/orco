@@ -16,12 +16,14 @@ pub mod ir;
 pub use ir::Body;
 
 use papaya::HashMap;
-/// A single compilation unit
+/// A single compilation unit.
+/// Note: Be careful with mutating the types,
+/// as [`Body`] caches them.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Module {
-    /// Type declarations (aliases)
+    /// Type declarations (aliases).
     pub types: HashMap<Symbol, TypeAlias>,
-    /// Function declarations
+    /// Function declarations.
     pub functions: HashMap<Symbol, Function>,
 }
 
@@ -58,32 +60,32 @@ impl std::fmt::Display for Module {
     }
 }
 
-/// Type declaration statement
+/// Type declaration statement.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TypeAlias {
-    /// Type parameters
+    /// Type parameters.
     pub generics: Vec<Symbol>,
-    /// The type we alias
+    /// The type we alias.
     pub type_: Type,
 }
 
 /// Function decl & body
 #[derive(Clone, Debug, PartialEq)]
 pub struct Function {
-    /// Type parameters
+    /// Type parameters.
     pub generics: Vec<Symbol>,
-    /// Parameter types with optional names
+    /// Parameter types with optional names.
     pub params: Vec<(Option<String>, Type)>,
-    /// Return type
+    /// Return type.
     pub return_type: Option<Type>,
-    /// Function attributes
+    /// Function attributes.
     pub attrs: crate::attrs::FunctionAttributes,
-    /// Function body
+    /// Function body.
     pub body: std::sync::OnceLock<Body>,
 }
 
 impl Function {
-    /// Generate a function body with all argument variables pre-added
+    /// Generate a function body with all argument variables pre-added.
     pub fn create_def(&self) -> Body {
         let mut body = Body::new();
         for (name, ty) in self.params.iter().cloned() {

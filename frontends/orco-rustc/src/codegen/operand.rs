@@ -42,27 +42,23 @@ impl CodegenCtx<'_, '_> {
                         value.size().bits() as _,
                     ));
                 } else if ty.is_signed() {
-                    // TODO: Big values
-                    let ivalue = value.to_int(value.size());
-                    self.instr(Instr::IConst(
-                        ivalue as _,
+                    self.ir_body.int_literal(
+                        value.to_int(value.size()),
                         if ty.is_ptr_sized_integral() {
                             orco::types::IntegerSize::Size
                         } else {
                             orco::types::IntegerSize::Bits(value.size().bits() as _)
                         },
-                    ));
+                    );
                 } else {
-                    // TODO: Big values
-                    let ivalue = value.to_uint(value.size());
-                    self.instr(Instr::UConst(
-                        ivalue as _,
+                    self.ir_body.uint_literal(
+                        value.to_uint(value.size()),
                         if ty.is_ptr_sized_integral() {
                             orco::types::IntegerSize::Size
                         } else {
                             orco::types::IntegerSize::Bits(value.size().bits() as _)
                         },
-                    ));
+                    );
                 }
             }
             ConstValue::Scalar(Scalar::Ptr(..)) => todo!(),
@@ -73,6 +69,7 @@ impl CodegenCtx<'_, '_> {
                     let symbol = self.ir_body.use_symbol(
                         self.convert_path(*func),
                         self.convert_generic_args(generics.skip_binder()),
+                        self.module,
                     );
                     self.instr(Instr::Global(symbol));
                 }

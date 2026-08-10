@@ -21,7 +21,7 @@ impl<'tcx, 'a> std::ops::Deref for CodegenCtx<'tcx, 'a> {
 }
 
 impl<'tcx> CodegenCtx<'tcx, '_> {
-    fn instr(&mut self, instr: Instr) {
+    fn instr(&mut self, instr: impl Into<Instr>) {
         self.ir_body.instructions.push(instr.into());
     }
 
