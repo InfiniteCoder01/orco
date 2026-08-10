@@ -69,6 +69,11 @@ impl Context<'_, '_> {
     ) -> Vec<orco::Symbol> {
         types::convert_generic_params(self.tcx, key.into_query_key())
     }
+
+    /// Shorthand for calling [`types::convert_generic_args`]
+    pub fn convert_generic_args(self, args: &rustc_middle::ty::GenericArgs) -> Vec<orco::Type> {
+        types::convert_generic_args(self.tcx, args)
+    }
 }
 
 /// Declare all the items using the backend provided.

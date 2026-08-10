@@ -246,7 +246,7 @@ pub fn fmt_generic_args(generics: &[Type]) -> String {
 pub enum IntegerSize {
     /// Number of bits. Not sure if non-powers-of-two
     /// should be supported. Maybe even non-whole bytes (ex. u6 for 6 bit unsigned integer)
-    Bits(u16),
+    Bits(u8),
     /// Kinda like `usize`/`isize` in rust or `size_t`/`ssize_t` in C
     Size,
 }

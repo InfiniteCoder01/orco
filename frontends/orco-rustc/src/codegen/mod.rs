@@ -1,5 +1,5 @@
 use crate::TyCtxt;
-use ir::{AcfInstr, Instr};
+use ir::Instr;
 use orco::ir;
 use std::collections::HashMap;
 
@@ -21,7 +21,7 @@ impl<'tcx, 'a> std::ops::Deref for CodegenCtx<'tcx, 'a> {
 }
 
 impl<'tcx> CodegenCtx<'tcx, '_> {
-    fn instr(&mut self, instr: impl Into<Instr>) {
+    fn instr(&mut self, instr: Instr) {
         self.ir_body.instructions.push(instr.into());
     }
 
@@ -131,7 +131,7 @@ impl<'tcx> CodegenCtx<'tcx, '_> {
         let predecessors = self.rs_body.basic_blocks.predecessors();
         type Pred<'a> = &'a [rustc_middle::mir::BasicBlock];
         if &*predecessors[block] != prev.as_ref().map_or::<Pred, _>(&[], core::slice::from_ref) {
-            self.instr(Instr::Acf(AcfInstr::Label(ir::LabelId(block.as_u32()))));
+            self.instr(Instr::AcfLabel(ir::LabelId(block.as_u32())));
         }
 
         let block = &self.rs_body[block];
@@ -141,7 +141,7 @@ impl<'tcx> CodegenCtx<'tcx, '_> {
 
         let next_block = move |this: &mut Self, block| {
             if next != Some(block) {
-                this.instr(AcfInstr::Jump(ir::LabelId(block.as_u32())));
+                this.instr(Instr::AcfJump(ir::LabelId(block.as_u32())));
             }
         };
 
@@ -150,7 +150,7 @@ impl<'tcx> CodegenCtx<'tcx, '_> {
             TerminatorKind::Goto { target } => next_block(self, *target),
             TerminatorKind::SwitchInt { discr, targets } => {
                 for (value, target) in targets.iter() {
-                    self.instr(AcfInstr::CJump(ir::LabelId(target.as_u32())));
+                    self.instr(Instr::AcfCJump(ir::LabelId(target.as_u32())));
                     // TODO!!!
                     // self.instr(Intrinsic::Eq);
 
@@ -192,7 +192,7 @@ impl<'tcx> CodegenCtx<'tcx, '_> {
             }
             TerminatorKind::Unreachable => todo!(),
             TerminatorKind::Drop { target, .. } => {
-                self.instr(AcfInstr::Jump(ir::LabelId(target.as_u32())));
+                self.instr(Instr::AcfJump(ir::LabelId(target.as_u32())));
                 // TODO
             }
             TerminatorKind::Call {
@@ -202,15 +202,16 @@ impl<'tcx> CodegenCtx<'tcx, '_> {
                 target,
                 ..
             } => {
-                // let func = self.op(func).expect("trying to call a unit value");
-                // let args = args.iter().filter_map(|arg| self.op(&arg.node)).collect();
-                // let retval = self.codegen.call(func, args);
-                // if let Some(place) = self.place(*destination) {
-                //     self.codegen.assign(
-                //         place,
-                //         retval.expect("can't use the return value of a unit function"),
-                //     );
-                // }
+                if !destination.ty(self.rs_body, self.tcx).ty.is_unit() {
+                    self.instr(Instr::Assign);
+                    self.place(*destination);
+                }
+                self.instr(Instr::Call(args.len() as _)); // TODO: Check for unit args
+                self.op(func);
+                for arg in args {
+                    self.op(&arg.node);
+                }
+
                 if let Some(target) = target {
                     next_block(self, *target);
                 }

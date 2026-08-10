@@ -23,7 +23,8 @@ pub struct VariableInfo {
 impl super::Body {
     /// Declare a variable with a set type and optional debug name,
     /// which can later be set using [`Self::var_mut`]
-    /// Returns the newly-allocated ID
+    /// Returns the newly-allocated ID to be used with [`Self::var`].
+    /// ID value order guaranteed, see note on [`VariableId`].
     pub fn declare_var(&mut self, ty: crate::Type, name: Option<String>) -> VariableId {
         let id = VariableId(self.variables.len() as _);
         self.variables.push(VariableInfo {
@@ -34,21 +35,21 @@ impl super::Body {
         id
     }
 
-    /// Get variable info by ID
+    /// Get variable info by ID.
     pub fn var(&self, id: VariableId) -> &VariableInfo {
         self.variables
             .get(id.0 as usize)
             .unwrap_or_else(|| panic!("invalid variable id {id}"))
     }
 
-    /// Mutable version of [`Self::var`]
+    /// Mutable version of [`Self::var`].
     pub fn var_mut(&mut self, id: VariableId) -> &mut VariableInfo {
         self.variables
             .get_mut(id.0 as usize)
             .unwrap_or_else(|| panic!("invalid variable id {id}"))
     }
 
-    /// Get a string used to identify the variable in debug output
+    /// Get a string used to identify the variable in debug output.
     pub fn var_debug_name(&self, id: VariableId) -> String {
         format!("{}{id}", self.var(id).name.as_deref().unwrap_or("_"))
     }

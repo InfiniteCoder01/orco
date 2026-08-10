@@ -42,8 +42,10 @@ impl CodegenCtx<'_, '_> {
                         value.size().bits() as _,
                     ));
                 } else if ty.is_signed() {
+                    // TODO: Big values
+                    let ivalue = value.to_int(value.size());
                     self.instr(Instr::IConst(
-                        value.to_int(value.size()),
+                        ivalue as _,
                         if ty.is_ptr_sized_integral() {
                             orco::types::IntegerSize::Size
                         } else {
@@ -51,8 +53,10 @@ impl CodegenCtx<'_, '_> {
                         },
                     ));
                 } else {
+                    // TODO: Big values
+                    let ivalue = value.to_uint(value.size());
                     self.instr(Instr::UConst(
-                        value.to_uint(value.size()),
+                        ivalue as _,
                         if ty.is_ptr_sized_integral() {
                             orco::types::IntegerSize::Size
                         } else {
@@ -65,7 +69,13 @@ impl CodegenCtx<'_, '_> {
             ConstValue::ZeroSized => match ty.kind() {
                 // TODO: We might need to do more
                 // TODO: Generics
-                // TyKind::FnDef(func, generics) => self.instr(self.generic_name(*func, generics)),
+                TyKind::FnDef(func, generics) => {
+                    let symbol = self.ir_body.use_symbol(
+                        self.convert_path(*func),
+                        self.convert_generic_args(generics.skip_binder()),
+                    );
+                    self.instr(Instr::Global(symbol));
+                }
                 TyKind::Adt(..) => {
                     self.convert_ty(ty).map(|ty| {
                         let var = self.ir_body.declare_var(ty, Some("zst".to_owned()));

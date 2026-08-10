@@ -1,18 +1,26 @@
 mod instr;
-pub use instr::{AcfInstruction as AcfInstr, Instruction as Instr};
+pub use instr::Instruction as Instr;
 
 mod variable;
 pub use variable::{VariableId, VariableInfo};
+
+mod symbol_ref;
+pub use symbol_ref::{SymbolId, SymbolRef};
 
 mod label;
 pub use label::LabelId;
 
 /// A function body.
-#[derive(Clone, Debug, Default, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Body {
     /// All variables used in the body.
     /// Index this with [`VariableId::0`].
     pub variables: Vec<VariableInfo>,
+    /// All symbols referenced in this body
+    pub symbols: Vec<SymbolRef>,
+    /// Reverse map of all [`SymbolRef`] inside [`Self::symbols`]
+    /// to their respecive [`SymbolId`]
+    interned_symbols: std::collections::HashMap<SymbolRef, SymbolId>,
     /// Debug names attached to labels.
     /// Index this with [`LabelId::0`].
     pub label_names: Vec<Option<String>>,
@@ -35,6 +43,8 @@ impl Body {
             Instr::UConst(_, size) => Type::Unsigned(size),
             Instr::FConst(_, size) => Type::Float(size),
             Instr::BConst(_) => Type::Bool,
+
+            Instr::Global(_) => todo!(),
             Instr::Var(id) => self.var(id).ty.clone(),
             Instr::Field(field_idx) => {
                 let ty = self.value_ty(idx + 1);
@@ -44,18 +54,40 @@ impl Body {
                 fields.swap_remove(field_idx as _).1
             }
             Instr::Assign => Type::Error,
-            Instr::Acf(..) => Type::Error,
+
+            Instr::AcfLabel(..) | Instr::AcfJump(..) | Instr::AcfCJump(..) => Type::Error,
+            Instr::Call(..) => {
+                let ty = self.value_ty(idx + 1);
+                let Type::FnPtr { return_type, .. } = ty else {
+                    panic!("trying to call a non-function of type {ty}");
+                };
+                return_type.map_or(Type::Error, |ty| *ty)
+            }
             Instr::Return(..) => Type::Error,
             Instr::Error => Type::Error,
         }
     }
 
+    /// Debug-print an instruction at `idx` with it's arguments into `f`
     pub fn debug_instr(
         &self,
         mut idx: usize,
         f: &mut std::fmt::Formatter<'_>,
     ) -> Result<usize, std::fmt::Error> {
+        let debug_args = move |mut idx, f: &mut std::fmt::Formatter<'_>, args| {
+            write!(f, "(")?;
+            for i in 0..args {
+                if i > 0 {
+                    write!(f, ", ")?;
+                }
+                idx = self.debug_instr(idx, f)?;
+            }
+            write!(f, ")")?;
+            Ok(idx)
+        };
+
         match self.instructions[idx] {
+            Instr::Global(id) => write!(f, "{}", self.symbol(id)).map(|_| idx + 1),
             Instr::Var(id) => write!(f, "{}", self.var_debug_name(id)).map(|_| idx + 1),
             Instr::Assign => {
                 idx = self.debug_instr(idx + 1, f)?;
@@ -87,17 +119,22 @@ impl Body {
                 Ok(idx)
             }
 
-            Instr::Acf(AcfInstr::Label(label)) => {
+            Instr::AcfLabel(label) => {
                 write!(f, "{}:", self.label_debug_name(label)).map(|_| idx + 1)
             }
-            Instr::Acf(AcfInstr::Jump(label)) => {
+            Instr::AcfJump(label) => {
                 write!(f, "jump {}", self.label_debug_name(label)).map(|_| idx + 1)
             }
-            Instr::Acf(AcfInstr::CJump(label)) => {
+            Instr::AcfCJump(label) => {
                 write!(f, "if ")?;
                 idx = self.debug_instr(idx + 1, f)?;
                 write!(f, " jump {}", self.label_debug_name(label))?;
                 Ok(idx)
+            }
+
+            Instr::Call(args) => {
+                idx = self.debug_instr(idx + 1, f)?;
+                debug_args(idx, f, args)
             }
 
             instr => {
@@ -105,14 +142,7 @@ impl Body {
                 idx += 1;
                 let args = instr.arg_count();
                 if args > 0 {
-                    write!(f, "(")?;
-                    for i in 0..args {
-                        if i > 0 {
-                            write!(f, ", ")?;
-                        }
-                        idx = self.debug_instr(idx, f)?;
-                    }
-                    write!(f, ")")?;
+                    idx = debug_args(idx, f, args)?;
                 }
                 Ok(idx)
             }
@@ -143,7 +173,7 @@ impl std::fmt::Display for Body {
 
         let mut idx = 0;
         while idx < self.instructions.len() {
-            if matches!(self.instructions[idx], Instr::Acf(AcfInstr::Label(..))) {
+            if matches!(self.instructions[idx], Instr::AcfLabel(..)) {
                 idx = self.debug_instr(idx, f)?;
                 writeln!(f)?;
                 continue;
