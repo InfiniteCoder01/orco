@@ -16,20 +16,12 @@ fn type_dependencies(ty: &orco::Type, dependencies: &mut Vec<orco::Symbol>) {
     }
 }
 
-type MapRef<'a> = orco::papaya::HashMapRef<
-    'a,
-    orco::Symbol,
-    orco::TypeAlias,
-    std::hash::RandomState,
-    orco::papaya::LocalGuard<'a>,
->;
-
 /// `visited` is a map, where if name isn't present - not visited,
 /// otherwise stores whether it has finished processing
 /// (if false is encountered, loop is detected)
 fn topsort<E>(
     visited: &mut HashMap<orco::Symbol, bool>,
-    types: &MapRef,
+    types: &orco::SymbolMapRef<orco::TypeAlias>,
     callback: &mut impl FnMut(orco::Symbol, &orco::Type) -> Result<(), E>,
     name: orco::Symbol,
 ) -> Result<(), E> {
@@ -66,7 +58,7 @@ pub fn visit<E>(
     let types = module.types.pin();
     let mut visited = HashMap::new();
 
-    for (name, _) in types.iter() {
+    for name in types.keys() {
         topsort(&mut visited, &types, &mut callback, *name)?;
     }
 

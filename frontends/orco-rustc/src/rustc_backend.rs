@@ -37,8 +37,9 @@ impl rustc_codegen_ssa::traits::CodegenBackend for OrcoCodegenBackend {
         // );
         crate::declare(tcx, &module, items);
         crate::codegen(tcx, &module, items);
-        // print!("{module}");
-        print!("{}", orco_cgen::FmtModule(&module));
+        module.name_anonymous_structs();
+        print!("{module}");
+        // print!("{}", orco_cgen::FmtModule(&module));
 
         std::process::exit(0)
     }

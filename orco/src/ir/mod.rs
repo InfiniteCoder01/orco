@@ -14,6 +14,7 @@ mod intrinsics;
 pub use intrinsics::Intrinsic;
 
 /// A function body.
+/// See also [`FmtBody`].
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Body {
     /// All variables used in the body.
@@ -78,8 +79,9 @@ impl Body {
     /// Debug-print an instruction at `idx` with it's arguments into `f`
     pub fn debug_instr(
         &self,
-        mut idx: usize,
+        module: &crate::Module,
         f: &mut std::fmt::Formatter<'_>,
+        mut idx: usize,
     ) -> Result<usize, std::fmt::Error> {
         let debug_args = move |mut idx, f: &mut std::fmt::Formatter<'_>, args| {
             write!(f, "(")?;
@@ -87,7 +89,7 @@ impl Body {
                 if i > 0 {
                     write!(f, ", ")?;
                 }
-                idx = self.debug_instr(idx, f)?;
+                idx = self.debug_instr(module, f, idx)?;
             }
             write!(f, ")")?;
             Ok(idx)
@@ -97,23 +99,23 @@ impl Body {
             Instr::Global(id) => write!(f, "{}", self.symbol(id)).map(|_| idx + 1),
             Instr::Var(id) => write!(f, "{}", self.var_debug_name(id)).map(|_| idx + 1),
             Instr::Assign => {
-                idx = self.debug_instr(idx + 1, f)?;
+                idx = self.debug_instr(module, f, idx + 1)?;
                 write!(f, " = ")?;
-                self.debug_instr(idx, f)
+                self.debug_instr(module, f, idx)
             }
             Instr::Return(has_value) => {
                 write!(f, "return")?;
                 if has_value {
                     write!(f, " ")?;
-                    self.debug_instr(idx + 1, f)
+                    self.debug_instr(module, f, idx + 1)
                 } else {
                     Ok(idx + 1)
                 }
             }
 
             Instr::Field(field_idx) => {
-                let ty = self.value_ty(idx + 1);
-                idx = self.debug_instr(idx + 1, f)?;
+                let ty = module.inline_ty(self.value_ty(idx + 1));
+                idx = self.debug_instr(module, f, idx + 1)?;
                 let crate::Type::Struct { fields } = ty else {
                     panic!("trying to access field #{field_idx} on a non-struct type {ty}");
                 };
@@ -134,13 +136,13 @@ impl Body {
             }
             Instr::AcfCJump(label) => {
                 write!(f, "if ")?;
-                idx = self.debug_instr(idx + 1, f)?;
+                idx = self.debug_instr(module, f, idx + 1)?;
                 write!(f, " jump {}", self.label_debug_name(label))?;
                 Ok(idx)
             }
 
             Instr::Call(args) => {
-                idx = self.debug_instr(idx + 1, f)?;
+                idx = self.debug_instr(module, f, idx + 1)?;
                 debug_args(idx, f, args)
             }
 
@@ -151,7 +153,7 @@ impl Body {
                     if i > 0 {
                         write!(f, " {intr} ")?;
                     }
-                    idx = self.debug_instr(idx, f)?;
+                    idx = self.debug_instr(module, f, idx)?;
                 }
                 write!(f, ")")?;
                 Ok(idx)
@@ -170,18 +172,21 @@ impl Body {
     }
 }
 
-impl std::fmt::Display for Body {
+/// Small wrapper implementing [`std::fmt::Display`] for [`Body`].
+pub struct FmtBody<'a>(pub &'a crate::Module, pub &'a Body);
+impl std::fmt::Display for FmtBody<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.variables.is_empty() && self.instructions.is_empty() {
+        let FmtBody(module, body) = self;
+        if body.variables.is_empty() && body.instructions.is_empty() {
             return write!(f, "{{}}");
         }
 
         writeln!(f, "{{")?;
-        for (idx, var) in self.variables.iter().enumerate() {
+        for (idx, var) in body.variables.iter().enumerate() {
             write!(
                 f,
                 "  let {}: {}",
-                self.var_debug_name(VariableId(idx as _)),
+                body.var_debug_name(VariableId(idx as _)),
                 var.ty
             )?;
             if var.arg {
@@ -192,15 +197,15 @@ impl std::fmt::Display for Body {
         }
 
         let mut idx = 0;
-        while idx < self.instructions.len() {
-            if matches!(self.instructions[idx], Instr::AcfLabel(..)) {
-                idx = self.debug_instr(idx, f)?;
+        while idx < body.instructions.len() {
+            if matches!(body.instructions[idx], Instr::AcfLabel(..)) {
+                idx = body.debug_instr(module, f, idx + 1)?;
                 writeln!(f)?;
                 continue;
             }
 
             write!(f, "  ")?;
-            idx = self.debug_instr(idx, f)?;
+            idx = body.debug_instr(module, f, idx)?;
             writeln!(f, ";")?;
         }
 

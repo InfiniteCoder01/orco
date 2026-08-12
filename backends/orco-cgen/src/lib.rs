@@ -34,16 +34,22 @@ impl std::fmt::Display for FmtModule<'_> {
         writeln!(f, "#include <stdbool.h>")?;
         writeln!(f)?;
 
-        for (name, ty) in module.types.pin().iter() {
-            if matches!(ty.type_, orco::Type::Struct { .. }) {
+        let mut any = false;
+        for (name, alias) in module.types.pin().iter() {
+            if matches!(alias.type_, orco::Type::Struct { .. }) {
                 let name = cname(*name);
                 writeln!(f, "typedef struct {name} {name};")?;
+                any = true;
             }
         }
 
-        writeln!(f)?;
+        if any {
+            writeln!(f)?;
+            any = false;
+        }
 
         topsort::visit(module, |name, ty| {
+            any = true;
             writeln!(
                 f,
                 "typedef {};",
@@ -54,9 +60,14 @@ impl std::fmt::Display for FmtModule<'_> {
                 }
             )
         })?;
-        writeln!(f)?;
+
+        if any {
+            writeln!(f)?;
+            any = false;
+        }
 
         for (name, function) in module.functions.pin().iter() {
+            any = true;
             writeln!(
                 f,
                 "{};",
@@ -68,7 +79,9 @@ impl std::fmt::Display for FmtModule<'_> {
             )?;
         }
 
-        writeln!(f)?;
+        if any {
+            writeln!(f)?;
+        }
 
         //         for def in self.definitions.lock().unwrap().iter() {
         //             writeln!(f, "{def}\n")?;

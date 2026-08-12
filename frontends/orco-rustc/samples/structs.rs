@@ -2,8 +2,9 @@
 #![allow(dead_code)]
 
 // #[derive(Debug)]
-struct Person {
+struct Person<T> {
     // name: String,
+    name: (T, u8),
     age: u8,
 }
 

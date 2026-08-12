@@ -14,9 +14,15 @@ pub mod attrs;
 
 /// Body IR
 pub mod ir;
-pub use ir::Body;
+pub use ir::{Body, FmtBody};
+
+mod transforms;
 
 use papaya::HashMap;
+/// Shorthand for [`papaya::HashMapRef`] for any of [`orco::Symbol`] -> `V` maps
+pub type SymbolMapRef<'a, V> =
+    papaya::HashMapRef<'a, Symbol, V, std::hash::RandomState, papaya::LocalGuard<'a>>;
+
 /// A single compilation unit.
 /// Note: Be careful with mutating the types,
 /// as [`Body`] caches them.
@@ -32,6 +38,20 @@ impl Module {
     #[allow(missing_docs)]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Replaces the type alias by it's value until can't anymore.
+    /// Reveals the true identity of the type.
+    fn inline_ty(&self, mut ty: Type) -> Type {
+        let types = self.types.pin();
+        while let Type::Symbol(name, generics) = ty {
+            ty = types
+                .get(&name)
+                .unwrap_or_else(|| panic!("undelcared type {name}"))
+                .instantiate(&generics);
+        }
+
+        ty
     }
 }
 
@@ -51,7 +71,7 @@ impl std::fmt::Display for Module {
         for (name, func) in self.functions.pin().iter() {
             write!(f, "{}fn {name}{}", func.attrs, func)?;
             if let Some(body) = func.body.get() {
-                writeln!(f, " {body}\n")?;
+                writeln!(f, " {}\n", FmtBody(self, body))?;
             } else {
                 writeln!(f, ";")?;
             }
@@ -68,6 +88,15 @@ pub struct TypeAlias {
     pub generics: Vec<Symbol>,
     /// The type we alias.
     pub type_: Type,
+}
+
+impl TypeAlias {
+    /// Instantiate the type with a set of generic parameters.
+    /// Shorthand for calling [`Type::instantiate`].
+    pub fn instantiate(&self, generics: &[Type]) -> Type {
+        self.type_
+            .copy_instantiate(&self.generics.iter().copied().zip(generics).collect())
+    }
 }
 
 /// Function decl & body

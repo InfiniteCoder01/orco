@@ -276,6 +276,6 @@ impl crate::Function {
             self.params.len(),
             "wrong number of generic arguments supplied"
         );
-        self.generics.iter().copied().zip(args.iter()).collect()
+        self.generics.iter().copied().zip(args).collect()
     }
 }
