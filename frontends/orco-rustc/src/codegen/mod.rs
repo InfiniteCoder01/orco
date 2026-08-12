@@ -216,10 +216,12 @@ impl<'tcx> CodegenCtx<'tcx, '_> {
                 }
             }
             TerminatorKind::TailCall { func, args, .. } => {
-                // let func = self.op(func).expect("trying to call a unit value");
-                // let args = args.iter().filter_map(|arg| self.op(&arg.node)).collect();
-                // let retval = self.codegen.call(func, args);
-                // self.codegen.return_(retval);
+                self.instr(Instr::Return(!self.rs_body.return_ty().is_unit()));
+                self.instr(Instr::Call(args.len() as _)); // TODO: Check for unit args
+                self.op(func);
+                for arg in args {
+                    self.op(&arg.node);
+                }
             }
             TerminatorKind::Assert { target, .. } => {
                 // TODO
