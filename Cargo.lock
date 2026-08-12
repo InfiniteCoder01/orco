@@ -306,7 +306,6 @@ name = "orco-cgen"
 version = "0.1.0"
 dependencies = [
  "orco",
- "papaya",
 ]
 
 [[package]]
@@ -332,6 +331,7 @@ name = "orco-rustc"
 version = "0.1.0"
 dependencies = [
  "orco",
+ "orco-cgen",
 ]
 
 [[package]]

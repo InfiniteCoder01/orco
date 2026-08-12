@@ -1,14 +1,12 @@
 use crate::FmtType;
-use orco::types::FunctionSignature;
+use orco::Function;
 
 /// Formats function signature
 pub struct FmtFunction<'a> {
-    /// A reference to the backend (for name conversion/mangling)
-    pub backend: &'a crate::Backend,
-    /// Function name
+    /// Function name.
     pub name: &'a str,
-    /// Function signature
-    pub signature: &'a FunctionSignature,
+    /// Function itself.
+    pub function: &'a Function,
     /// Wether to name all args (assign placeholder names)?
     pub name_all_args: bool,
 }
@@ -16,14 +14,13 @@ pub struct FmtFunction<'a> {
 impl std::fmt::Display for FmtFunction<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let FmtFunction {
-            backend,
             name,
-            signature,
+            function,
             name_all_args,
         } = *self;
 
         use orco::attrs as oa;
-        match signature.attrs.inlining {
+        match function.attrs.inlining {
             oa::Inlining::Never => write!(f, "__attribute__ ((noinline)) ")?,
             oa::Inlining::Auto => (),
             oa::Inlining::Hint => write!(f, "inline ")?,
@@ -34,7 +31,7 @@ impl std::fmt::Display for FmtFunction<'_> {
 
         use std::fmt::Write as _;
         write!(&mut sig_noret, "(")?;
-        for (idx, (name, ty)) in signature.params.iter().enumerate() {
+        for (idx, (name, ty)) in function.params.iter().enumerate() {
             if idx > 0 {
                 write!(sig_noret, ", ")?;
             }
@@ -42,7 +39,6 @@ impl std::fmt::Display for FmtFunction<'_> {
                 sig_noret,
                 "{}",
                 FmtType {
-                    backend,
                     ty,
                     constant: false,
                     name: match name {
@@ -57,8 +53,7 @@ impl std::fmt::Display for FmtFunction<'_> {
         write!(sig_noret, ")")?;
 
         FmtType {
-            backend,
-            ty: signature
+            ty: function
                 .return_type
                 .as_ref()
                 .unwrap_or(&orco::Type::Symbol("void".into(), Vec::new())),

@@ -1,6 +1,7 @@
 #![warn(missing_docs)]
 #![doc = include_str!("../../README.md")]
 
+pub use papaya;
 pub use sinter;
 pub use sinter::IStr as Symbol;
 
