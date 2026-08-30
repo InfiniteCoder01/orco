@@ -1,18 +1,15 @@
 //! C transpilation backend for orco.
 //! Also used to generate C headers and
-//! is generally the reference for other backends
-//! See [FmtModule]
+//! is generally the reference for other backends.
+//! See [FmtModule].
 // TODO: ABI
 #![warn(missing_docs)]
 
-/// Type formatting & other things
+/// Type formatting & other things.
 pub mod types;
 use types::FmtType;
 
-// /// Type interning and name conversion
-// mod type_names;
-
-/// Symbol container types
+/// Symbol formatting stuff.
 pub mod symbols;
 
 // /// Code generation, used to generate function bodies.
@@ -82,10 +79,6 @@ impl std::fmt::Display for FmtModule<'_> {
         if any {
             writeln!(f)?;
         }
-
-        //         for def in self.definitions.lock().unwrap().iter() {
-        //             writeln!(f, "{def}\n")?;
-        //         }
 
         Ok(())
     }

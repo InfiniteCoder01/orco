@@ -100,7 +100,22 @@ pub fn declare(tcx: TyCtxt, module: &orco::Module, items: &rustc_middle::hir::Mo
                 IK::Mod(..) => (),
                 IK::ForeignMod { .. } => (),
                 IK::GlobalAsm { .. } => (),
-                IK::TyAlias(..) => (),
+                IK::TyAlias(..) => {
+                    if let Some(ty) = ctx.convert_ty(
+                        ctx.tcx
+                            .type_of(item.owner_id)
+                            .instantiate_identity()
+                            .skip_norm_wip(),
+                    ) {
+                        ctx.module.types.pin().insert(
+                            ctx.convert_path(item.owner_id),
+                            orco::TypeAlias {
+                                generics: ctx.convert_generics(item.owner_id),
+                                type_: ty,
+                            },
+                        );
+                    }
+                }
                 IK::Enum(..) => (),
                 IK::Struct(..) => ctx.struct_(item.owner_id.to_def_id()),
                 IK::Union(..) => (),

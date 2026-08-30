@@ -40,7 +40,7 @@ pub enum Type {
 
 impl Type {
     /// Replace all instances of [`Type::Param`] with symbols from `map` (if present)
-    pub fn instantiate(&mut self, map: &std::collections::HashMap<Symbol, &Type>) {
+    pub fn instantiate(&mut self, map: &std::collections::HashMap<Symbol, impl AsRef<Type>>) {
         match self {
             Type::Integer(..)
             | Type::Unsigned(..)
@@ -73,8 +73,8 @@ impl Type {
                 }
             }
             Type::Param(name) => {
-                if let Some(&ty) = map.get(name) {
-                    ty.clone_into(self);
+                if let Some(ty) = map.get(name) {
+                    ty.as_ref().clone_into(self);
                 }
             }
             Type::Error => (),
@@ -82,7 +82,10 @@ impl Type {
     }
 
     /// Same as [`Self::instantiate`], but clones the type in the process
-    pub fn copy_instantiate(&self, map: &std::collections::HashMap<Symbol, &Type>) -> Self {
+    pub fn copy_instantiate(
+        &self,
+        map: &std::collections::HashMap<Symbol, impl AsRef<Type>>,
+    ) -> Self {
         let mut instance = self.clone();
         instance.instantiate(map);
         instance
@@ -202,6 +205,12 @@ impl std::fmt::Display for Type {
             Type::Param(name) => write!(f, "#{name}"),
             Type::Error => write!(f, "<error>"),
         }
+    }
+}
+
+impl AsRef<Type> for Type {
+    fn as_ref(&self) -> &Type {
+        self
     }
 }
 

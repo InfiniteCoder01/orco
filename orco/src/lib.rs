@@ -104,6 +104,9 @@ impl TypeAlias {
 pub struct Function {
     /// Type parameters.
     pub generics: Vec<Symbol>,
+    /// Extra type parameters for the function.
+    pub type_params: std::collections::HashMap<Symbol, Type>,
+
     /// Parameter types with optional names.
     pub params: Vec<(Option<String>, Type)>,
     /// Return type.
@@ -111,7 +114,7 @@ pub struct Function {
     /// Function attributes.
     pub attrs: crate::attrs::FunctionAttributes,
     /// Function body.
-    pub body: std::sync::OnceLock<Body>,
+    pub body: std::sync::Arc<std::sync::OnceLock<Body>>,
 }
 
 impl Function {

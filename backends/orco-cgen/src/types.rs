@@ -56,7 +56,11 @@ impl std::fmt::Display for FmtType<'_> {
             OT::Char(false) => write!(f, "char"),
             OT::Char(true) => write!(f, "wchar_t"),
             OT::Symbol(sym, generics) => {
-                write!(f, "{}", crate::cname(*sym)) // TODO: Generics
+                assert!(
+                    generics.is_empty(),
+                    "generics type encountered in C backend ({ty}), did you forget to monomorphize types?",
+                );
+                write!(f, "{}", crate::cname(*sym))
             }
 
             OT::Array(ty, sz) => {

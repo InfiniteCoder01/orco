@@ -4,7 +4,11 @@ use std::collections::HashMap;
 fn type_dependencies(ty: &orco::Type, dependencies: &mut Vec<orco::Symbol>) {
     match ty {
         orco::Type::Symbol(name, generics) => {
-            dependencies.push(*name) // TODO: generics
+            assert!(
+                generics.is_empty(),
+                "generics type encountered in C backend ({ty}), did you forget to monomorphize types?",
+            );
+            dependencies.push(*name);
         }
         orco::Type::Array(ty, sz) if *sz > 0 => type_dependencies(ty, dependencies),
         orco::Type::Struct { fields } => {
@@ -42,7 +46,7 @@ fn topsort<E>(
     type_dependencies(ty, &mut dependencies);
 
     for dep in dependencies {
-        topsort(visited, types, callback, dep);
+        topsort(visited, types, callback, dep)?;
     }
 
     callback(name, ty)?;

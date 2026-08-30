@@ -35,10 +35,11 @@ impl crate::Context<'_, '_> {
             self.convert_path(key),
             orco::Function {
                 generics: self.convert_generics(key),
+                type_params: std::collections::HashMap::new(),
                 params,
                 return_type: self.convert_ty(sig.output()),
                 attrs,
-                body: std::sync::OnceLock::new(),
+                body: std::sync::OnceLock::new().into(),
             },
         );
     }
@@ -66,10 +67,11 @@ impl crate::Context<'_, '_> {
             self.convert_path(key),
             orco::Function {
                 generics: self.convert_generics(key),
+                type_params: std::collections::HashMap::new(),
                 params,
                 return_type: self.convert_ty(sig.output()),
                 attrs,
-                body: std::sync::OnceLock::new(),
+                body: std::sync::OnceLock::new().into(),
             },
         );
     }

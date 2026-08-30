@@ -3,7 +3,7 @@ resolver = "1"
 members = [
   "orco",
   "frontends/orco-rustc",
-  "backends/orco-ir", "backends/orco-cgen", "backends/orco-cranelift",
+  "backends/orco-cgen", "backends/orco-cranelift",
 ]
 
 [workspace.package]
