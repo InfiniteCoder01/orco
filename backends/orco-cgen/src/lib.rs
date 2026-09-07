@@ -12,9 +12,9 @@ use types::FmtType;
 /// Symbol formatting stuff.
 pub mod symbols;
 
-// /// Code generation, used to generate function bodies.
-// pub mod codegen;
-// pub use codegen::Codegen;
+/// Code generation, used to generate function bodies.
+pub mod codegen;
+pub use codegen::Context;
 
 /// Topologically sorts types in a module.
 mod topsort;
@@ -78,6 +78,23 @@ impl std::fmt::Display for FmtModule<'_> {
 
         if any {
             writeln!(f)?;
+        }
+
+        for (name, function) in module.functions.pin().iter() {
+            let Some(body) = function.body.get() else {
+                continue;
+            };
+
+            writeln!(
+                f,
+                "{} {}",
+                symbols::FmtFunction {
+                    name: &cname(*name),
+                    function,
+                    name_all_args: true,
+                },
+                codegen::Context::new(self.0, body, &function.type_params)
+            )?;
         }
 
         Ok(())

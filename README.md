@@ -22,6 +22,8 @@ You can watch me do this live on [![twitch](https://assets.twitch.tv/assets/favi
 Currently working with rust frontend and C backend (reference backend),
 going through some of [rust by example](<https://doc.rust-lang.org/stable/rust-by-example/>) and figuring out generics.
 
+Uh oh, this is outdated again!
+
 - [x] orco: remake codegen API
 - [x] cgen: implement new codegen API
 - [x] rustc: use new codegen API

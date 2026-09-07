@@ -88,6 +88,15 @@ impl Module {
                 name_anonymous(&types, &mut HashSet::new(), ty, false);
             }
 
+            if let Some(body) = func.body.get() {
+                let mut body = body.clone();
+                for var in &mut body.variables {
+                    name_anonymous(&types, &mut HashSet::new(), &mut var.ty, false);
+                }
+                func.body = std::sync::OnceLock::new().into();
+                func.body.set(body).expect("impossible");
+            }
+
             functions.insert(*name, func);
         }
     }

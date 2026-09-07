@@ -42,7 +42,7 @@ impl Module {
 
     /// Replaces the type alias by it's value until can't anymore.
     /// Reveals the true identity of the type.
-    fn inline_ty(&self, mut ty: Type) -> Type {
+    pub fn inline_ty(&self, mut ty: Type) -> Type {
         let types = self.types.pin();
         while let Type::Symbol(name, generics) = ty {
             ty = types

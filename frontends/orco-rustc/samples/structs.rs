@@ -86,3 +86,9 @@ fn main() {
 
     // println!("pair contains {:?} and {:?}", integer, decimal);
 }
+
+fn renaming() {
+    let x = 1;
+    let x = x + 1;
+    let x = x * 2;
+}
