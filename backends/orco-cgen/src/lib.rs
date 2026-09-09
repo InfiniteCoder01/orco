@@ -33,6 +33,7 @@ impl std::fmt::Display for FmtModule<'_> {
 
         let mut any = false;
         for (name, alias) in module.types.pin().iter() {
+            let alias = alias.read().unwrap();
             if matches!(alias.type_, orco::Type::Struct { .. }) {
                 let name = cname(*name);
                 writeln!(f, "typedef struct {name} {name};")?;
@@ -63,14 +64,15 @@ impl std::fmt::Display for FmtModule<'_> {
             any = false;
         }
 
-        for (name, function) in module.functions.pin().iter() {
+        for (name, func) in module.functions.pin().iter() {
+            let func = func.read().unwrap();
             any = true;
             writeln!(
                 f,
                 "{};",
                 symbols::FmtFunction {
                     name: &cname(*name),
-                    function,
+                    function: &func,
                     name_all_args: false,
                 }
             )?;
@@ -80,8 +82,9 @@ impl std::fmt::Display for FmtModule<'_> {
             writeln!(f)?;
         }
 
-        for (name, function) in module.functions.pin().iter() {
-            let Some(body) = function.body.get() else {
+        for (name, func) in module.functions.pin().iter() {
+            let func = func.read().unwrap();
+            let Some(body) = &func.body else {
                 continue;
             };
 
@@ -90,10 +93,10 @@ impl std::fmt::Display for FmtModule<'_> {
                 "{} {}",
                 symbols::FmtFunction {
                     name: &cname(*name),
-                    function,
+                    function: &func,
                     name_all_args: true,
                 },
-                codegen::Context::new(self.0, body, &function.type_params)
+                codegen::Context::new(self.0, body)
             )?;
         }
 

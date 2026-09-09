@@ -112,7 +112,8 @@ pub fn declare(tcx: TyCtxt, module: &orco::Module, items: &rustc_middle::hir::Mo
                             orco::TypeAlias {
                                 generics: ctx.convert_generics(item.owner_id),
                                 type_: ty,
-                            },
+                            }
+                            .into(),
                         );
                     }
                 }

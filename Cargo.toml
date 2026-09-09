@@ -15,5 +15,3 @@ repository = "https://github.com/InfiniteCoder01/orco"
 orco = { path = "orco" }
 orco-ir = { path = "backends/orco-ir" }
 orco-cgen = { path = "backends/orco-cgen" }
-
-papaya = "0.2.4"

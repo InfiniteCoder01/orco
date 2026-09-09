@@ -4,7 +4,8 @@ use std::collections::HashSet;
 /// Replaces all anonymous structs by named structs, considers `ty`
 /// named if `root` is true.
 fn name_anonymous(
-    types: &SymbolMapRef<TypeAlias>,
+    module: &Module,
+    guard: &impl papaya::Guard,
     generics: &mut HashSet<Symbol>,
     ty: &mut Type,
     root: bool,
@@ -12,26 +13,26 @@ fn name_anonymous(
     match ty {
         Type::Symbol(_, symbol_generics) => {
             for ty in symbol_generics {
-                name_anonymous(types, generics, ty, false);
+                name_anonymous(module, guard, generics, ty, false);
             }
         }
-        Type::Array(ty, _) => name_anonymous(types, generics, ty, false),
+        Type::Array(ty, _) => name_anonymous(module, guard, generics, ty, false),
         Type::Struct { fields } => {
             for (_, ty) in fields {
-                name_anonymous(types, generics, ty, false);
+                name_anonymous(module, guard, generics, ty, false);
             }
         }
-        Type::Ptr(ty, _) => name_anonymous(types, generics, ty, false),
+        Type::Ptr(ty, _) => name_anonymous(module, guard, generics, ty, false),
         Type::FnPtr {
             params,
             return_type,
         } => {
             for ty in params {
-                name_anonymous(types, generics, ty, false);
+                name_anonymous(module, guard, generics, ty, false);
             }
 
             if let Some(ty) = return_type {
-                name_anonymous(types, generics, ty, false);
+                name_anonymous(module, guard, generics, ty, false);
             }
         }
         Type::Param(param) => {
@@ -58,46 +59,42 @@ fn name_anonymous(
         ty,
         Type::Symbol(name, generics.iter().copied().map(Type::Param).collect()),
     );
-    types.insert(
+
+    module.types.insert(
         name,
         TypeAlias {
             generics,
             type_: ty,
-        },
+        }
+        .into(),
+        guard,
     );
 }
 
 impl Module {
     /// Replaces all anonymous structs by named structs.
-    pub fn name_anonymous_structs(&self) {
-        let types = self.types.pin();
-        for (name, alias) in types.iter() {
-            let mut alias = alias.clone();
-            name_anonymous(&types, &mut HashSet::new(), &mut alias.type_, true);
-            types.insert(*name, alias);
+    pub fn name_anonymous_structs(&mut self) {
+        let guard = self.types.guard();
+        for (_, alias) in self.types.iter(&guard) {
+            let mut alias = alias.write().unwrap();
+            name_anonymous(self, &guard, &mut HashSet::new(), &mut alias.type_, true);
         }
 
-        let functions = self.functions.pin();
-        for (name, func) in functions.iter() {
-            let mut func = func.clone();
+        for (_, func) in self.functions.pin().iter() {
+            let mut func = func.write().unwrap();
             for (_, ty) in &mut func.params {
-                name_anonymous(&types, &mut HashSet::new(), ty, false);
+                name_anonymous(self, &guard, &mut HashSet::new(), ty, false);
             }
 
             if let Some(ty) = &mut func.return_type {
-                name_anonymous(&types, &mut HashSet::new(), ty, false);
+                name_anonymous(self, &guard, &mut HashSet::new(), ty, false);
             }
 
-            if let Some(body) = func.body.get() {
-                let mut body = body.clone();
+            if let Some(body) = &mut func.body {
                 for var in &mut body.variables {
-                    name_anonymous(&types, &mut HashSet::new(), &mut var.ty, false);
+                    name_anonymous(self, &guard, &mut HashSet::new(), &mut var.ty, false);
                 }
-                func.body = std::sync::OnceLock::new().into();
-                func.body.set(body).expect("impossible");
             }
-
-            functions.insert(*name, func);
         }
     }
 }

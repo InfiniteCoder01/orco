@@ -24,7 +24,7 @@ impl rustc_codegen_ssa::traits::CodegenBackend for OrcoCodegenBackend {
         // rustc_middle::mir::write_mir_pretty(tcx, &mut std::io::stdout()).unwrap();
         let items = tcx.hir_crate_items(());
 
-        let module = orco::Module::new();
+        let mut module = orco::Module::new();
         // module.functions.pin().insert(
         //     "core::mem::drop".into(),
         //     orco::Function {

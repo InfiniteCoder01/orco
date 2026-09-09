@@ -24,8 +24,9 @@ fn type_dependencies(ty: &orco::Type, dependencies: &mut Vec<orco::Symbol>) {
 /// otherwise stores whether it has finished processing
 /// (if false is encountered, loop is detected)
 fn topsort<E>(
+    module: &orco::Module,
+    guard: &impl orco::papaya::Guard,
     visited: &mut HashMap<orco::Symbol, bool>,
-    types: &orco::SymbolMapRef<orco::TypeAlias>,
     callback: &mut impl FnMut(orco::Symbol, &orco::Type) -> Result<(), E>,
     name: orco::Symbol,
 ) -> Result<(), E> {
@@ -38,15 +39,12 @@ fn topsort<E>(
         Entry::Vacant(entry) => entry.insert(false),
     };
 
-    let ty = &types
-        .get(&name)
-        .unwrap_or_else(|| panic!("[bug] undeclared type {name}"))
-        .type_;
+    let ty = &module.get_ty(name, guard).type_;
     let mut dependencies = Vec::new();
     type_dependencies(ty, &mut dependencies);
 
     for dep in dependencies {
-        topsort(visited, types, callback, dep)?;
+        topsort(module, guard, visited, callback, dep)?;
     }
 
     callback(name, ty)?;
@@ -59,11 +57,11 @@ pub fn visit<E>(
     module: &orco::Module,
     mut callback: impl FnMut(orco::Symbol, &orco::Type) -> Result<(), E>,
 ) -> Result<(), E> {
-    let types = module.types.pin();
+    let guard = module.types.guard();
     let mut visited = HashMap::new();
 
-    for name in types.keys() {
-        topsort(&mut visited, &types, &mut callback, *name)?;
+    for name in module.types.keys(&guard) {
+        topsort(&module, &guard, &mut visited, &mut callback, *name)?;
     }
 
     Ok(())

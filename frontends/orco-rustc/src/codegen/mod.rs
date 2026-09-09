@@ -295,16 +295,20 @@ pub fn body<'tcx>(
 
 /// Codegen a single function by key, inserting it's body into the module
 pub fn cg_function(ctx: super::Context, key: rustc_hir::def_id::DefId) {
-    let functions = ctx.module.functions.pin();
     let path = ctx.convert_path(key);
-    let function = functions
+
+    let functions = ctx.module.functions.pin();
+    let mut function = functions
         .get(&path)
-        .unwrap_or_else(|| panic!("trying to define an undeclared function {path}"));
+        .unwrap_or_else(|| panic!("undelcared function {path}"))
+        .write()
+        .unwrap();
+
     let ir_body = body(ctx, function.create_def(), ctx.tcx.optimized_mir(key));
     function
         .body
-        .set(ir_body)
-        .unwrap_or_else(|_| panic!("trying to define function {path} twice"));
+        .replace(ir_body)
+        .map(|_| panic!("trying to define function {path} twice"));
 }
 
 /// Codegen all the functions using the backend provided.

@@ -12,8 +12,6 @@ pub struct Context<'a> {
     pub module: &'a orco::Module,
     /// Body to get the code from.
     pub body: &'a orco::Body,
-    /// Map for instantiation generics.
-    type_params: &'a HashMap<orco::Symbol, orco::Type>,
     /// Actual disambiguated C-compatible variable names.
     var_names: Vec<String>,
 }
@@ -40,11 +38,7 @@ fn disambiguate(names: &mut Vec<String>) {
 
 impl<'a> Context<'a> {
     #[allow(missing_docs)]
-    pub fn new(
-        module: &'a orco::Module,
-        body: &'a orco::Body,
-        type_params: &'a HashMap<orco::Symbol, orco::Type>,
-    ) -> Self {
+    pub fn new(module: &'a orco::Module, body: &'a orco::Body) -> Self {
         let mut var_names = Vec::with_capacity(body.variables.len());
         for (idx, var) in body.variables.iter().enumerate() {
             var_names.push(match &var.name {
@@ -60,7 +54,6 @@ impl<'a> Context<'a> {
             module,
             body,
             var_names,
-            type_params,
         }
     }
 
@@ -78,12 +71,7 @@ impl<'a> Context<'a> {
 
             Instr::Global(id) => {
                 let symbol = self.body.symbol(id);
-                let mut generics = symbol.generics.clone();
-                for ty in &mut generics {
-                    ty.instantiate(self.type_params);
-                }
-                let name = self.module.monomorphized_name(symbol.name, &generics);
-                write!(f, "{}", crate::cname(name)).map(|_| idx + 1)
+                write!(f, "{}", crate::cname(symbol.name)).map(|_| idx + 1)
             }
             Instr::Var(id) => write!(f, "{}", self.var_names[id.0 as usize]).map(|_| idx + 1),
             Instr::Field(field_idx) => {
@@ -209,7 +197,7 @@ impl std::fmt::Display for Context<'_> {
                 f,
                 "  {};",
                 crate::types::FmtType {
-                    ty: &var.ty.copy_instantiate(self.type_params),
+                    ty: &var.ty,
                     constant: false,
                     name: Some(&self.var_names[idx])
                 }

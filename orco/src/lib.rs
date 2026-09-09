@@ -19,19 +19,17 @@ pub use ir::{Body, FmtBody};
 mod transforms;
 
 use papaya::HashMap;
-/// Shorthand for [`papaya::HashMapRef`] for any of [`orco::Symbol`] -> `V` maps
-pub type SymbolMapRef<'a, V> =
-    papaya::HashMapRef<'a, Symbol, V, std::hash::RandomState, papaya::LocalGuard<'a>>;
+use std::sync::RwLock;
 
 /// A single compilation unit.
 /// Note: Be careful with mutating the types,
 /// as [`Body`] caches them.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Debug, Default)]
 pub struct Module {
     /// Type declarations (aliases).
-    pub types: HashMap<Symbol, TypeAlias>,
+    pub types: HashMap<Symbol, RwLock<TypeAlias>>,
     /// Function declarations.
-    pub functions: HashMap<Symbol, Function>,
+    pub functions: HashMap<Symbol, RwLock<Function>>,
 }
 
 impl Module {
@@ -40,15 +38,38 @@ impl Module {
         Self::default()
     }
 
+    /// Get type alias by name.
+    pub fn get_ty<'a>(
+        &self,
+        name: Symbol,
+        guard: &'a impl papaya::Guard,
+    ) -> std::sync::RwLockReadGuard<'a, TypeAlias> {
+        self.types
+            .get(&name, guard)
+            .unwrap_or_else(|| panic!("undelcared type {name}"))
+            .read()
+            .unwrap()
+    }
+
+    /// Get symbol by name.
+    pub fn get_symbol<'a>(
+        &self,
+        name: Symbol,
+        guard: &'a impl papaya::Guard,
+    ) -> std::sync::RwLockReadGuard<'a, Function> {
+        self.functions
+            .get(&name, guard)
+            .unwrap_or_else(|| panic!("undelcared function {name}"))
+            .read()
+            .unwrap()
+    }
+
     /// Replaces the type alias by it's value until can't anymore.
     /// Reveals the true identity of the type.
     pub fn inline_ty(&self, mut ty: Type) -> Type {
-        let types = self.types.pin();
+        let guard = self.types.guard();
         while let Type::Symbol(name, generics) = ty {
-            ty = types
-                .get(&name)
-                .unwrap_or_else(|| panic!("undelcared type {name}"))
-                .instantiate(&generics);
+            ty = self.get_ty(name, &guard).instantiate(&generics);
         }
 
         ty
@@ -58,6 +79,7 @@ impl Module {
 impl std::fmt::Display for Module {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (name, alias) in self.types.pin().iter() {
+            let alias = alias.read().unwrap();
             writeln!(
                 f,
                 "type {name}{} = {};",
@@ -69,8 +91,9 @@ impl std::fmt::Display for Module {
         writeln!(f)?;
 
         for (name, func) in self.functions.pin().iter() {
+            let func = func.read().unwrap();
             write!(f, "{}fn {name}{}", func.attrs, func)?;
-            if let Some(body) = func.body.get() {
+            if let Some(body) = &func.body {
                 writeln!(f, " {}\n", FmtBody(self, body))?;
             } else {
                 writeln!(f, ";")?;
@@ -104,8 +127,6 @@ impl TypeAlias {
 pub struct Function {
     /// Type parameters.
     pub generics: Vec<Symbol>,
-    /// Extra type parameters for the function.
-    pub type_params: std::collections::HashMap<Symbol, Type>,
 
     /// Parameter types with optional names.
     pub params: Vec<(Option<String>, Type)>,
@@ -114,7 +135,7 @@ pub struct Function {
     /// Function attributes.
     pub attrs: crate::attrs::FunctionAttributes,
     /// Function body.
-    pub body: std::sync::Arc<std::sync::OnceLock<Body>>,
+    pub body: Option<Body>,
 }
 
 impl Function {

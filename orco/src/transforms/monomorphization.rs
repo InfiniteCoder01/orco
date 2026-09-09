@@ -5,9 +5,12 @@ use std::collections::{HashMap, HashSet};
 type InstanceMap = HashMap<Symbol, HashSet<Vec<Type>>>;
 
 /// Monomorphization context.
-struct Context {
+struct Context<'a> {
     types: InstanceMap,
     functions: InstanceMap,
+    /// Guard on [`Module::types`]
+    type_guard: papaya::LocalGuard<'a>,
+    func_guard: papaya::LocalGuard<'a>,
 }
 
 fn exists(instances: &mut InstanceMap, name: Symbol, args: &[Type]) -> bool {
@@ -26,19 +29,15 @@ fn visit_ty(module: &Module, ctx: &mut Context, ty: &mut Type) {
         Type::Symbol(name, args) if !args.is_empty() => {
             let moname = module.monomorphized_name(*name, args);
             if !exists(&mut ctx.types, *name, args) {
-                let mut new_ty = module
-                    .types
-                    .pin()
-                    .get(name)
-                    .unwrap_or_else(|| panic!("undelcared type {name}"))
-                    .instantiate(&args);
+                let mut new_ty = module.get_ty(*name, &ctx.type_guard).instantiate(&args);
                 visit_ty(module, ctx, &mut new_ty);
                 module.types.pin().insert(
                     moname,
                     TypeAlias {
                         generics: Vec::new(),
                         type_: new_ty,
-                    },
+                    }
+                    .into(),
                 );
             }
 
@@ -71,51 +70,39 @@ fn visit_ty(module: &Module, ctx: &mut Context, ty: &mut Type) {
 }
 
 /// Compute type instances from a function.
-fn visit_function(module: &Module, ctx: &mut Context, name: Symbol, args: &[Type]) {
-    let functions = module.functions.pin();
-    let func = functions
-        .get(&name)
-        .unwrap_or_else(|| panic!("undeclared function {name}"));
-
-    let mut type_params = func.type_params.clone();
-    type_params.extend(func.generics.iter().copied().zip(args.iter().cloned()));
-
-    let params = func
-        .params
-        .iter()
-        .map(|(name, ty)| {
-            let mut ty = ty.copy_instantiate(&type_params);
-            visit_ty(module, ctx, &mut ty);
-            (name.clone(), ty)
-        })
-        .collect::<Vec<_>>();
-    let return_type = func.return_type.as_ref().map(|ty| {
-        let mut ty = ty.copy_instantiate(&type_params);
-        visit_ty(module, ctx, &mut ty);
-        ty
-    });
-
-    if let Some(body) = func.body.get() {
-        for var in &body.variables {
-            visit_ty(module, ctx, &mut var.ty.clone());
-        }
-
-        for symbol in &body.symbols {
-            visit_function(module, ctx, symbol.name, &symbol.generics);
-        }
+fn visit_function(module: &Module, ctx: &mut Context, func: &mut Function) {
+    for (_, ty) in &mut func.params {
+        visit_ty(module, ctx, ty);
     }
 
-    functions.insert(
-        module.monomorphized_name(name, args),
-        Function {
-            generics: Vec::new(),
-            type_params,
-            params,
-            return_type,
-            attrs: func.attrs.clone(),
-            body: func.body.clone(),
-        },
-    );
+    if let Some(ty) = &mut func.return_type {
+        visit_ty(module, ctx, ty);
+    }
+
+    if let Some(body) = &mut func.body {
+        for var in &mut body.variables {
+            visit_ty(module, ctx, &mut var.ty);
+        }
+
+        for symbol in &mut body.symbols {
+            if symbol.generics.is_empty() {
+                continue;
+            }
+
+            let moname = module.monomorphized_name(symbol.name, &symbol.generics);
+            if !exists(&mut ctx.types, symbol.name, &symbol.generics) {
+                let mut func = module.get_symbol(symbol.name, &ctx.func_guard).clone();
+                func.instantiate(&symbol.generics);
+                visit_function(module, ctx, &mut func);
+                module
+                    .functions
+                    .insert(moname, func.into(), &ctx.func_guard);
+            }
+
+            symbol.name = moname;
+            symbol.generics.clear();
+        }
+    }
 }
 
 impl Module {
@@ -129,30 +116,32 @@ impl Module {
     }
 
     /// Monomorphize the module (duplicate generic symbols for all usages).
-    pub fn monomorphize(&self) {
+    pub fn monomorphize(&mut self) {
         let mut ctx = Context {
             types: HashMap::new(),
             functions: HashMap::new(),
+            type_guard: self.types.guard(),
+            func_guard: self.functions.guard(),
         };
 
         let types = self.types.pin();
-        for (name, alias) in types.iter() {
+        for alias in types.values() {
+            let mut alias = alias.write().unwrap();
             if !alias.generics.is_empty() {
                 continue;
             }
 
-            let mut alias = alias.clone();
             visit_ty(self, &mut ctx, &mut alias.type_);
-            types.insert(*name, alias);
         }
 
         let functions = self.functions.pin();
-        for (name, func) in functions.iter() {
+        for func in functions.values() {
+            let mut func = func.write().unwrap();
             if !func.generics.is_empty() {
                 continue;
             }
 
-            visit_function(self, &mut ctx, *name, &[]);
+            visit_function(self, &mut ctx, &mut func);
         }
 
         for (name, _) in ctx.types {

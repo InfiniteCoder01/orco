@@ -43,6 +43,7 @@ impl super::Body {
 
     /// Reference a symbol from the global namespace, adding it to the list of symbols
     /// (unless already there), returns the ID to be used with [`Self::symbol`].
+    /// TODO?: DO NOT USE AFTER MONOMORPHIZATION.
     pub fn use_symbol(
         &mut self,
         name: Symbol,
@@ -73,10 +74,8 @@ impl super::Body {
             .get_mut(id.0 as usize)
             .unwrap_or_else(|| panic!("invalid symbol id {id}"));
 
-        let functions = module.functions.pin();
-        let func = functions
-            .get(&symbol.name)
-            .unwrap_or_else(|| panic!("undefined symbol {}", symbol.name));
+        let guard = module.functions.guard();
+        let func = module.get_symbol(symbol.name, &guard);
         symbol.ty = func
             .ptr_type()
             .copy_instantiate(&func.generic_map(&symbol.generics));

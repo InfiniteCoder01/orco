@@ -1,4 +1,5 @@
 use super::Symbol;
+use std::collections::HashMap;
 
 /// Type of a variable, constant, part of a function signature, etc.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -40,7 +41,7 @@ pub enum Type {
 
 impl Type {
     /// Replace all instances of [`Type::Param`] with symbols from `map` (if present)
-    pub fn instantiate(&mut self, map: &std::collections::HashMap<Symbol, impl AsRef<Type>>) {
+    pub fn instantiate(&mut self, map: &HashMap<Symbol, impl AsRef<Type>>) {
         match self {
             Type::Integer(..)
             | Type::Unsigned(..)
@@ -82,10 +83,7 @@ impl Type {
     }
 
     /// Same as [`Self::instantiate`], but clones the type in the process
-    pub fn copy_instantiate(
-        &self,
-        map: &std::collections::HashMap<Symbol, impl AsRef<Type>>,
-    ) -> Self {
+    pub fn copy_instantiate(&self, map: &HashMap<Symbol, impl AsRef<Type>>) -> Self {
         let mut instance = self.clone();
         instance.instantiate(map);
         instance
@@ -278,13 +276,41 @@ impl crate::Function {
         }
     }
 
-    /// Generates generic param to arg map for use with [Type::instantiate].
-    pub fn generic_map<'a>(&self, args: &'a [Type]) -> std::collections::HashMap<Symbol, &'a Type> {
+    /// Generates generic param to arg map for use with [`Type::instantiate`].
+    pub fn generic_map<'a>(&self, args: &'a [Type]) -> HashMap<Symbol, &'a Type> {
         assert_eq!(
             args.len(),
             self.params.len(),
             "wrong number of generic arguments supplied"
         );
         self.generics.iter().copied().zip(args).collect()
+    }
+
+    /// Generates generic param to arg map for use with [Type::instantiate].
+    pub fn instantiate(&mut self, args: &[Type]) {
+        let map = self.generic_map(args);
+
+        for (_, ty) in &mut self.params {
+            ty.instantiate(&map);
+        }
+
+        if let Some(ty) = &mut self.return_type {
+            ty.instantiate(&map);
+        }
+
+        if let Some(body) = &mut self.body {
+            for var in &mut body.variables {
+                var.ty.instantiate(&map);
+            }
+
+            for symbol in &mut body.symbols {
+                symbol.ty.instantiate(&map);
+                for ty in &mut symbol.generics {
+                    ty.instantiate(&map);
+                }
+            }
+        }
+
+        self.generics.clear(); // Clear the generic list as this function is no longer generic.
     }
 }
