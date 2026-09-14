@@ -90,7 +90,7 @@ fn visit_function(module: &Module, ctx: &mut Context, func: &mut Function) {
             }
 
             let moname = module.monomorphized_name(symbol.name, &symbol.generics);
-            if !exists(&mut ctx.types, symbol.name, &symbol.generics) {
+            if !exists(&mut ctx.functions, symbol.name, &symbol.generics) {
                 let mut func = module.get_symbol(symbol.name, &ctx.func_guard).clone();
                 func.instantiate(&symbol.generics);
                 visit_function(module, ctx, &mut func);

@@ -63,10 +63,24 @@ impl<'a> Context<'a> {
         f: &mut std::fmt::Formatter<'_>,
         mut idx: usize,
     ) -> Result<usize, std::fmt::Error> {
+        use orco::types::IntegerSize;
+        fn int_size_suffix(size: IntegerSize) -> &'static str {
+            match size {
+                IntegerSize::Bits(bits) if bits > 32 => "ll",
+                IntegerSize::Bits(bits) if bits > 16 => "l",
+                IntegerSize::Bits(_) => "",
+                IntegerSize::Size => "ll",
+            }
+        }
+
         match self.body.instructions[idx] {
-            Instr::IConst(value, _) => write!(f, "{value}ll").map(|_| idx + 1),
-            Instr::UConst(value, _) => write!(f, "{value}ull").map(|_| idx + 1),
-            Instr::FConst(value, _) => write!(f, "{value}l").map(|_| idx + 1),
+            Instr::IConst(value, size) => {
+                write!(f, "{value}{}", int_size_suffix(size)).map(|_| idx + 1)
+            }
+            Instr::UConst(value, size) => {
+                write!(f, "{value}u{}", int_size_suffix(size)).map(|_| idx + 1)
+            }
+            Instr::FConst(value, _) => write!(f, "{value}").map(|_| idx + 1),
             Instr::BConst(value) => write!(f, "{value}").map(|_| idx + 1),
 
             Instr::Global(id) => {
@@ -132,15 +146,26 @@ impl<'a> Context<'a> {
                 }
             }
 
-            Instr::Intrinsic(orco::ir::Intrinsic::AggregateInt(count)) => {
+            Instr::Intrinsic(orco::ir::Intrinsic::AggregateLiteral(count)) => {
                 let mut value = 0;
-                for i in 0..count {
-                    match self.body.instructions[idx + i as usize] {
-                        Instr::IConst(_, integer_size) => todo!(),
-                        Instr::UConst(_, integer_size) => todo!(),
-                        instr => panic!("int aggregation applied to invalid instruction {instr}"),
-                    }
+                for i in 1..=count {
+                    let segment = match self.body.instructions[idx + i as usize] {
+                        Instr::IConst(segment, _) => segment.cast_unsigned(),
+                        Instr::UConst(segment, _) => segment,
+                        instr => panic!("aggregation applied to invalid instruction {instr}"),
+                    };
+                    value <<= 32;
+                    value |= segment as u128;
                 }
+                use orco::Type;
+                match self.body.value_ty(idx) {
+                    Type::Integer(size) => {
+                        write!(f, "{}{}", value.cast_signed(), int_size_suffix(size))?
+                    }
+                    Type::Unsigned(size) => write!(f, "{value}u{}", int_size_suffix(size))?,
+                    ty => panic!("Invalid type for aggregation: {ty}"),
+                }
+
                 Ok(idx + 1 + count as usize)
             }
 

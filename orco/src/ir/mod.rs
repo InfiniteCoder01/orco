@@ -40,7 +40,6 @@ impl Body {
     }
 
     /// Get type of a value generated at index.
-    /// Requires module access for global symbols.
     pub fn value_ty(&self, idx: usize) -> crate::Type {
         use crate::Type;
         match self.instructions[idx] {

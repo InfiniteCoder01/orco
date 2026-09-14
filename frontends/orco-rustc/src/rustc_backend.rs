@@ -25,16 +25,17 @@ impl rustc_codegen_ssa::traits::CodegenBackend for OrcoCodegenBackend {
         let items = tcx.hir_crate_items(());
 
         let mut module = orco::Module::new();
-        // module.functions.pin().insert(
-        //     "core::mem::drop".into(),
-        //     orco::Function {
-        //         generics: vec!["T".into()],
-        //         params: vec![(None, orco::Type::Param("T".into()))],
-        //         return_type: None,
-        //         attrs: Default::default(),
-        //         body: std::sync::OnceLock::new(),
-        //     },
-        // );
+        module.functions.pin().insert(
+            "core::mem::drop".into(),
+            orco::Function {
+                generics: vec!["T".into()],
+                params: vec![(None, orco::Type::Param("T".into()))],
+                return_type: None,
+                attrs: Default::default(),
+                body: None,
+            }
+            .into(),
+        );
         crate::declare(tcx, &module, items);
         crate::codegen(tcx, &module, items);
         module.monomorphize();

@@ -90,7 +90,7 @@ impl std::fmt::Display for FmtModule<'_> {
 
             writeln!(
                 f,
-                "{} {}",
+                "{} {}\n",
                 symbols::FmtFunction {
                     name: &cname(*name),
                     function: &func,

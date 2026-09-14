@@ -16,10 +16,10 @@ pub enum Intrinsic {
     /// Compares two arbitrary values. Any type supported,
     /// pointers will be compared by address.
     Eq,
-    /// Constructs a bigger integer from smaller literals,
+    /// Constructs a bigger value from smaller literals (bitwise concat),
     /// useful for large constants. Type is inherited from the literals.
     /// Only argument is the number of literals to bitwise concatenate.
-    AggregateInt(u8),
+    AggregateLiteral(u8),
 }
 
 impl Intrinsic {
@@ -32,7 +32,7 @@ impl Intrinsic {
             Self::Div => 2,
             Self::Mod => 2,
             Self::Eq => 2,
-            Self::AggregateInt(count) => count as _,
+            Self::AggregateLiteral(count) => count as _,
         }
     }
 
@@ -45,7 +45,7 @@ impl Intrinsic {
             Self::Div => true,
             Self::Mod => true,
             Self::Eq => true,
-            Self::AggregateInt(..) => false,
+            Self::AggregateLiteral(..) => false,
         }
     }
 
@@ -69,8 +69,8 @@ impl std::fmt::Display for Intrinsic {
             Self::Div => write!(f, "/"),
             Self::Mod => write!(f, "%"),
             Self::Eq => write!(f, "=="),
-            Self::AggregateInt(..) => {
-                write!(f, "int")
+            Self::AggregateLiteral(..) => {
+                write!(f, "aggregate")
             }
         }
     }
@@ -98,7 +98,7 @@ impl super::Body {
 
         if segments.len() != 1 {
             self.instructions
-                .push(Intrinsic::AggregateInt(segments.len() as _).into());
+                .push(Intrinsic::AggregateLiteral(segments.len() as _).into());
         }
 
         for segment in segments.into_iter().rev() {
@@ -121,7 +121,7 @@ impl super::Body {
 
         if segments.len() != 1 {
             self.instructions
-                .push(Intrinsic::AggregateInt(segments.len() as _).into());
+                .push(Intrinsic::AggregateLiteral(segments.len() as _).into());
         }
 
         for segment in segments.into_iter().rev() {
