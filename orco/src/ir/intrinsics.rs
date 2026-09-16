@@ -35,8 +35,12 @@ pub enum Intrinsic {
     Eq,
     /// Compares two numbers (less than). Ints and floats supported.
     Lt,
+    /// Compares two numbers (less than or equal). Ints and floats supported.
+    Le,
     /// Compares two numbers (greater than). Ints and floats supported.
     Gt,
+    /// Compares two numbers (greater than or equal). Ints and floats supported.
+    Ge,
 
     /// Constructs a bigger value from smaller literals (bitwise concat),
     /// useful for large constants. Type is inherited from the literals.
@@ -65,7 +69,9 @@ impl Intrinsic {
 
             Self::Eq => 2,
             Self::Lt => 2,
+            Self::Le => 2,
             Self::Gt => 2,
+            Self::Ge => 2,
 
             Self::AggregateLiteral(count) => count as _,
         }
@@ -113,7 +119,9 @@ impl std::fmt::Display for Intrinsic {
 
             Self::Eq => write!(f, "=="),
             Self::Lt => write!(f, "<"),
+            Self::Le => write!(f, "<="),
             Self::Gt => write!(f, ">"),
+            Self::Ge => write!(f, ">="),
 
             Self::AggregateLiteral(..) => {
                 write!(f, "aggregate")

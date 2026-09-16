@@ -2,7 +2,7 @@ use orco::ir::Instr;
 use std::collections::HashMap;
 
 // mod control_flow;
-// mod intrinsics;
+mod intrinsics;
 // mod value;
 // use value::ValueInfo;
 
@@ -71,10 +71,13 @@ impl<'a> Context<'a> {
     }
 
     /// Codegen an instruction at `idx` with it's arguments into `f`.
+    /// Set precedence to 255 to allow all expressions unparenthesised.
+    /// See https://en.cppreference.com/cpp/language/operator_precedence for other values.
     pub fn instr(
         &self,
         f: &mut std::fmt::Formatter<'_>,
         mut idx: usize,
+        precedence: u8,
     ) -> Result<usize, std::fmt::Error> {
         use orco::types::IntegerSize;
         fn int_size_suffix(size: IntegerSize) -> &'static str {
@@ -102,23 +105,33 @@ impl<'a> Context<'a> {
             }
             Instr::Var(id) => write!(f, "{}", self.var_names[id.0 as usize]).map(|_| idx + 1),
             Instr::Field(field_idx) => {
+                if precedence < 2 {
+                    write!(f, "(")?;
+                }
+
+                // Object
                 let ty = self.module.inline_ty(self.body.value_ty(idx + 1));
-                idx = self.instr(f, idx + 1)?;
+                idx = self.instr(f, idx + 1, 2)?;
                 let orco::Type::Struct { fields } = ty else {
                     panic!("trying to access field #{field_idx} on a non-struct type {ty}");
                 };
 
+                // Field
                 match &fields[field_idx as usize].0 {
                     Some(name) => write!(f, ".{name}")?,
                     None => write!(f, "._{field_idx}")?,
                 }
 
+                if precedence < 2 {
+                    write!(f, ")")?;
+                }
+
                 Ok(idx)
             }
             Instr::Assign => {
-                idx = self.instr(f, idx + 1)?;
+                idx = self.instr(f, idx + 1, 15)?;
                 write!(f, " = ")?;
-                self.instr(f, idx)
+                self.instr(f, idx, 16)
             }
 
             Instr::AcfLabel(label) => {
@@ -128,20 +141,20 @@ impl<'a> Context<'a> {
                 write!(f, "jump {}", self.label_names[label.0 as usize]).map(|_| idx + 1)
             }
             Instr::AcfCJump(label) => {
-                write!(f, "if ")?;
-                idx = self.instr(f, idx + 1)?;
-                write!(f, " jump {}", self.label_names[label.0 as usize])?;
+                write!(f, "if (")?;
+                idx = self.instr(f, idx + 1, 255)?;
+                write!(f, ") jump {}", self.label_names[label.0 as usize])?;
                 Ok(idx)
             }
 
             Instr::Call(args) => {
-                idx = self.instr(f, idx + 1)?;
+                idx = self.instr(f, idx + 1, 2)?;
                 write!(f, "(")?;
                 for i in 0..args {
                     if i > 0 {
                         write!(f, ", ")?;
                     }
-                    idx = self.instr(f, idx)?;
+                    idx = self.instr(f, idx, 16)?;
                 }
                 write!(f, ")").map(|_| idx)
             }
@@ -150,7 +163,7 @@ impl<'a> Context<'a> {
                 write!(f, "return")?;
                 if has_value {
                     write!(f, " ")?;
-                    self.instr(f, idx + 1)
+                    self.instr(f, idx + 1, 255)
                 } else {
                     Ok(idx + 1)
                 }
@@ -179,39 +192,18 @@ impl<'a> Context<'a> {
                 Ok(idx + 1 + count as usize)
             }
 
-            Instr::Intrinsic(intr) if intr.infix() => {
-                idx += 1;
-                write!(f, "(")?;
-                for i in 0..intr.arg_count() {
-                    if i > 0 {
-                        write!(f, " {intr} ")?;
-                    }
-                    idx = self.instr(f, idx)?;
-                }
-                write!(f, ")")?;
-                Ok(idx)
-            }
-
+            Instr::Intrinsic(intr) if intr.infix() => intrinsics::infix(self, f, idx, precedence),
             Instr::Intrinsic(intr) => {
                 write!(f, "{intr}")?;
                 idx += 1;
                 for _ in 0..intr.arg_count() {
                     write!(f, " ")?;
-                    idx = self.instr(f, idx)?;
+                    idx = self.instr(f, idx, 3)?;
                 }
                 Ok(idx)
             }
 
-            instr => {
-                // todo!("{instr}");
-                write!(f, "{instr}")?;
-                idx += 1;
-                // let args = instr.arg_count();
-                // if args > 0 {
-                //     idx = debug_args(idx, f, args)?;
-                // }
-                Ok(idx)
-            }
+            instr => todo!("{instr}"),
         }
     }
 }
@@ -242,156 +234,16 @@ impl std::fmt::Display for Context<'_> {
         let mut idx = 0;
         while idx < self.body.instructions.len() {
             if matches!(self.body.instructions[idx], Instr::AcfLabel(..)) {
-                idx = self.instr(f, idx)?;
+                idx = self.instr(f, idx, 0)?;
                 writeln!(f)?;
                 continue;
             }
 
             write!(f, "  ")?;
-            idx = self.instr(f, idx)?;
+            idx = self.instr(f, idx, 0)?;
             writeln!(f, ";")?;
         }
 
         write!(f, "}}")
     }
 }
-
-// impl oc::BodyCodegen for Codegen<'_> {
-//     fn comment(&mut self, comment: &str) {
-//         for line in comment.split('\n') {
-//             self.line(format_args!("// {line}"));
-//         }
-//     }
-
-//     fn type_of(&self, id: usize) -> orco::Type {
-//         self.values[&id].ty.clone()
-//     }
-
-//     fn declare_var(&mut self, mut ty: orco::Type, name: Option<&str>) -> oc::Variable {
-//         self.backend.intern_type(&mut ty, false);
-//         let id = self.variables.len();
-//         let mut name = name.map_or_else(|| format!("var{id}"), |name| crate::symname(name.into())); // TODO: Not ideal
-//         if self.variable_names.contains(&name) {
-//             for disambiguator in 1.. {
-//                 let disambiguated = format!("{name}{disambiguator}");
-//                 if !self.variable_names.contains(&disambiguated) {
-//                     name = disambiguated;
-//                     break;
-//                 }
-//             }
-//         }
-//         self.variable_names.insert(name.clone());
-
-//         if !matches!(&ty, orco::Type::Struct { fields } if fields.is_empty()) {
-//             self.line(format_args!(
-//                 "{};",
-//                 crate::types::FmtType {
-//                     ty: &ty,
-//                     constant: false,
-//                     name: Some(&name),
-//                 }
-//             ));
-//         }
-
-//         self.variables.push(VariableInfo { name, ty });
-//         oc::Variable(id)
-//     }
-
-//     fn assign(&mut self, target: oc::Place, value: oc::Value) {
-//         let target = self.place(target).expression;
-//         let value = self.use_value(value).expression;
-//         self.line(format_args!("{target} = {value};"));
-//     }
-
-//     fn iconst(&mut self, value: i128, size: orco::types::IntegerSize) -> oc::Value {
-//         self.mk_value(ValueInfo::new(value.to_string(), orco::Type::Integer(size))) // TODO: Literal sizes
-//     }
-
-//     fn uconst(&mut self, value: u128, size: orco::types::IntegerSize) -> oc::Value {
-//         self.mk_value(ValueInfo::new(
-//             value.to_string(),
-//             orco::Type::Unsigned(size),
-//         )) // TODO: Literal sizes
-//     }
-
-//     fn fconst(&mut self, value: f64, size: u16) -> oc::Value {
-//         self.mk_value(ValueInfo::new(value.to_string(), orco::Type::Float(size))) // TODO: Literal sizes
-//     }
-
-//     fn bconst(&mut self, value: bool) -> oc::Value {
-//         self.mk_value(ValueInfo::new(value.to_string(), orco::Type::Bool))
-//     }
-
-//     fn read(&mut self, place: oc::Place) -> oc::Value {
-//         let place = self.place(place);
-//         self.mk_value(place)
-//     }
-
-//     fn reference(&mut self, place: oc::Place, mutable: bool) -> oc::Value {
-//         let mut place = self.place(place);
-//         place.expression.insert(0, '&');
-//         place.ty = orco::Type::Ptr(Box::new(place.ty), mutable);
-//         self.mk_value(place)
-//     }
-
-//     fn call(&mut self, func: oc::Value, args: Vec<oc::Value>) -> Option<oc::Value> {
-//         let func = self.use_value(func);
-//         let ty = match func.ty {
-//             orco::Type::FnPtr {
-//                 params,
-//                 return_type,
-//             } => {
-//                 assert_eq!(params.len(), args.len());
-//                 return_type
-//             }
-//             ty => panic!("trying to call {ty:#?} (which is not a function)"),
-//         };
-
-//         let mut call = func.expression;
-//         call.push('(');
-//         for (idx, arg) in args.into_iter().enumerate() {
-//             let arg = self.use_value(arg);
-//             if idx > 0 {
-//                 call.push_str(", ");
-//             }
-//             call.push_str(&arg.expression);
-//         }
-//         call.push(')');
-
-//         match ty {
-//             Some(rt) => Some(self.mk_value(ValueInfo::new(call, *rt))),
-//             None => {
-//                 self.line(format_args!("{call};"));
-//                 None
-//             }
-//         }
-//     }
-
-//     fn return_(&mut self, value: Option<oc::Value>) {
-//         if let Some(value) = value {
-//             let value = self.use_value(value).expression;
-//             self.line(format_args!("return {value};"));
-//         } else {
-//             self.line(format_args!("return;"));
-//         }
-//     }
-
-//     fn intrinsics(&mut self) -> impl oc::Intrinsics + '_ {
-//         self
-//     }
-
-//     fn acf(&mut self) -> impl oc::AcfCodegen + '_ {
-//         self
-//     }
-
-//     fn bcf(&mut self) -> impl oc::BcfCodegen + '_ {
-//         self
-//     }
-// }
-
-// impl std::ops::Drop for Codegen<'_> {
-//     fn drop(&mut self) {
-//         self.body.push('}');
-//         self.backend.define(std::mem::take(&mut self.body));
-//     }
-// }
