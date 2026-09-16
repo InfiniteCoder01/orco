@@ -122,30 +122,12 @@ impl<'tcx> CodegenCtx<'tcx, '_> {
                     BinOp::Shr | BinOp::ShrUnchecked => Intrinsic::Shr,
                     BinOp::Eq => Intrinsic::Eq,
                     BinOp::Lt => Intrinsic::Lt,
-                    BinOp::Le => {
-                        self.instr(Instr::Intrinsic(Intrinsic::Or));
-                        self.instr(Instr::Intrinsic(Intrinsic::Lt));
-                        self.op(&operands.0);
-                        self.op(&operands.1);
-                        self.instr(Instr::Intrinsic(Intrinsic::Eq));
-                        self.op(&operands.0);
-                        self.op(&operands.1);
-                        return;
-                    }
+                    BinOp::Le => Intrinsic::Le,
                     BinOp::Ne => {
                         self.instr(Instr::Intrinsic(Intrinsic::Not));
                         Intrinsic::Eq
                     }
-                    BinOp::Ge => {
-                        self.instr(Instr::Intrinsic(Intrinsic::Or));
-                        self.instr(Instr::Intrinsic(Intrinsic::Gt));
-                        self.op(&operands.0);
-                        self.op(&operands.1);
-                        self.instr(Instr::Intrinsic(Intrinsic::Eq));
-                        self.op(&operands.0);
-                        self.op(&operands.1);
-                        return;
-                    }
+                    BinOp::Ge => Intrinsic::Ge,
                     BinOp::Gt => Intrinsic::Gt,
                     BinOp::Cmp => todo!("<=>"),
                     BinOp::Offset => todo!("ptr.offset"),
@@ -290,6 +272,7 @@ pub fn body<'tcx>(
     };
 
     for (idx, local) in rs_body.local_decls.iter_enumerated() {
+        dbg!(&local);
         let var = if (1..rs_body.arg_count + 1).contains(&idx.index()) {
             // An argument
             Some(ir::VariableId(idx.index() as u32 - 1))

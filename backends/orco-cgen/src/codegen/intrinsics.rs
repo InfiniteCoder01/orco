@@ -1,12 +1,12 @@
 /// Format an infix intrinsic, with operator precedence in mind.
-pub fn infix(
+pub fn format(
     ctx: &super::Context,
     f: &mut std::fmt::Formatter,
     mut idx: usize,
     precedence: u8,
 ) -> Result<usize, std::fmt::Error> {
     let instr = ctx.body.instructions[idx];
-    let orco::ir::Instr::Intrinsic(intr) = instr else {
+    let orco::ir::Instr::Intrinsic(mut intr) = instr else {
         panic!("Expected intrinsic, got {instr}");
     };
     idx += 1;
@@ -19,14 +19,32 @@ pub fn infix(
         Intrinsic::Mul => (5, "*"),
         Intrinsic::Div => (5, "/"),
         Intrinsic::Rem => (5, "%"),
+        Intrinsic::Neg => (3, "-"),
 
-        Intrinsic::And => (1, "&"),
-        Intrinsic::Or => todo!(),
-        Intrinsic::Xor => todo!(),
-        Intrinsic::Not => todo!(),
+        Intrinsic::And => match ctx.body.value_ty(idx) {
+            orco::Type::Bool => (14, "&&"),
+            _ => (11, "&"),
+        },
+        Intrinsic::Or => match ctx.body.value_ty(idx) {
+            orco::Type::Bool => (15, "||"),
+            _ => (13, "|"),
+        },
+        Intrinsic::Xor => (12, "^"),
+        Intrinsic::Not => {
+            if ctx.body.instructions[idx] == orco::ir::Instr::Intrinsic(Intrinsic::Eq) {
+                intr = Intrinsic::Eq;
+                idx += 1;
+                (10, "!=")
+            } else {
+                match ctx.body.value_ty(idx) {
+                    orco::Type::Bool => (3, "!"),
+                    _ => (3, "~"),
+                }
+            }
+        }
 
-        Intrinsic::Shl => todo!(),
-        Intrinsic::Shr => todo!(),
+        Intrinsic::Shl => (7, "<<"),
+        Intrinsic::Shr => (7, ">>"),
 
         Intrinsic::Eq => (10, "=="),
         Intrinsic::Lt => (9, "<"),
@@ -35,12 +53,15 @@ pub fn infix(
         Intrinsic::Ge => (9, ">="),
 
         Intrinsic::AggregateLiteral(_) => todo!(),
-        intrinsic => panic!("not infix: {intrinsic}"),
     };
 
     // Precedence check
     if precedence < op_precedence {
         write!(f, "(")?;
+    }
+
+    if intr.arg_count() == 1 {
+        write!(f, "{operator}")?;
     }
 
     // All values

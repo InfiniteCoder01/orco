@@ -192,17 +192,7 @@ impl<'a> Context<'a> {
                 Ok(idx + 1 + count as usize)
             }
 
-            Instr::Intrinsic(intr) if intr.infix() => intrinsics::infix(self, f, idx, precedence),
-            Instr::Intrinsic(intr) => {
-                write!(f, "{intr}")?;
-                idx += 1;
-                for _ in 0..intr.arg_count() {
-                    write!(f, " ")?;
-                    idx = self.instr(f, idx, 3)?;
-                }
-                Ok(idx)
-            }
-
+            Instr::Intrinsic(_) => intrinsics::format(self, f, idx, precedence),
             instr => todo!("{instr}"),
         }
     }

@@ -93,7 +93,9 @@ impl Intrinsic {
         Some(match self {
             Intrinsic::Eq => Type::Bool,
             Intrinsic::Lt => Type::Bool,
+            Intrinsic::Le => Type::Bool,
             Intrinsic::Gt => Type::Bool,
+            Intrinsic::Ge => Type::Bool,
             _ => return None,
         })
     }
