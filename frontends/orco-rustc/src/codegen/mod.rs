@@ -100,23 +100,62 @@ impl<'tcx> CodegenCtx<'tcx, '_> {
                 }
             }
             Rvalue::BinaryOp(op, operands) => {
-                // let params: Vec<_> = self
-                //     .op(&operands.0)
-                //     .into_iter()
-                //     .chain(self.op(&operands.1))
-                // .collect();
+                if !is_unit {
+                    self.instr(Instr::Assign);
+                    self.place(*place);
+                }
 
-                // let ty = operands.0.ty(self.rs_body, self.tcx).to_string();
-                // let value = crate::intrinsics().inline_call(
-                //     &mut self.codegen,
-                //     format!("__{op:?}#{ty}").into(),
-                //     params,
-                // );
-                // if let (Some(place), Some(value)) = (self.place(*place), value) {
-                //     self.codegen.assign(place, value);
-                // }
+                use rustc_middle::mir::BinOp;
+                let intrinsic = match op {
+                    BinOp::Add | BinOp::AddUnchecked => Intrinsic::Add,
+                    BinOp::AddWithOverflow => Intrinsic::Add, // TODO
+                    BinOp::Sub | BinOp::SubUnchecked => Intrinsic::Sub,
+                    BinOp::SubWithOverflow => Intrinsic::Sub, // TODO
+                    BinOp::Mul | BinOp::MulUnchecked => Intrinsic::Mul,
+                    BinOp::MulWithOverflow => Intrinsic::Mul, // TODO
+                    BinOp::Div => Intrinsic::Div,
+                    BinOp::Rem => Intrinsic::Rem,
+                    BinOp::BitXor => Intrinsic::Xor,
+                    BinOp::BitAnd => Intrinsic::And,
+                    BinOp::BitOr => Intrinsic::Not,
+                    BinOp::Shl | BinOp::ShlUnchecked => Intrinsic::Shl,
+                    BinOp::Shr | BinOp::ShrUnchecked => Intrinsic::Shr,
+                    BinOp::Eq => Intrinsic::Eq,
+                    BinOp::Lt => Intrinsic::Lt,
+                    BinOp::Le => {
+                        self.instr(Instr::Intrinsic(Intrinsic::Or));
+                        self.instr(Instr::Intrinsic(Intrinsic::Lt));
+                        self.op(&operands.0);
+                        self.op(&operands.1);
+                        self.instr(Instr::Intrinsic(Intrinsic::Eq));
+                        self.op(&operands.0);
+                        self.op(&operands.1);
+                        return;
+                    }
+                    BinOp::Ne => {
+                        self.instr(Instr::Intrinsic(Intrinsic::Not));
+                        Intrinsic::Eq
+                    }
+                    BinOp::Ge => {
+                        self.instr(Instr::Intrinsic(Intrinsic::Or));
+                        self.instr(Instr::Intrinsic(Intrinsic::Gt));
+                        self.op(&operands.0);
+                        self.op(&operands.1);
+                        self.instr(Instr::Intrinsic(Intrinsic::Eq));
+                        self.op(&operands.0);
+                        self.op(&operands.1);
+                        return;
+                    }
+                    BinOp::Gt => Intrinsic::Gt,
+                    BinOp::Cmp => todo!("<=>"),
+                    BinOp::Offset => todo!("ptr.offset"),
+                };
+
+                self.instr(Instr::Intrinsic(intrinsic));
+                self.op(&operands.0);
+                self.op(&operands.1);
             }
-            _ => println!("TODO: {stmt:?}"), // TODO
+            _ => eprintln!("TODO: {stmt:?}"), // TODO
         }
     }
 

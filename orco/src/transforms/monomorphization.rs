@@ -125,9 +125,10 @@ impl Module {
         };
 
         let types = self.types.pin();
-        for alias in types.values() {
+        for (name, alias) in types.iter() {
             let mut alias = alias.write().unwrap();
             if !alias.generics.is_empty() {
+                ctx.types.entry(*name).or_default();
                 continue;
             }
 
@@ -135,9 +136,10 @@ impl Module {
         }
 
         let functions = self.functions.pin();
-        for func in functions.values() {
+        for (name, func) in functions.iter() {
             let mut func = func.write().unwrap();
             if !func.generics.is_empty() {
+                ctx.functions.entry(*name).or_default();
                 continue;
             }
 

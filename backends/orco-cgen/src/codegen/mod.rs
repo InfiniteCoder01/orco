@@ -14,6 +14,8 @@ pub struct Context<'a> {
     pub body: &'a orco::Body,
     /// Actual disambiguated C-compatible variable names.
     var_names: Vec<String>,
+    /// Actual disambiguated C-compatible label names.
+    label_names: Vec<String>,
 }
 
 /// Makes all names unique by appending suffixes.
@@ -50,10 +52,21 @@ impl<'a> Context<'a> {
 
         disambiguate(&mut var_names);
 
+        let mut label_names = Vec::with_capacity(body.label_names.len());
+        for label in body.label_names.iter() {
+            label_names.push(match &label {
+                Some(name) => crate::cname(name.into()),
+                None => "label".to_owned(),
+            });
+        }
+
+        disambiguate(&mut label_names);
+
         Self {
             module,
             body,
             var_names,
+            label_names,
         }
     }
 
@@ -109,19 +122,16 @@ impl<'a> Context<'a> {
             }
 
             Instr::AcfLabel(label) => {
-                todo!()
-                //     write!(f, "{}:", self.label_debug_name(label)).map(|_| idx + 1)
+                write!(f, "{}:", self.label_names[label.0 as usize]).map(|_| idx + 1)
             }
             Instr::AcfJump(label) => {
-                todo!()
-                //     write!(f, "jump {}", self.label_debug_name(label)).map(|_| idx + 1)
+                write!(f, "jump {}", self.label_names[label.0 as usize]).map(|_| idx + 1)
             }
             Instr::AcfCJump(label) => {
-                todo!()
-                //     write!(f, "if ")?;
-                //     idx = self.instr(module, f, idx + 1)?;
-                //     write!(f, " jump {}", self.label_debug_name(label))?;
-                //     Ok(idx)
+                write!(f, "if ")?;
+                idx = self.instr(f, idx + 1)?;
+                write!(f, " jump {}", self.label_names[label.0 as usize])?;
+                Ok(idx)
             }
 
             Instr::Call(args) => {
@@ -231,11 +241,11 @@ impl std::fmt::Display for Context<'_> {
 
         let mut idx = 0;
         while idx < self.body.instructions.len() {
-            // if matches!(self.body.instructions[idx], Instr::AcfLabel(..)) {
-            //     idx = body.debug_instr(module, f, idx + 1)?;
-            //     writeln!(f)?;
-            //     continue;
-            // }
+            if matches!(self.body.instructions[idx], Instr::AcfLabel(..)) {
+                idx = self.instr(f, idx)?;
+                writeln!(f)?;
+                continue;
+            }
 
             write!(f, "  ")?;
             idx = self.instr(f, idx)?;

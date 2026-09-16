@@ -1,5 +1,7 @@
 //! rustc frontend for orco
 #![feature(rustc_private)]
+#![feature(f16)]
+#![feature(f128)]
 #![warn(missing_docs)]
 
 extern crate rustc_ast;

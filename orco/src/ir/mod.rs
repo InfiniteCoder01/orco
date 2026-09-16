@@ -198,7 +198,7 @@ impl std::fmt::Display for FmtBody<'_> {
         let mut idx = 0;
         while idx < body.instructions.len() {
             if matches!(body.instructions[idx], Instr::AcfLabel(..)) {
-                idx = body.debug_instr(module, f, idx + 1)?;
+                idx = body.debug_instr(module, f, idx)?;
                 writeln!(f)?;
                 continue;
             }

@@ -7,15 +7,37 @@ pub enum Intrinsic {
     Add,
     /// Subtracts two numbers. Ints and floats supported.
     Sub,
-    /// Subtracts two numbers. Ints and floats supported.
+    /// Multiplies two numbers. Ints and floats supported.
     Mul,
-    /// Subtracts two numbers. Ints and floats supported.
+    /// Divides two numbers. Ints and floats supported.
     Div,
-    /// Subtracts two numbers. Ints and floats supported.
-    Mod,
+    /// Modulo of the two two numbers. Ints and floats supported.
+    Rem,
+    /// Negate a number. Ints and floats are supported.
+    Neg,
+
+    /// And of two values. Bitwise for integers, logical for booleans.
+    And,
+    /// Or of two values. Bitwise for integers, logical for booleans.
+    Or,
+    /// Xor of two values. Bitwise for integers, logical for booleans.
+    Xor,
+    /// Not. Bitwise for integers, logical for booleans.
+    Not,
+
+    /// Shift a number left by N bits. Integers only.
+    Shl,
+    /// Shift a number right by N bits. Integers only.
+    Shr,
+
     /// Compares two arbitrary values. Any type supported,
     /// pointers will be compared by address.
     Eq,
+    /// Compares two numbers (less than). Ints and floats supported.
+    Lt,
+    /// Compares two numbers (greater than). Ints and floats supported.
+    Gt,
+
     /// Constructs a bigger value from smaller literals (bitwise concat),
     /// useful for large constants. Type is inherited from the literals.
     /// Only argument is the number of literals to bitwise concatenate.
@@ -30,8 +52,21 @@ impl Intrinsic {
             Self::Sub => 2,
             Self::Mul => 2,
             Self::Div => 2,
-            Self::Mod => 2,
+            Self::Rem => 2,
+            Self::Neg => 1,
+
+            Self::And => 2,
+            Self::Or => 2,
+            Self::Xor => 2,
+            Self::Not => 1,
+
+            Self::Shl => 2,
+            Self::Shr => 2,
+
             Self::Eq => 2,
+            Self::Lt => 2,
+            Self::Gt => 2,
+
             Self::AggregateLiteral(count) => count as _,
         }
     }
@@ -39,13 +74,9 @@ impl Intrinsic {
     /// Weather debug display should use infix notation for this intrinsic.
     pub fn infix(self) -> bool {
         match self {
-            Self::Add => true,
-            Self::Sub => true,
-            Self::Mul => true,
-            Self::Div => true,
-            Self::Mod => true,
-            Self::Eq => true,
             Self::AggregateLiteral(..) => false,
+            _ if self.arg_count() == 1 => false,
+            _ => true,
         }
     }
 
@@ -55,6 +86,8 @@ impl Intrinsic {
         use crate::Type;
         Some(match self {
             Intrinsic::Eq => Type::Bool,
+            Intrinsic::Lt => Type::Bool,
+            Intrinsic::Gt => Type::Bool,
             _ => return None,
         })
     }
@@ -67,8 +100,21 @@ impl std::fmt::Display for Intrinsic {
             Self::Sub => write!(f, "-"),
             Self::Mul => write!(f, "*"),
             Self::Div => write!(f, "/"),
-            Self::Mod => write!(f, "%"),
+            Self::Rem => write!(f, "%"),
+            Self::Neg => write!(f, "-"),
+
+            Self::And => write!(f, "&"),
+            Self::Or => write!(f, "|"),
+            Self::Xor => write!(f, "^"),
+            Self::Not => write!(f, "!"),
+
+            Self::Shl => write!(f, "<<"),
+            Self::Shr => write!(f, ">>"),
+
             Self::Eq => write!(f, "=="),
+            Self::Lt => write!(f, "<"),
+            Self::Gt => write!(f, ">"),
+
             Self::AggregateLiteral(..) => {
                 write!(f, "aggregate")
             }

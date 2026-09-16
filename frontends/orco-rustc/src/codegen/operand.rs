@@ -23,45 +23,50 @@ impl CodegenCtx<'_, '_> {
     }
 
     fn constant(&mut self, value: rustc_middle::mir::ConstValue, ty: rustc_middle::ty::Ty) {
-        use rustc_const_eval::interpret::Scalar;
         use rustc_middle::mir::ConstValue;
         use rustc_middle::ty::TyKind;
 
         // TODO: Handle chars & bools
         match value {
-            ConstValue::Scalar(Scalar::Int(value)) => {
-                if ty.is_floating_point() {
+            ConstValue::Scalar(scalar) => {
+                if ty.is_bool() {
+                    self.instr(Instr::BConst(scalar.to_bool().unwrap()));
+                } else if ty.is_char() {
+                    todo!("char constants")
+                } else if ty.is_any_ptr() {
+                    todo!("pointer constants")
+                } else if ty.is_floating_point() {
+                    let bits = scalar.to_bits(scalar.size()).unwrap();
                     self.instr(Instr::FConst(
-                        match value.size().bytes() {
-                            4 => f32::from_bits(value.to_u32()).into(),
-                            8 => f64::from_bits(value.to_u64()) as _,
-                            sz => {
-                                panic!("invalid or unsupported floating point literal size: {sz}")
-                            }
+                        match scalar.size().bits() {
+                            16 => f16::from_bits(bits as _) as _,
+                            32 => f32::from_bits(bits as _),
+                            64 => f64::from_bits(bits as _) as _,
+                            128 => f128::from_bits(bits as _) as _,
+                            sz => panic!("Invalid float constant size {sz}"),
                         },
-                        value.size().bits() as _,
+                        scalar.size().bits() as _,
                     ));
                 } else if ty.is_signed() {
                     self.ir_body.int_literal(
-                        value.to_int(value.size()),
+                        scalar.to_int(scalar.size()).unwrap(),
                         if ty.is_ptr_sized_integral() {
                             orco::types::IntegerSize::Size
                         } else {
-                            orco::types::IntegerSize::Bits(value.size().bits() as _)
+                            orco::types::IntegerSize::Bits(scalar.size().bits() as _)
                         },
                     );
                 } else {
                     self.ir_body.uint_literal(
-                        value.to_uint(value.size()),
+                        scalar.to_uint(scalar.size()).unwrap(),
                         if ty.is_ptr_sized_integral() {
                             orco::types::IntegerSize::Size
                         } else {
-                            orco::types::IntegerSize::Bits(value.size().bits() as _)
+                            orco::types::IntegerSize::Bits(scalar.size().bits() as _)
                         },
                     );
                 }
             }
-            ConstValue::Scalar(Scalar::Ptr(..)) => todo!(),
             ConstValue::ZeroSized => match ty.kind() {
                 // TODO: We might need to do more
                 // TODO: Generics
