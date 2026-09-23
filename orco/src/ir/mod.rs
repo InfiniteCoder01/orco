@@ -158,6 +158,11 @@ impl Body {
                 Ok(idx)
             }
 
+            Instr::Intrinsic(intr) if intr.arg_count() == 1 => {
+                write!(f, "{intr}")?;
+                self.debug_instr(module, f, idx + 1)
+            }
+
             instr => {
                 write!(f, "{instr}")?;
                 idx += 1;

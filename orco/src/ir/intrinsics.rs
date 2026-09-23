@@ -3,43 +3,44 @@ use crate::types::IntegerSize;
 /// Intrinsics are operations built into the compier.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Intrinsic {
-    /// Adds two numbers. Ints and floats supported.
+    /// Adds two ints/floats.
     Add,
-    /// Subtracts two numbers. Ints and floats supported.
+    /// Subtracts two ints/floats.
     Sub,
-    /// Multiplies two numbers. Ints and floats supported.
+    /// Multiplies two ints/floats.
     Mul,
-    /// Divides two numbers. Ints and floats supported.
+    /// Divides two ints/floats.
     Div,
-    /// Modulo of the two two numbers. Ints and floats supported.
+    /// Division remainder of two ints/floats.
     Rem,
-    /// Negate a number. Ints and floats are supported.
+    /// Negates an int/float.
     Neg,
 
-    /// And of two values. Bitwise for integers, logical for booleans.
+    /// And of two ints (bitwise) or bools (logical).
     And,
-    /// Or of two values. Bitwise for integers, logical for booleans.
+    /// Or of two ints (bitwise) or bools (logical).
     Or,
-    /// Xor of two values. Bitwise for integers, logical for booleans.
+    /// Xor of two ints (bitwise) or bools (logical).
     Xor,
-    /// Not. Bitwise for integers, logical for booleans.
+    /// Not of an int (bitwise) or bool (logical).
     Not,
 
-    /// Shift a number left by N bits. Integers only.
+    /// Shift an integer left by N bits.
     Shl,
-    /// Shift a number right by N bits. Integers only.
+    /// Shift an integer right by N bits.
     Shr,
 
-    /// Compares two arbitrary values. Any type supported,
-    /// pointers will be compared by address.
+    /// Checks if two values are equal (any values, pointers compared by address).
     Eq,
-    /// Compares two numbers (less than). Ints and floats supported.
+    /// Checks if two values are not equal (any values, pointers compared by address).
+    Ne,
+    /// Compares ints/floats (less than).
     Lt,
-    /// Compares two numbers (less than or equal). Ints and floats supported.
+    /// Compares ints/floats (less than or equal).
     Le,
-    /// Compares two numbers (greater than). Ints and floats supported.
+    /// Compares ints/floats (greater than).
     Gt,
-    /// Compares two numbers (greater than or equal). Ints and floats supported.
+    /// Compares ints/floats (greater than or equal).
     Ge,
 
     /// Constructs a bigger value from smaller literals (bitwise concat),
@@ -68,6 +69,7 @@ impl Intrinsic {
             Self::Shr => 2,
 
             Self::Eq => 2,
+            Self::Ne => 2,
             Self::Lt => 2,
             Self::Le => 2,
             Self::Gt => 2,
@@ -92,6 +94,7 @@ impl Intrinsic {
         use crate::Type;
         Some(match self {
             Intrinsic::Eq => Type::Bool,
+            Intrinsic::Ne => Type::Bool,
             Intrinsic::Lt => Type::Bool,
             Intrinsic::Le => Type::Bool,
             Intrinsic::Gt => Type::Bool,
@@ -120,6 +123,7 @@ impl std::fmt::Display for Intrinsic {
             Self::Shr => write!(f, ">>"),
 
             Self::Eq => write!(f, "=="),
+            Self::Ne => write!(f, "!="),
             Self::Lt => write!(f, "<"),
             Self::Le => write!(f, "<="),
             Self::Gt => write!(f, ">"),

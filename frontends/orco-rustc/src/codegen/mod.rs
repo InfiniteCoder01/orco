@@ -123,10 +123,7 @@ impl<'tcx> CodegenCtx<'tcx, '_> {
                     BinOp::Eq => Intrinsic::Eq,
                     BinOp::Lt => Intrinsic::Lt,
                     BinOp::Le => Intrinsic::Le,
-                    BinOp::Ne => {
-                        self.instr(Instr::Intrinsic(Intrinsic::Not));
-                        Intrinsic::Eq
-                    }
+                    BinOp::Ne => Intrinsic::Ne,
                     BinOp::Ge => Intrinsic::Ge,
                     BinOp::Gt => Intrinsic::Gt,
                     BinOp::Cmp => todo!("<=>"),
@@ -272,7 +269,6 @@ pub fn body<'tcx>(
     };
 
     for (idx, local) in rs_body.local_decls.iter_enumerated() {
-        dbg!(&local);
         let var = if (1..rs_body.arg_count + 1).contains(&idx.index()) {
             // An argument
             Some(ir::VariableId(idx.index() as u32 - 1))

@@ -6,7 +6,7 @@ pub fn format(
     precedence: u8,
 ) -> Result<usize, std::fmt::Error> {
     let instr = ctx.body.instructions[idx];
-    let orco::ir::Instr::Intrinsic(mut intr) = instr else {
+    let orco::ir::Instr::Intrinsic(intr) = instr else {
         panic!("Expected intrinsic, got {instr}");
     };
     idx += 1;
@@ -30,23 +30,16 @@ pub fn format(
             _ => (13, "|"),
         },
         Intrinsic::Xor => (12, "^"),
-        Intrinsic::Not => {
-            if ctx.body.instructions[idx] == orco::ir::Instr::Intrinsic(Intrinsic::Eq) {
-                intr = Intrinsic::Eq;
-                idx += 1;
-                (10, "!=")
-            } else {
-                match ctx.body.value_ty(idx) {
-                    orco::Type::Bool => (3, "!"),
-                    _ => (3, "~"),
-                }
-            }
-        }
+        Intrinsic::Not => match ctx.body.value_ty(idx) {
+            orco::Type::Bool => (3, "!"),
+            _ => (3, "~"),
+        },
 
         Intrinsic::Shl => (7, "<<"),
         Intrinsic::Shr => (7, ">>"),
 
         Intrinsic::Eq => (10, "=="),
+        Intrinsic::Ne => (10, "!="),
         Intrinsic::Lt => (9, "<"),
         Intrinsic::Le => (9, "<="),
         Intrinsic::Gt => (9, ">"),
