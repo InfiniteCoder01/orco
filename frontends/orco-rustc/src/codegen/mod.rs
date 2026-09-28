@@ -7,8 +7,7 @@ mod operand;
 
 struct CodegenCtx<'a> {
     module: &'a orco::Module,
-    ir_body: ir::Body,
-    rs_body: &'a rustc_public::mir::Body,
+    body: ir::Body,
     /// Variable mapping
     variables: Vec<ir::VariableId>,
     /// Basic block predecessor indices
@@ -17,7 +16,7 @@ struct CodegenCtx<'a> {
 
 impl CodegenCtx<'_> {
     fn instr(&mut self, instr: impl Into<Instr>) {
-        self.ir_body.instructions.push(instr.into());
+        self.body.instructions.push(instr.into());
     }
 
     fn codegen_statement(&mut self, stmt: &rustc_public::mir::Statement) {
@@ -132,9 +131,9 @@ impl CodegenCtx<'_> {
                     self.instr(Instr::AcfCJump(ir::LabelId(target as _)));
                     self.instr(Intrinsic::Eq);
 
-                    let idx = self.ir_body.instructions.len();
+                    let idx = self.body.instructions.len();
                     self.op(discr);
-                    match self.ir_body.value_ty(idx) {
+                    match self.body.value_ty(idx) {
                         orco::Type::Integer(is) => self.instr(Instr::IConst(value as _, is)),
                         orco::Type::Unsigned(is) => self.instr(Instr::UConst(value as _, is)),
                         orco::Type::Bool => {
@@ -201,8 +200,7 @@ pub fn body(
 ) -> ir::Body {
     let mut ctx = CodegenCtx {
         module,
-        ir_body,
-        rs_body,
+        body: ir_body,
         variables: Vec::with_capacity(rs_body.locals().len()),
         predecessors: vec![Vec::new(); rs_body.locals().len()],
     };
@@ -213,7 +211,7 @@ pub fn body(
             // An argument
             ir::VariableId(idx as u32 - 1)
         } else {
-            ctx.ir_body.declare_var(crate::ty::convert(local.ty), None)
+            ctx.body.declare_var(crate::ty::convert(local.ty), None)
         };
 
         ctx.variables.push(var);
@@ -223,7 +221,7 @@ pub fn body(
         use rustc_public::mir::VarDebugInfoContents as VDIC;
         match &info.value {
             VDIC::Place(place) => {
-                let var = ctx.ir_body.var_mut(ctx.variables[place.local]);
+                let var = ctx.body.var_mut(ctx.variables[place.local]);
                 if !place.projection.is_empty() && var.name.is_some() {
                     continue;
                 }
@@ -235,7 +233,7 @@ pub fn body(
 
     // Fill in the blocks
     for (idx, block) in rs_body.blocks.iter().enumerate() {
-        ctx.ir_body.alloc_label(Some("bb".to_owned()));
+        ctx.body.alloc_label(Some("bb".to_owned()));
         for successor in block.terminator.successors() {
             ctx.predecessors[successor].push(idx);
         }
@@ -245,7 +243,7 @@ pub fn body(
         ctx.codegen_block(block, idx);
     }
 
-    ctx.ir_body
+    ctx.body
 }
 
 /// Codegen all the functions using the backend provided.

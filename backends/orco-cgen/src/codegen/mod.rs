@@ -163,8 +163,17 @@ impl<'a> Context<'a> {
             Instr::Call(args) => {
                 idx = self.instr(f, idx + 1, 2)?;
                 write!(f, "(")?;
-                for i in 0..args {
-                    if i > 0 {
+                let mut first = true;
+                for _ in 0..args {
+                    if crate::ty::is_unit(&self.body.value_ty(idx)) {
+                        // TODO: Skipping this is unsafe...
+                        idx = self.body.skip_instr(idx);
+                        continue;
+                    }
+
+                    if first {
+                        first = false;
+                    } else {
                         write!(f, ", ")?;
                     }
                     idx = self.instr(f, idx, 16)?;

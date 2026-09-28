@@ -24,8 +24,8 @@ impl CodegenCtx<'_> {
     fn constant(&mut self, alloc: &rustc_public::ty::Allocation, ty: rustc_public::ty::Ty) {
         use orco::Type;
         match crate::ty::convert(ty) {
-            Type::Integer(sz) => self.ir_body.int_literal(alloc.read_int().unwrap(), sz),
-            Type::Unsigned(sz) => self.ir_body.uint_literal(alloc.read_uint().unwrap(), sz),
+            Type::Integer(sz) => self.body.int_literal(alloc.read_int().unwrap(), sz),
+            Type::Unsigned(sz) => self.body.uint_literal(alloc.read_uint().unwrap(), sz),
             Type::Float(_) => todo!("float const"),
             Type::Bool => self.instr(Instr::BConst(alloc.read_bool().unwrap())),
             Type::Char(_) => todo!("char const"),
@@ -38,7 +38,7 @@ impl CodegenCtx<'_> {
         match ty.kind() {
             // TODO: We might need to do more
             TyKind::RigidTy(RigidTy::FnDef(func, generics)) => {
-                let symbol = self.ir_body.use_symbol(
+                let symbol = self.body.use_symbol(
                     func.0.name().into(),
                     crate::ty::convert_generic_args(&generics),
                     self.module,
@@ -47,7 +47,7 @@ impl CodegenCtx<'_> {
             }
             _ => {
                 let var = self
-                    .ir_body
+                    .body
                     .declare_var(crate::ty::convert(ty), Some("zst".to_owned()));
                 self.instr(Instr::Var(var));
             }
