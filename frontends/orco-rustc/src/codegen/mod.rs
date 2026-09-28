@@ -28,31 +28,19 @@ impl CodegenCtx<'_> {
             _ => return,
         };
 
-        let is_unit = place.ty(self.rs_body.locals()).unwrap().kind().is_unit();
-
         use rustc_public::mir::Rvalue;
         match rvalue {
-            Rvalue::AddressOf(..) => {
-                todo!()
-            }
+            Rvalue::AddressOf(..) => todo!(),
             Rvalue::Aggregate(kind, fields) => {
                 use rustc_public::mir::AggregateKind as AK;
                 match kind {
                     AK::Array(..) => todo!(),
                     AK::Tuple | AK::Adt(..) => {
-                        let mut place = place.clone();
                         for (idx, op) in fields.iter().enumerate() {
-                            let ty = op.ty(&self.rs_body.locals()).unwrap();
-                            if ty.kind().is_unit() {
-                                continue;
-                            }
-
-                            use rustc_public::mir::ProjectionElem;
-                            place.projection.push(ProjectionElem::Field(idx, ty));
                             self.instr(Instr::Assign);
+                            self.instr(Instr::Field(idx as _));
                             self.place(&place);
                             self.op(op);
-                            place.projection.pop();
                         }
                     }
                     AK::Closure(..) => todo!(),
@@ -111,10 +99,6 @@ impl CodegenCtx<'_> {
             Rvalue::ThreadLocalRef(..) => todo!(),
             Rvalue::UnaryOp(..) => todo!(),
             Rvalue::Use(op, _) => {
-                if is_unit {
-                    return;
-                }
-
                 self.instr(Instr::Assign);
                 self.place(place);
                 self.op(op);
@@ -134,100 +118,77 @@ impl CodegenCtx<'_> {
             self.codegen_statement(stmt);
         }
 
-        //     let next_block = move |this: &mut Self, block| {
-        //         if next != Some(block) {
-        //             this.instr(Instr::AcfJump(ir::LabelId(block.as_u32())));
-        //         }
-        //     };
+        let next_block = move |this: &mut Self, block: BasicBlockIdx| {
+            if block != index + 1 {
+                this.instr(Instr::AcfJump(ir::LabelId(block as _)));
+            }
+        };
 
-        //     use rustc_middle::mir::TerminatorKind;
-        //     match &block.terminator().kind {
-        //         TerminatorKind::Goto { target } => next_block(self, *target),
-        //         TerminatorKind::SwitchInt { discr, targets } => {
-        //             for (value, target) in targets.iter() {
-        //                 self.instr(Instr::AcfCJump(ir::LabelId(target.as_u32())));
-        //                 self.instr(Intrinsic::Eq);
+        use rustc_public::mir::TerminatorKind;
+        match &block.terminator.kind {
+            TerminatorKind::Goto { target } => next_block(self, *target),
+            TerminatorKind::SwitchInt { discr, targets } => {
+                for (value, target) in targets.branches() {
+                    self.instr(Instr::AcfCJump(ir::LabelId(target as _)));
+                    self.instr(Intrinsic::Eq);
 
-        //                 let idx = self.ir_body.instructions.len();
-        //                 self.op(discr);
-        //                 match self.ir_body.value_ty(idx) {
-        //                     orco::Type::Integer(is) => self.instr(Instr::IConst(value as _, is)),
-        //                     orco::Type::Unsigned(is) => self.instr(Instr::UConst(value as _, is)),
-        //                     orco::Type::Bool => {
-        //                         assert!(
-        //                             [0, 1].contains(&value),
-        //                             "invalid bool branch in SwitchInt: {value} (expected 0 or 1)"
-        //                         );
-        //                         self.instr(Instr::BConst(value != 0))
-        //                     }
-        //                     orco::Type::Symbol(name, _) => {
-        //                         todo!("symbol discriminant type in SwitchInt ({name})")
-        //                     }
-        //                     ty => panic!("invalid discriminant type in SwitchInt: {ty}"),
-        //                 }
-        //             }
+                    let idx = self.ir_body.instructions.len();
+                    self.op(discr);
+                    match self.ir_body.value_ty(idx) {
+                        orco::Type::Integer(is) => self.instr(Instr::IConst(value as _, is)),
+                        orco::Type::Unsigned(is) => self.instr(Instr::UConst(value as _, is)),
+                        orco::Type::Bool => {
+                            assert!(
+                                [0, 1].contains(&value),
+                                "invalid bool branch in SwitchInt: {value} (expected 0 or 1)"
+                            );
+                            self.instr(Instr::BConst(value != 0))
+                        }
+                        orco::Type::Symbol(name, _) => {
+                            todo!("symbol discriminant type in SwitchInt ({name})")
+                        }
+                        ty => panic!("invalid discriminant type in SwitchInt: {ty}"),
+                    }
+                }
 
-        //             next_block(self, targets.otherwise())
-        //         }
-        //         TerminatorKind::UnwindResume => (),
-        //         TerminatorKind::UnwindTerminate(..) => todo!(),
-        //         TerminatorKind::Return => {
-        //             let value = self
-        //                 .variables
-        //                 .get(&rustc_middle::mir::RETURN_PLACE)
-        //                 .copied();
-        //             if next.is_none() && value.is_none() {
-        //                 return; // TODO: Idk if it's useful or not
-        //             }
-        //             self.instr(Instr::Return(value.is_some()));
-        //             if let Some(value) = value {
-        //                 self.instr(Instr::Var(value));
-        //             }
-        //         }
-        //         TerminatorKind::Unreachable => todo!(),
-        //         TerminatorKind::Drop { target, .. } => {
-        //             self.instr(Instr::AcfJump(ir::LabelId(target.as_u32())));
-        //             // TODO
-        //         }
-        //         TerminatorKind::Call {
-        //             func,
-        //             args,
-        //             destination,
-        //             target,
-        //             ..
-        //         } => {
-        //             if !destination.ty(self.rs_body, self.tcx).ty.is_unit() {
-        //                 self.instr(Instr::Assign);
-        //                 self.place(*destination);
-        //             }
-        //             self.instr(Instr::Call(args.len() as _)); // TODO: Check for unit args
-        //             self.op(func);
-        //             for arg in args {
-        //                 self.op(&arg.node);
-        //             }
+                next_block(self, targets.otherwise())
+            }
+            TerminatorKind::Resume => (),
+            TerminatorKind::Abort => todo!(),
+            TerminatorKind::Return => {
+                self.instr(Instr::Return);
+                self.instr(Instr::Var(self.variables[0]));
+            }
+            TerminatorKind::Unreachable => todo!(),
+            TerminatorKind::Drop { target, .. } => {
+                // TODO
+                next_block(self, *target);
+            }
+            TerminatorKind::Call {
+                func,
+                args,
+                destination,
+                target,
+                ..
+            } => {
+                self.instr(Instr::Assign);
+                self.place(destination);
+                self.instr(Instr::Call(args.len() as _));
+                self.op(func);
+                for arg in args {
+                    self.op(&arg);
+                }
 
-        //             if let Some(target) = target {
-        //                 next_block(self, *target);
-        //             }
-        //         }
-        //         TerminatorKind::TailCall { func, args, .. } => {
-        //             self.instr(Instr::Return(!self.rs_body.return_ty().is_unit()));
-        //             self.instr(Instr::Call(args.len() as _)); // TODO: Check for unit args
-        //             self.op(func);
-        //             for arg in args {
-        //                 self.op(&arg.node);
-        //             }
-        //         }
-        //         TerminatorKind::Assert { target, .. } => {
-        //             // TODO
-        //             next_block(self, *target);
-        //         }
-        //         TerminatorKind::Yield { .. } => todo!(),
-        //         TerminatorKind::CoroutineDrop => todo!(),
-        //         TerminatorKind::FalseEdge { .. } => todo!(),
-        //         TerminatorKind::FalseUnwind { .. } => todo!(),
-        //         TerminatorKind::InlineAsm { .. } => todo!(),
-        //     }
+                if let Some(target) = target {
+                    next_block(self, *target);
+                }
+            }
+            TerminatorKind::Assert { target, .. } => {
+                // TODO
+                next_block(self, *target);
+            }
+            TerminatorKind::InlineAsm { .. } => todo!(),
+        }
     }
 }
 

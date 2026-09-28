@@ -137,9 +137,13 @@ impl<'a> Context<'a> {
                 Ok(idx)
             }
             Instr::Assign => {
-                // TODO: Unit assign?
-                idx = self.instr(f, idx + 1, 15)?;
-                write!(f, " = ")?;
+                if crate::ty::is_unit(&self.body.value_ty(idx + 1)) {
+                    // TODO: Skipping this is unsafe...
+                    idx = self.body.skip_instr(idx + 1);
+                } else {
+                    idx = self.instr(f, idx + 1, 15)?;
+                    write!(f, " = ")?;
+                }
                 self.instr(f, idx, 16)
             }
 
@@ -168,13 +172,14 @@ impl<'a> Context<'a> {
                 write!(f, ")").map(|_| idx)
             }
 
-            Instr::Return(has_value) => {
+            Instr::Return => {
                 write!(f, "return")?;
-                if has_value {
+                if crate::ty::is_unit(&self.body.value_ty(idx + 1)) {
+                    // TODO: Skipping this is unsafe...
+                    Ok(self.body.skip_instr(idx + 1))
+                } else {
                     write!(f, " ")?;
                     self.instr(f, idx + 1, 255)
-                } else {
-                    Ok(idx + 1)
                 }
             }
 

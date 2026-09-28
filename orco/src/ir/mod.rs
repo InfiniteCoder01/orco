@@ -43,6 +43,7 @@ impl Body {
     pub fn value_ty(&self, idx: usize) -> crate::Type {
         use crate::Type;
         match self.instructions[idx] {
+            Instr::Unit => Type::Unit,
             Instr::IConst(_, size) => Type::Integer(size),
             Instr::UConst(_, size) => Type::Unsigned(size),
             Instr::FConst(_, size) => Type::Float(size),
@@ -70,9 +71,19 @@ impl Body {
             Instr::Intrinsic(intr) => intr
                 .type_override()
                 .unwrap_or_else(|| self.value_ty(idx + 1)),
-            Instr::Return(..) => Type::Error,
+            Instr::Return => Type::Error,
             Instr::Error => Type::Error,
         }
+    }
+
+    /// Skip the instruction at `idx` and return the new index
+    pub fn skip_instr(&self, mut idx: usize) -> usize {
+        let instr = self.instructions[idx];
+        idx += 1;
+        for _ in 0..instr.arg_count() {
+            idx = self.skip_instr(idx);
+        }
+        idx
     }
 
     /// Debug-print an instruction at `idx` with it's arguments into `f`
@@ -102,14 +113,9 @@ impl Body {
                 write!(f, " = ")?;
                 self.debug_instr(module, f, idx)
             }
-            Instr::Return(has_value) => {
-                write!(f, "return")?;
-                if has_value {
-                    write!(f, " ")?;
-                    self.debug_instr(module, f, idx + 1)
-                } else {
-                    Ok(idx + 1)
-                }
+            Instr::Return => {
+                write!(f, "return ")?;
+                self.debug_instr(module, f, idx + 1)
             }
 
             Instr::Field(field_idx) => {

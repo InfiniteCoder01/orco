@@ -3,6 +3,8 @@
 /// See [`super::Body::instructions`].
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub enum Instruction {
+    /// Unit constant. See [`crate::Type::Unit`]
+    Unit,
     /// Signed integer constant.
     IConst(i32, crate::ty::IntegerSize),
     /// Unsigned integer constant.
@@ -30,8 +32,8 @@ pub enum Instruction {
 
     /// Call a function with a specified number of arguments.
     Call(u32),
-    /// Returns the value (if any).
-    Return(bool),
+    /// Returns the value.
+    Return,
     /// Intrinsic. See [`super::Intrinsic`].
     Intrinsic(super::Intrinsic),
     /// Error value.
@@ -43,7 +45,11 @@ impl Instruction {
     /// [`super::Body::instructions`]
     pub fn arg_count(self) -> u32 {
         match self {
-            Self::IConst(..) | Self::UConst(..) | Self::FConst(..) | Self::BConst(..) => 0,
+            Self::Unit
+            | Self::IConst(..)
+            | Self::UConst(..)
+            | Self::FConst(..)
+            | Self::BConst(..) => 0,
 
             Self::Global(..) => 0,
             Self::Var(..) => 0,
@@ -55,7 +61,7 @@ impl Instruction {
             Self::AcfCJump(..) => 1,
 
             Self::Call(args) => args + 1,
-            Self::Return(has_value) => has_value as _,
+            Self::Return => 1,
             Self::Intrinsic(intr) => intr.arg_count(),
             Self::Error => 0,
         }
@@ -65,6 +71,7 @@ impl Instruction {
 impl std::fmt::Display for Instruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Unit => write!(f, "unit"),
             Self::IConst(value, size) => write!(f, "{value}_i{size}"),
             Self::UConst(value, size) => write!(f, "{value}_u{size}"),
             Self::FConst(value, size) => write!(f, "{value}_f{size}"),
@@ -80,7 +87,7 @@ impl std::fmt::Display for Instruction {
             Self::AcfCJump(label) => write!(f, "cjump {label}"),
 
             Self::Call(_) => write!(f, "call"),
-            Self::Return(..) => write!(f, "return"),
+            Self::Return => write!(f, "return"),
             Self::Intrinsic(intr) => intr.fmt(f),
             Self::Error => write!(f, "error"),
         }
