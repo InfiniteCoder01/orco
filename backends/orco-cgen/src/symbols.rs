@@ -31,10 +31,18 @@ impl std::fmt::Display for FmtFunction<'_> {
 
         use std::fmt::Write as _;
         write!(&mut sig_noret, "(")?;
+        let mut first = true;
         for (idx, (name, ty)) in function.params.iter().enumerate() {
-            if idx > 0 {
+            if crate::ty::is_unit(ty) {
+                continue;
+            }
+
+            if first {
+                first = false;
+            } else {
                 write!(sig_noret, ", ")?;
             }
+
             write!(
                 sig_noret,
                 "{}",
@@ -53,10 +61,7 @@ impl std::fmt::Display for FmtFunction<'_> {
         write!(sig_noret, ")")?;
 
         FmtType {
-            ty: function
-                .return_type
-                .as_ref()
-                .unwrap_or(&orco::Type::Symbol("void".into(), Vec::new())),
+            ty: &function.return_type,
             constant: false,
             name: Some(&sig_noret),
         }

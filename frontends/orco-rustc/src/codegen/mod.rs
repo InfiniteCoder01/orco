@@ -1,96 +1,58 @@
-use crate::TyCtxt;
 use ir::{Instr, Intrinsic};
 use orco::ir;
-use std::collections::HashMap;
+use rustc_public::CrateDef as _;
+use rustc_public::mir::BasicBlockIdx;
 
 mod operand;
 
-struct CodegenCtx<'tcx, 'a> {
-    ctx: super::Context<'tcx, 'a>,
+struct CodegenCtx<'a> {
+    module: &'a orco::Module,
     ir_body: ir::Body,
-    rs_body: &'a rustc_middle::mir::Body<'tcx>,
-    variables: HashMap<rustc_middle::mir::Local, ir::VariableId>,
+    rs_body: &'a rustc_public::mir::Body,
+    /// Variable mapping
+    variables: Vec<ir::VariableId>,
+    /// Basic block predecessor indices
+    predecessors: Vec<Vec<BasicBlockIdx>>,
 }
 
-impl<'tcx, 'a> std::ops::Deref for CodegenCtx<'tcx, 'a> {
-    type Target = super::Context<'tcx, 'a>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.ctx
-    }
-}
-
-impl<'tcx> CodegenCtx<'tcx, '_> {
+impl CodegenCtx<'_> {
     fn instr(&mut self, instr: impl Into<Instr>) {
         self.ir_body.instructions.push(instr.into());
     }
 
-    fn codegen_statement(&mut self, stmt: &rustc_middle::mir::Statement<'tcx>) {
-        use rustc_middle::mir::StatementKind;
+    fn codegen_statement(&mut self, stmt: &rustc_public::mir::Statement) {
+        use rustc_public::mir::StatementKind;
         let (place, rvalue) = match &stmt.kind {
-            StatementKind::Assign(assign) => assign.as_ref(),
-            StatementKind::SetDiscriminant { .. } => todo!(),
+            StatementKind::Assign(place, rvalue) => (place, rvalue),
             StatementKind::Intrinsic(..) => todo!(),
-            stmt => {
-                // TODO: Some of them are worth implementing
-                eprintln!("TODO: {stmt:?}");
-                return;
-            }
+            _ => return,
         };
-        let is_unit = place.ty(self.rs_body, self.tcx).ty.is_unit();
 
-        use rustc_middle::mir::Rvalue;
+        let is_unit = place.ty(self.rs_body.locals()).unwrap().kind().is_unit();
+
+        use rustc_public::mir::Rvalue;
         match rvalue {
-            Rvalue::Use(op, _) => {
-                if is_unit {
-                    return;
-                }
-
-                self.instr(Instr::Assign);
-                self.place(*place);
-                self.op(op);
+            Rvalue::AddressOf(..) => {
+                todo!()
             }
             Rvalue::Aggregate(kind, fields) => {
-                use rustc_middle::mir::AggregateKind as AK;
-                match kind.as_ref() {
+                use rustc_public::mir::AggregateKind as AK;
+                match kind {
                     AK::Array(..) => todo!(),
-                    AK::Tuple => {
-                        for (idx, op) in fields.iter_enumerated() {
-                            let ty = op.ty(&self.rs_body.local_decls, self.tcx);
-                            if ty.is_unit() {
+                    AK::Tuple | AK::Adt(..) => {
+                        let mut place = place.clone();
+                        for (idx, op) in fields.iter().enumerate() {
+                            let ty = op.ty(&self.rs_body.locals()).unwrap();
+                            if ty.kind().is_unit() {
                                 continue;
                             }
 
+                            use rustc_public::mir::ProjectionElem;
+                            place.projection.push(ProjectionElem::Field(idx, ty));
                             self.instr(Instr::Assign);
-                            self.place(place.project_deeper(
-                                &[rustc_middle::mir::PlaceElem::Field(idx, ty)],
-                                self.tcx,
-                            ));
+                            self.place(&place);
                             self.op(op);
-                        }
-                    }
-                    AK::Adt(key, variant, ..) => {
-                        let adt = self.tcx.adt_def(*key);
-                        let variant = &adt.variants()[*variant];
-                        for (idx, op) in fields.iter_enumerated() {
-                            let field = &variant.fields[idx];
-                            let ty = self
-                                .tcx
-                                .type_of(field.did)
-                                .instantiate_identity()
-                                .skip_norm_wip();
-                            if ty.is_unit() {
-                                continue;
-                            }
-
-                            let place = place.project_deeper(
-                                &[rustc_middle::mir::PlaceElem::Field(idx, ty)],
-                                self.tcx,
-                            );
-
-                            self.instr(Instr::Assign);
-                            self.place(place);
-                            self.op(op);
+                            place.projection.pop();
                         }
                     }
                     AK::Closure(..) => todo!(),
@@ -99,20 +61,26 @@ impl<'tcx> CodegenCtx<'tcx, '_> {
                     AK::RawPtr(..) => todo!(),
                 }
             }
-            Rvalue::BinaryOp(op, operands) => {
-                if !is_unit {
+            Rvalue::BinaryOp(op, a, b) | Rvalue::CheckedBinaryOp(op, a, b) => {
+                let checked = matches!(rvalue, Rvalue::CheckedBinaryOp(..));
+                if checked {
                     self.instr(Instr::Assign);
-                    self.place(*place);
+                    self.instr(Instr::Field(1));
+                    self.place(place);
+                    self.instr(Instr::BConst(false)); // TODO: Actually check it...
                 }
 
-                use rustc_middle::mir::BinOp;
+                self.instr(Instr::Assign);
+                if checked {
+                    self.instr(Instr::Field(0))
+                }
+                self.place(place);
+
+                use rustc_public::mir::BinOp;
                 let intrinsic = match op {
                     BinOp::Add | BinOp::AddUnchecked => Intrinsic::Add,
-                    BinOp::AddWithOverflow => Intrinsic::Add, // TODO
                     BinOp::Sub | BinOp::SubUnchecked => Intrinsic::Sub,
-                    BinOp::SubWithOverflow => Intrinsic::Sub, // TODO
                     BinOp::Mul | BinOp::MulUnchecked => Intrinsic::Mul,
-                    BinOp::MulWithOverflow => Intrinsic::Mul, // TODO
                     BinOp::Div => Intrinsic::Div,
                     BinOp::Rem => Intrinsic::Rem,
                     BinOp::BitXor => Intrinsic::Xor,
@@ -131,162 +99,170 @@ impl<'tcx> CodegenCtx<'tcx, '_> {
                 };
 
                 self.instr(Instr::Intrinsic(intrinsic));
-                self.op(&operands.0);
-                self.op(&operands.1);
+                self.op(a);
+                self.op(b);
             }
-            _ => eprintln!("TODO: {stmt:?}"), // TODO
+            Rvalue::Cast(..) => todo!(),
+            Rvalue::CopyForDeref(..) => todo!(),
+            Rvalue::Discriminant(..) => todo!(),
+            Rvalue::Len(..) => todo!(),
+            Rvalue::Ref(..) => todo!(),
+            Rvalue::Repeat(..) => todo!(),
+            Rvalue::ThreadLocalRef(..) => todo!(),
+            Rvalue::UnaryOp(..) => todo!(),
+            Rvalue::Use(op, _) => {
+                if is_unit {
+                    return;
+                }
+
+                self.instr(Instr::Assign);
+                self.place(place);
+                self.op(op);
+            }
+            Rvalue::Reborrow(..) => todo!(),
         }
     }
 
     /// Codegen a basic block, inserting a label to it.
-    /// Previous and next blocks are needed for optimization of jumps.
-    fn codegen_block(
-        &mut self,
-        block: rustc_middle::mir::BasicBlock,
-        prev: Option<rustc_middle::mir::BasicBlock>,
-        next: Option<rustc_middle::mir::BasicBlock>,
-    ) {
-        let predecessors = self.rs_body.basic_blocks.predecessors();
-        type Pred<'a> = &'a [rustc_middle::mir::BasicBlock];
-        if &*predecessors[block] != prev.as_ref().map_or::<Pred, _>(&[], core::slice::from_ref) {
-            self.instr(Instr::AcfLabel(ir::LabelId(block.as_u32())));
+    /// Index in the list helps skip generating unnecessary jumps.
+    fn codegen_block(&mut self, block: &rustc_public::mir::BasicBlock, index: BasicBlockIdx) {
+        if self.predecessors[index] != index.checked_sub(1).as_slice() {
+            self.instr(Instr::AcfLabel(ir::LabelId(index as _)));
         }
 
-        let block = &self.rs_body[block];
         for stmt in &block.statements {
             self.codegen_statement(stmt);
         }
 
-        let next_block = move |this: &mut Self, block| {
-            if next != Some(block) {
-                this.instr(Instr::AcfJump(ir::LabelId(block.as_u32())));
-            }
-        };
+        //     let next_block = move |this: &mut Self, block| {
+        //         if next != Some(block) {
+        //             this.instr(Instr::AcfJump(ir::LabelId(block.as_u32())));
+        //         }
+        //     };
 
-        use rustc_middle::mir::TerminatorKind;
-        match &block.terminator().kind {
-            TerminatorKind::Goto { target } => next_block(self, *target),
-            TerminatorKind::SwitchInt { discr, targets } => {
-                for (value, target) in targets.iter() {
-                    self.instr(Instr::AcfCJump(ir::LabelId(target.as_u32())));
-                    self.instr(Intrinsic::Eq);
+        //     use rustc_middle::mir::TerminatorKind;
+        //     match &block.terminator().kind {
+        //         TerminatorKind::Goto { target } => next_block(self, *target),
+        //         TerminatorKind::SwitchInt { discr, targets } => {
+        //             for (value, target) in targets.iter() {
+        //                 self.instr(Instr::AcfCJump(ir::LabelId(target.as_u32())));
+        //                 self.instr(Intrinsic::Eq);
 
-                    let idx = self.ir_body.instructions.len();
-                    self.op(discr);
-                    match self.ir_body.value_ty(idx) {
-                        orco::Type::Integer(is) => self.instr(Instr::IConst(value as _, is)),
-                        orco::Type::Unsigned(is) => self.instr(Instr::UConst(value as _, is)),
-                        orco::Type::Bool => {
-                            assert!(
-                                [0, 1].contains(&value),
-                                "invalid bool branch in SwitchInt: {value} (expected 0 or 1)"
-                            );
-                            self.instr(Instr::BConst(value != 0))
-                        }
-                        orco::Type::Symbol(name, _) => {
-                            todo!("symbol discriminant type in SwitchInt ({name})")
-                        }
-                        ty => panic!("invalid discriminant type in SwitchInt: {ty}"),
-                    }
-                }
+        //                 let idx = self.ir_body.instructions.len();
+        //                 self.op(discr);
+        //                 match self.ir_body.value_ty(idx) {
+        //                     orco::Type::Integer(is) => self.instr(Instr::IConst(value as _, is)),
+        //                     orco::Type::Unsigned(is) => self.instr(Instr::UConst(value as _, is)),
+        //                     orco::Type::Bool => {
+        //                         assert!(
+        //                             [0, 1].contains(&value),
+        //                             "invalid bool branch in SwitchInt: {value} (expected 0 or 1)"
+        //                         );
+        //                         self.instr(Instr::BConst(value != 0))
+        //                     }
+        //                     orco::Type::Symbol(name, _) => {
+        //                         todo!("symbol discriminant type in SwitchInt ({name})")
+        //                     }
+        //                     ty => panic!("invalid discriminant type in SwitchInt: {ty}"),
+        //                 }
+        //             }
 
-                next_block(self, targets.otherwise())
-            }
-            TerminatorKind::UnwindResume => (),
-            TerminatorKind::UnwindTerminate(..) => todo!(),
-            TerminatorKind::Return => {
-                let value = self
-                    .variables
-                    .get(&rustc_middle::mir::RETURN_PLACE)
-                    .copied();
-                if next.is_none() && value.is_none() {
-                    return; // TODO: Idk if it's useful or not
-                }
-                self.instr(Instr::Return(value.is_some()));
-                if let Some(value) = value {
-                    self.instr(Instr::Var(value));
-                }
-            }
-            TerminatorKind::Unreachable => todo!(),
-            TerminatorKind::Drop { target, .. } => {
-                self.instr(Instr::AcfJump(ir::LabelId(target.as_u32())));
-                // TODO
-            }
-            TerminatorKind::Call {
-                func,
-                args,
-                destination,
-                target,
-                ..
-            } => {
-                if !destination.ty(self.rs_body, self.tcx).ty.is_unit() {
-                    self.instr(Instr::Assign);
-                    self.place(*destination);
-                }
-                self.instr(Instr::Call(args.len() as _)); // TODO: Check for unit args
-                self.op(func);
-                for arg in args {
-                    self.op(&arg.node);
-                }
+        //             next_block(self, targets.otherwise())
+        //         }
+        //         TerminatorKind::UnwindResume => (),
+        //         TerminatorKind::UnwindTerminate(..) => todo!(),
+        //         TerminatorKind::Return => {
+        //             let value = self
+        //                 .variables
+        //                 .get(&rustc_middle::mir::RETURN_PLACE)
+        //                 .copied();
+        //             if next.is_none() && value.is_none() {
+        //                 return; // TODO: Idk if it's useful or not
+        //             }
+        //             self.instr(Instr::Return(value.is_some()));
+        //             if let Some(value) = value {
+        //                 self.instr(Instr::Var(value));
+        //             }
+        //         }
+        //         TerminatorKind::Unreachable => todo!(),
+        //         TerminatorKind::Drop { target, .. } => {
+        //             self.instr(Instr::AcfJump(ir::LabelId(target.as_u32())));
+        //             // TODO
+        //         }
+        //         TerminatorKind::Call {
+        //             func,
+        //             args,
+        //             destination,
+        //             target,
+        //             ..
+        //         } => {
+        //             if !destination.ty(self.rs_body, self.tcx).ty.is_unit() {
+        //                 self.instr(Instr::Assign);
+        //                 self.place(*destination);
+        //             }
+        //             self.instr(Instr::Call(args.len() as _)); // TODO: Check for unit args
+        //             self.op(func);
+        //             for arg in args {
+        //                 self.op(&arg.node);
+        //             }
 
-                if let Some(target) = target {
-                    next_block(self, *target);
-                }
-            }
-            TerminatorKind::TailCall { func, args, .. } => {
-                self.instr(Instr::Return(!self.rs_body.return_ty().is_unit()));
-                self.instr(Instr::Call(args.len() as _)); // TODO: Check for unit args
-                self.op(func);
-                for arg in args {
-                    self.op(&arg.node);
-                }
-            }
-            TerminatorKind::Assert { target, .. } => {
-                // TODO
-                next_block(self, *target);
-            }
-            TerminatorKind::Yield { .. } => todo!(),
-            TerminatorKind::CoroutineDrop => todo!(),
-            TerminatorKind::FalseEdge { .. } => todo!(),
-            TerminatorKind::FalseUnwind { .. } => todo!(),
-            TerminatorKind::InlineAsm { .. } => todo!(),
-        }
+        //             if let Some(target) = target {
+        //                 next_block(self, *target);
+        //             }
+        //         }
+        //         TerminatorKind::TailCall { func, args, .. } => {
+        //             self.instr(Instr::Return(!self.rs_body.return_ty().is_unit()));
+        //             self.instr(Instr::Call(args.len() as _)); // TODO: Check for unit args
+        //             self.op(func);
+        //             for arg in args {
+        //                 self.op(&arg.node);
+        //             }
+        //         }
+        //         TerminatorKind::Assert { target, .. } => {
+        //             // TODO
+        //             next_block(self, *target);
+        //         }
+        //         TerminatorKind::Yield { .. } => todo!(),
+        //         TerminatorKind::CoroutineDrop => todo!(),
+        //         TerminatorKind::FalseEdge { .. } => todo!(),
+        //         TerminatorKind::FalseUnwind { .. } => todo!(),
+        //         TerminatorKind::InlineAsm { .. } => todo!(),
+        //     }
     }
 }
 
 /// Codegen a body
 /// Note: Generates dirty code, not meant to be human-readable
-pub fn body<'tcx>(
-    ctx: super::Context<'tcx, '_>,
+pub fn body(
     ir_body: ir::Body,
-    rs_body: &rustc_middle::mir::Body<'tcx>,
+    rs_body: &rustc_public::mir::Body,
+    module: &orco::Module,
 ) -> ir::Body {
     let mut ctx = CodegenCtx {
-        ctx,
+        module,
         ir_body,
         rs_body,
-        variables: HashMap::new(),
+        variables: Vec::with_capacity(rs_body.locals().len()),
+        predecessors: vec![Vec::new(); rs_body.locals().len()],
     };
 
-    for (idx, local) in rs_body.local_decls.iter_enumerated() {
-        let var = if (1..rs_body.arg_count + 1).contains(&idx.index()) {
+    // Fill in variables
+    for (idx, local) in rs_body.local_decls() {
+        let var = if (1..rs_body.arg_locals().len() + 1).contains(&idx) {
             // An argument
-            Some(ir::VariableId(idx.index() as u32 - 1))
+            ir::VariableId(idx as u32 - 1)
         } else {
-            ctx.convert_ty(local.ty)
-                .map(|ty| ctx.ir_body.declare_var(ty, None))
+            ctx.ir_body.declare_var(crate::ty::convert(local.ty), None)
         };
 
-        if let Some(var) = var {
-            ctx.variables.insert(idx, var);
-        }
+        ctx.variables.push(var);
     }
 
     for info in &rs_body.var_debug_info {
-        use rustc_middle::mir::VarDebugInfoContents as VDIC;
-        match info.value {
+        use rustc_public::mir::VarDebugInfoContents as VDIC;
+        match &info.value {
             VDIC::Place(place) => {
-                let var = ctx.ir_body.var_mut(ctx.variables[&place.local]);
+                let var = ctx.ir_body.var_mut(ctx.variables[place.local]);
                 if !place.projection.is_empty() && var.name.is_some() {
                     continue;
                 }
@@ -296,108 +272,41 @@ pub fn body<'tcx>(
         }
     }
 
-    for _ in rs_body.basic_blocks.indices() {
+    // Fill in the blocks
+    for (idx, block) in rs_body.blocks.iter().enumerate() {
         ctx.ir_body.alloc_label(Some("bb".to_owned()));
+        for successor in block.terminator.successors() {
+            ctx.predecessors[successor].push(idx);
+        }
     }
 
-    let blocks = rs_body.basic_blocks.reverse_postorder();
-    let mut prev = None;
-    for (idx, &block) in blocks.iter().enumerate() {
-        let next = blocks.get(idx + 1).copied();
-        ctx.codegen_block(block, prev, next);
-        prev = Some(block);
+    for (idx, block) in rs_body.blocks.iter().enumerate() {
+        ctx.codegen_block(block, idx);
     }
 
     ctx.ir_body
 }
 
-/// Codegen a single function by key, inserting it's body into the module
-pub fn cg_function(ctx: super::Context, key: rustc_hir::def_id::DefId) {
-    let path = ctx.convert_path(key);
-
-    let functions = ctx.module.functions.pin();
-    let mut function = functions
-        .get(&path)
-        .unwrap_or_else(|| panic!("undelcared function {path}"))
-        .write()
-        .unwrap();
-
-    let ir_body = body(ctx, function.create_def(), ctx.tcx.optimized_mir(key));
-    function
-        .body
-        .replace(ir_body)
-        .map(|_| panic!("trying to define function {path} twice"));
-}
-
 /// Codegen all the functions using the backend provided.
 /// See [`crate::declare`]
-pub fn codegen(tcx: TyCtxt, module: &orco::Module, items: &rustc_middle::hir::ModuleItems) {
-    let module = rustc_data_structures::sync::IntoDynSyncSend(module);
-    items
-        .par_items(|item| {
-            let item = tcx.hir_item(item);
-            let ctx = super::Context {
-                tcx,
-                module: *module,
-            };
-            let key = item.owner_id.def_id;
+pub fn codegen(crate_: rustc_public::Crate, module: &orco::Module) {
+    for func in crate_.fn_defs() {
+        let Some(rs_body) = func.body() else {
+            continue;
+        };
 
-            use rustc_hir::ItemKind as IK;
-            match item.kind {
-                IK::Static(..) => (),
-                IK::Const(..) => (),
-                IK::Fn { .. } => cg_function(ctx, key.to_def_id()),
-                IK::GlobalAsm { .. } => todo!("global_asm!"),
-                IK::Impl(impl_) if let Some(trait_) = impl_.of_trait => {
-                    let Some(_trait_key) = trait_.trait_ref.trait_def_id() else {
-                        panic!("[bug?] trait impl of a non-trait?!");
-                    };
+        let path: orco::Symbol = func.name().into();
+        let functions = module.functions.pin();
+        let mut function = functions
+            .get(&path)
+            .unwrap_or_else(|| panic!("undelcared function {path}"))
+            .write()
+            .unwrap();
 
-                    // // TODO: Generics
-                    // let map = tcx.impl_item_implementor_ids(key);
-                    // for item in tcx.associated_items(trait_key).in_definition_order() {
-                    //     let (impl_key, is_default_impl) = map
-                    //         .get(&item.def_id)
-                    //         .map_or((item.def_id, true), |key| (*key, false));
-                    //     let mut name = crate::names::convert_path(tcx, item.def_id);
-                    //     let trait_name = name.as_str().into();
-
-                    //     let self_ty = crate::types::convert(
-                    //         tcx,
-                    //         backend,
-                    //         tcx.type_of(key).instantiate_identity().skip_norm_wip(),
-                    //         crate::types::GenericMap::default(),
-                    //     );
-                    //     if let Some(ty) = &self_ty {
-                    //         name.push('_');
-                    //         name.push_str(&ty.hashable_name());
-                    //     }
-
-                    //     let trait_generic_args = self_ty.into_iter().collect::<Vec<_>>();
-                    //     backend.invoke_macro(trait_name, &trait_generic_args);
-                    //     let map = if is_default_impl {
-                    //         crate::types::GenericMap(1, &trait_generic_args)
-                    //     } else {
-                    //         crate::types::GenericMap::default()
-                    //     };
-
-                    //     body(
-                    //         tcx,
-                    //         backend,
-                    //         backend.cg_function(name.into()),
-                    //         tcx.optimized_mir(impl_key),
-                    //         map,
-                    //     );
-                    // }
-                }
-                IK::Impl(impl_) => {
-                    for item in impl_.items {
-                        cg_function(ctx, item.owner_id.to_def_id());
-                    }
-                }
-                _ => (),
-            };
-            Ok(())
-        })
-        .unwrap();
+        let ir_body = body(function.create_def(), &rs_body, module);
+        function
+            .body
+            .replace(ir_body)
+            .map(|_| panic!("trying to define function {path} twice"));
+    }
 }

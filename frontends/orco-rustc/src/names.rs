@@ -1,5 +1,3 @@
-use crate::TyCtxt;
-
 /// Convert path to a string
 #[must_use]
 pub fn convert_path(tcx: TyCtxt, key: rustc_hir::def_id::DefId) -> String {

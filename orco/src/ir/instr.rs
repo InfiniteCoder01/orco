@@ -4,9 +4,9 @@
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub enum Instruction {
     /// Signed integer constant.
-    IConst(i32, crate::types::IntegerSize),
+    IConst(i32, crate::ty::IntegerSize),
     /// Unsigned integer constant.
-    UConst(u32, crate::types::IntegerSize),
+    UConst(u32, crate::ty::IntegerSize),
     /// Float constant.
     FConst(f32, u16),
     /// Bool constant.

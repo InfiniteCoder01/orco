@@ -6,8 +6,8 @@ pub use sinter;
 pub use sinter::IStr as Symbol;
 
 /// Type enums
-pub mod types;
-pub use types::Type;
+pub mod ty;
+pub use ty::Type;
 
 /// Attributes are a way to pass information about symbols to the backend
 pub mod attrs;
@@ -83,7 +83,7 @@ impl std::fmt::Display for Module {
             writeln!(
                 f,
                 "type {name}{} = {};",
-                types::fmt_generic_params(&alias.generics),
+                ty::fmt_generic_params(&alias.generics),
                 &alias.type_
             )?;
         }
@@ -131,7 +131,7 @@ pub struct Function {
     /// Parameter types with optional names.
     pub params: Vec<(Option<String>, Type)>,
     /// Return type.
-    pub return_type: Option<Type>,
+    pub return_type: Type,
     /// Function attributes.
     pub attrs: crate::attrs::FunctionAttributes,
     /// Function body.
@@ -155,7 +155,7 @@ impl Function {
 
 impl std::fmt::Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}(", types::fmt_generic_params(&self.generics))?;
+        write!(f, "{}(", ty::fmt_generic_params(&self.generics))?;
 
         for (idx, (name, ty)) in self.params.iter().enumerate() {
             if idx > 0 {
@@ -170,12 +170,7 @@ impl std::fmt::Display for Function {
             ty.fmt(f)?;
         }
 
-        match &self.return_type {
-            Some(ty) => {
-                write!(f, ") -> ")?;
-                ty.fmt(f)
-            }
-            None => write!(f, ") -> void"),
-        }
+        write!(f, ") -> ")?;
+        self.return_type.fmt(f)
     }
 }

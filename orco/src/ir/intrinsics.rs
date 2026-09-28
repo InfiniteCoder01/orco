@@ -1,4 +1,4 @@
-use crate::types::IntegerSize;
+use crate::ty::IntegerSize;
 
 /// Intrinsics are operations built into the compier.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

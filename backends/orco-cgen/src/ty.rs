@@ -8,18 +8,28 @@ pub struct FmtType<'a> {
     pub name: Option<&'a str>,
 }
 
+/// Check if a type is unit (or unit array).
+pub fn is_unit(ty: &orco::Type) -> bool {
+    match ty {
+        orco::Type::Unit => true,
+        orco::Type::Array(ty, _) => is_unit(ty),
+        _ => false,
+    }
+}
+
 impl std::fmt::Display for FmtType<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let FmtType { ty, constant, name } = *self;
 
         use orco::Type as OT;
-        use orco::types::IntegerSize as IS;
+        use orco::ty::IntegerSize as IS;
 
         if constant && !matches!(ty, OT::Ptr(_, _)) {
             write!(f, "const ")?;
         }
 
         match ty {
+            OT::Unit => write!(f, "void"),
             OT::Integer(size) => match size {
                 IS::Bits(bits) => {
                     assert!(
@@ -74,7 +84,7 @@ impl std::fmt::Display for FmtType<'_> {
                     }
                 );
             }
-            OT::Struct { fields } if fields.is_empty() => {
+            OT::Struct { fields } if fields.iter().all(|(_, ty)| is_unit(ty)) => {
                 write!(f, "struct")?;
                 if let Some(name) = name {
                     write!(f, " {name}")?;
@@ -88,6 +98,9 @@ impl std::fmt::Display for FmtType<'_> {
                 }
                 writeln!(f, " {{")?;
                 for (idx, (name, ty)) in fields.iter().enumerate() {
+                    if is_unit(ty) {
+                        continue;
+                    }
                     writeln!(
                         f,
                         "  {};",
@@ -136,15 +149,14 @@ impl std::fmt::Display for FmtType<'_> {
                     f,
                     "{}",
                     FmtType {
-                        ty: return_type
-                            .as_deref()
-                            .unwrap_or(&orco::Type::Symbol("void".into(), Vec::new())),
+                        ty: return_type,
                         constant: false,
                         name: Some(&format!(
                             "{}({})",
                             name.unwrap_or_default(),
                             params
                                 .iter()
+                                .filter(|ty| is_unit(ty))
                                 .map(|ty| FmtType {
                                     ty,
                                     constant: false,

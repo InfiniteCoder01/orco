@@ -27,7 +27,7 @@ impl std::fmt::Display for SymbolUse {
             f,
             "{}{}",
             self.name,
-            crate::types::fmt_generic_args(&self.generics)
+            crate::ty::fmt_generic_args(&self.generics)
         )
     }
 }

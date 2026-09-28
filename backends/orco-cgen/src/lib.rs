@@ -6,8 +6,8 @@
 #![warn(missing_docs)]
 
 /// Type formatting & other things.
-pub mod types;
-use types::FmtType;
+pub mod ty;
+use ty::FmtType;
 
 /// Symbol formatting stuff.
 pub mod symbols;

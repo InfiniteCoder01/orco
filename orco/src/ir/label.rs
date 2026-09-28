@@ -10,14 +10,14 @@ impl std::fmt::Display for LabelId {
 
 impl super::Body {
     /// Allocate a label to be placed in the source code later,
-    /// returns the newly-allocated ID. ID value order guaranteed
+    /// returns the newly-allocated ID. ID values start at 0 and order is guaranteed.
     pub fn alloc_label(&mut self, name: Option<String>) -> LabelId {
         let id = LabelId(self.label_names.len() as _);
         self.label_names.push(name);
         id
     }
 
-    /// Get a string used to identify the label in debug output
+    /// Get a string used to identify the label in debug output.
     pub fn label_debug_name(&self, id: LabelId) -> String {
         format!(
             "{}{id}",

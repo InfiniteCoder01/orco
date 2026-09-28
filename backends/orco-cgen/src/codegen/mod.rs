@@ -22,6 +22,10 @@ pub struct Context<'a> {
 fn disambiguate(names: &mut Vec<String>) {
     let mut idx = HashMap::<String, Option<u32>>::new();
     for name in &mut *names {
+        if name.is_empty() {
+            continue;
+        }
+
         if let Some(count) = idx.get_mut(name) {
             *count = Some(0);
         } else {
@@ -43,6 +47,10 @@ impl<'a> Context<'a> {
     pub fn new(module: &'a orco::Module, body: &'a orco::Body) -> Self {
         let mut var_names = Vec::with_capacity(body.variables.len());
         for (idx, var) in body.variables.iter().enumerate() {
+            if crate::ty::is_unit(&var.ty) {
+                var_names.push(String::new());
+                continue;
+            }
             var_names.push(match &var.name {
                 Some(name) => crate::cname(name.into()),
                 None if var.arg => format!("arg{idx}"),
@@ -79,7 +87,7 @@ impl<'a> Context<'a> {
         mut idx: usize,
         precedence: u8,
     ) -> Result<usize, std::fmt::Error> {
-        use orco::types::IntegerSize;
+        use orco::ty::IntegerSize;
         fn int_size_suffix(size: IntegerSize) -> &'static str {
             match size {
                 IntegerSize::Bits(bits) if bits > 32 => "ll",
@@ -129,6 +137,7 @@ impl<'a> Context<'a> {
                 Ok(idx)
             }
             Instr::Assign => {
+                // TODO: Unit assign?
                 idx = self.instr(f, idx + 1, 15)?;
                 write!(f, " = ")?;
                 self.instr(f, idx, 16)
@@ -200,20 +209,26 @@ impl<'a> Context<'a> {
 
 impl std::fmt::Display for Context<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.body.variables.is_empty() && self.body.instructions.is_empty() {
+        if self
+            .body
+            .variables
+            .iter()
+            .all(|var| crate::ty::is_unit(&var.ty))
+            && self.body.instructions.is_empty()
+        {
             return write!(f, "{{}}");
         }
 
         writeln!(f, "{{")?;
         for (idx, var) in self.body.variables.iter().enumerate() {
-            if var.arg {
+            if var.arg || crate::ty::is_unit(&var.ty) {
                 continue;
             }
 
             writeln!(
                 f,
                 "  {};",
-                crate::types::FmtType {
+                crate::ty::FmtType {
                     ty: &var.ty,
                     constant: false,
                     name: Some(&self.var_names[idx])

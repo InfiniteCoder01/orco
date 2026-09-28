@@ -10,6 +10,7 @@ struct Context<'a> {
     functions: InstanceMap,
     /// Guard on [`Module::types`]
     type_guard: papaya::LocalGuard<'a>,
+    /// Guard on [`Module::functions`]
     func_guard: papaya::LocalGuard<'a>,
 }
 
@@ -58,9 +59,7 @@ fn visit_ty(module: &Module, ctx: &mut Context, ty: &mut Type) {
                 visit_ty(module, ctx, ty);
             }
 
-            if let Some(ty) = return_type {
-                visit_ty(module, ctx, ty);
-            }
+            visit_ty(module, ctx, return_type);
         }
         Type::Param(param) => {
             panic!("[bug] generic param #{param} encountered while computing used generic symbols")
@@ -75,9 +74,7 @@ fn visit_function(module: &Module, ctx: &mut Context, func: &mut Function) {
         visit_ty(module, ctx, ty);
     }
 
-    if let Some(ty) = &mut func.return_type {
-        visit_ty(module, ctx, ty);
-    }
+    visit_ty(module, ctx, &mut func.return_type);
 
     if let Some(body) = &mut func.body {
         for var in &mut body.variables {
@@ -111,7 +108,7 @@ impl Module {
         if args.is_empty() {
             name
         } else {
-            format!("{name}{}", crate::types::fmt_generic_args(args)).into()
+            format!("{name}{}", crate::ty::fmt_generic_args(args)).into()
         }
     }
 

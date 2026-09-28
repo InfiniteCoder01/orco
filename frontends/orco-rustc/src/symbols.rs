@@ -1,3 +1,5 @@
+use rustc_public::{CrateDef as _, CrateDefType as _};
+
 fn convert_fn_attrs(
     attrs: &rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrs,
 ) -> orco::attrs::FunctionAttributes {
@@ -14,100 +16,62 @@ fn convert_fn_attrs(
     }
 }
 
-impl crate::Context<'_, '_> {
-    /// Declare a function from MIR by [`rustc_hir::def_id::LocalDefId`].
-    /// The function MUST have a body. For bodyless functions, see [`Self::function_decl`]
-    pub fn function(self, key: rustc_hir::def_id::LocalDefId) {
-        let attrs = convert_fn_attrs(self.tcx.codegen_fn_attrs(key));
-        let sig = self.tcx.fn_sig(key).instantiate_identity().skip_binder();
-        let body = self.tcx.hir_body_owned_by(key);
+/// Declare a function from MIR.
+pub fn function(func: rustc_public::ty::FnDef, module: &orco::Module) {
+    let sig = func.fn_sig().skip_binder();
+
+    let (attrs, params) = crate::internal(func, |tcx, did| {
+        let attrs = convert_fn_attrs(tcx.codegen_fn_attrs(did));
+        let idents = tcx.fn_arg_idents(did);
 
         let mut params = Vec::with_capacity(sig.inputs().len());
-        for (i, ty) in sig.inputs().iter().enumerate() {
-            let name = crate::names::pat_name(body.params[i].pat);
-            let Some(ty) = self.convert_ty(*ty) else {
-                continue;
-            };
-            params.push((name, ty));
+        for (ident, ty) in idents.iter().zip(sig.inputs()) {
+            params.push((
+                ident.map(|ident| ident.as_str().to_owned()),
+                crate::ty::convert(*ty),
+            ));
         }
 
-        self.module.functions.pin().insert(
-            self.convert_path(key),
-            orco::Function {
-                generics: self.convert_generics(key),
-                params,
-                return_type: self.convert_ty(sig.output()),
-                attrs,
-                body: None,
-            }
-            .into(),
-        );
-    }
+        (attrs, params)
+    });
 
-    /// Declare a foregin function.
-    /// Pulls argument names from the slice,
-    /// since foreign functions (or unimplemented trait functions) don't have a body.
-    pub fn function_decl(
-        self,
-        key: rustc_hir::def_id::DefId,
-        idents: &[Option<rustc_span::Ident>],
-    ) {
-        let attrs = convert_fn_attrs(self.tcx.codegen_fn_attrs(key));
-        let sig = self.tcx.fn_sig(key).instantiate_identity().skip_binder();
-
-        let mut params = Vec::with_capacity(sig.inputs().len());
-        for (i, ty) in sig.inputs().iter().enumerate() {
-            let Some(ty) = self.convert_ty(*ty) else {
-                continue;
-            };
-            params.push((idents[i].map(|ident| ident.as_str().to_owned()), ty));
+    module.functions.pin().insert(
+        func.name().into(),
+        orco::Function {
+            generics: crate::ty::convert_generic_params(&func.generics_of()),
+            params,
+            return_type: crate::ty::convert(sig.output()),
+            attrs,
+            body: None,
         }
+        .into(),
+    );
+}
 
-        self.module.functions.pin().insert(
-            self.convert_path(key),
-            orco::Function {
-                generics: self.convert_generics(key),
-                params,
-                return_type: self.convert_ty(sig.output()),
-                attrs,
-                body: None,
-            }
-            .into(),
-        );
-    }
-
-    /// Declare a struct type from MIR by [`rustc_hir::def_id::DefId`].
-    pub fn struct_(self, key: rustc_hir::def_id::DefId) {
-        let adt = self.tcx.adt_def(key);
-        let variant = adt.variants().iter().next().unwrap();
-
-        let mut fields = Vec::with_capacity(variant.fields.len());
-        for field in &variant.fields {
-            let name = field.name.to_string();
-            let Some(ty) = self.convert_ty(
-                self.tcx
-                    .type_of(field.did)
-                    .instantiate_identity()
-                    .skip_norm_wip(),
-            ) else {
-                continue;
-            };
-
-            fields.push((
-                match name.chars().next() {
-                    Some(c) if !c.is_ascii_digit() => Some(name),
+/// Declare a struct type from MIR.
+pub fn struct_(adt: rustc_public::ty::AdtDef, module: &orco::Module) {
+    let variant = adt.variants().into_iter().next().unwrap();
+    let fields = variant
+        .fields()
+        .into_iter()
+        .map(|field| {
+            let ty = crate::ty::convert(field.ty());
+            (
+                match field.name.chars().next() {
+                    Some(c) if !c.is_ascii_digit() => Some(field.name),
                     _ => None,
                 },
                 ty,
-            ));
+            )
+        })
+        .collect();
+
+    module.types.pin().insert(
+        adt.name().into(),
+        orco::TypeAlias {
+            generics: crate::ty::convert_generic_params(&adt.generics_of()),
+            type_: orco::Type::Struct { fields },
         }
-        self.module.types.pin().insert(
-            self.convert_path(key),
-            orco::TypeAlias {
-                generics: self.convert_generics(key),
-                type_: orco::Type::Struct { fields },
-            }
-            .into(),
-        );
-    }
+        .into(),
+    );
 }

@@ -31,9 +31,7 @@ fn name_anonymous(
                 name_anonymous(module, guard, generics, ty, false);
             }
 
-            if let Some(ty) = return_type {
-                name_anonymous(module, guard, generics, ty, false);
-            }
+            name_anonymous(module, guard, generics, return_type, false);
         }
         Type::Param(param) => {
             generics.insert(*param);
@@ -86,9 +84,13 @@ impl Module {
                 name_anonymous(self, &guard, &mut HashSet::new(), ty, false);
             }
 
-            if let Some(ty) = &mut func.return_type {
-                name_anonymous(self, &guard, &mut HashSet::new(), ty, false);
-            }
+            name_anonymous(
+                self,
+                &guard,
+                &mut HashSet::new(),
+                &mut func.return_type,
+                false,
+            );
 
             if let Some(body) = &mut func.body {
                 for var in &mut body.variables {

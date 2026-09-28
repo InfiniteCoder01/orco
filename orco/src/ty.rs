@@ -2,8 +2,11 @@ use super::Symbol;
 use std::collections::HashMap;
 
 /// Type of a variable, constant, part of a function signature, etc.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
+    /// Unit type, aka C `void`
+    #[default]
+    Unit,
     /// Signed integer
     Integer(IntegerSize),
     /// Unsigned integer
@@ -31,7 +34,7 @@ pub enum Type {
         /// Types of parameters
         params: Vec<Type>,
         /// Return type
-        return_type: Option<Box<Type>>,
+        return_type: Box<Type>,
     },
     /// Type parameter (aka generic)
     Param(Symbol),
@@ -47,7 +50,8 @@ impl Type {
             | Type::Unsigned(..)
             | Type::Float(..)
             | Type::Bool
-            | Type::Char(..) => (),
+            | Type::Char(..)
+            | Type::Unit => (),
             Type::Symbol(_, generics) => {
                 for ty in generics {
                     ty.instantiate(map);
@@ -69,9 +73,7 @@ impl Type {
                 for param in params {
                     param.instantiate(map);
                 }
-                if let Some(ty) = return_type {
-                    ty.instantiate(map);
-                }
+                return_type.instantiate(map);
             }
             Type::Param(name) => {
                 if let Some(ty) = map.get(name) {
@@ -92,6 +94,7 @@ impl Type {
     /// Check if this type contains type params
     pub fn has_params(&self) -> bool {
         match self {
+            Type::Unit => false,
             Type::Integer(..) => false,
             Type::Unsigned(..) => false,
             Type::Float(..) => false,
@@ -124,7 +127,7 @@ impl Type {
                         return true;
                     }
                 }
-                return_type.as_deref().is_some_and(Type::has_params)
+                return_type.has_params()
             }
             Type::Param(..) => true,
             Type::Error => false,
@@ -135,6 +138,7 @@ impl Type {
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Type::Unit => write!(f, "unit"),
             Type::Integer(size) => write!(f, "i{size}"),
             Type::Unsigned(size) => write!(f, "u{size}"),
             Type::Float(size) => write!(f, "f{size}"),
@@ -192,13 +196,8 @@ impl std::fmt::Display for Type {
                     param.fmt(f)?;
                 }
 
-                match return_type {
-                    Some(ty) => {
-                        write!(f, ") -> ")?;
-                        ty.fmt(f)
-                    }
-                    None => write!(f, ") -> void"),
-                }
+                write!(f, ") -> ")?;
+                return_type.fmt(f)
             }
             Type::Param(name) => write!(f, "#{name}"),
             Type::Error => write!(f, "<error>"),
@@ -272,7 +271,7 @@ impl crate::Function {
     pub fn ptr_type(&self) -> Type {
         Type::FnPtr {
             params: self.params.iter().map(|(_, ty)| ty.clone()).collect(),
-            return_type: self.return_type.clone().map(Box::new),
+            return_type: Box::new(self.return_type.clone()),
         }
     }
 
@@ -294,9 +293,7 @@ impl crate::Function {
             ty.instantiate(&map);
         }
 
-        if let Some(ty) = &mut self.return_type {
-            ty.instantiate(&map);
-        }
+        self.return_type.instantiate(&map);
 
         if let Some(body) = &mut self.body {
             for var in &mut body.variables {

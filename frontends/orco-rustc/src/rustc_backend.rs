@@ -22,7 +22,6 @@ impl rustc_codegen_ssa::traits::CodegenBackend for OrcoCodegenBackend {
     fn codegen_crate(&self, tcx: TyCtxt<'_>) -> Box<dyn Any> {
         tracing::info!("Name: {}", tcx.crate_name(rustc_hir::def_id::LOCAL_CRATE));
         rustc_middle::mir::write_mir_pretty(tcx, &mut std::io::stdout()).unwrap();
-        let items = tcx.hir_crate_items(());
 
         let mut module = orco::Module::new();
         module.functions.pin().insert(
@@ -30,14 +29,19 @@ impl rustc_codegen_ssa::traits::CodegenBackend for OrcoCodegenBackend {
             orco::Function {
                 generics: vec!["T".into()],
                 params: vec![(None, orco::Type::Param("T".into()))],
-                return_type: None,
+                return_type: orco::Type::Unit,
                 attrs: Default::default(),
                 body: None,
             }
             .into(),
         );
-        crate::declare(tcx, &module, items);
-        crate::codegen(tcx, &module, items);
+
+        rustc_public::rustc_internal::run(tcx, || {
+            crate::declare(rustc_public::local_crate(), &module);
+            crate::codegen(rustc_public::local_crate(), &module);
+        })
+        .unwrap();
+
         module.monomorphize();
         module.name_anonymous_structs();
         print!("{module}");
@@ -50,6 +54,7 @@ impl rustc_codegen_ssa::traits::CodegenBackend for OrcoCodegenBackend {
         &self,
         _ongoing_codegen: Box<dyn Any>,
         _sess: &Session,
+        _incr_comp_session: Option<&rustc_session::IncrCompSession>,
         _outputs: &rustc_session::config::OutputFilenames,
         _crate_info: &rustc_codegen_ssa::CrateInfo,
     ) -> (

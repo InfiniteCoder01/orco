@@ -65,7 +65,7 @@ impl Body {
                 let Type::FnPtr { return_type, .. } = ty else {
                     panic!("trying to call a non-function of type {ty}");
                 };
-                return_type.map_or(Type::Error, |ty| *ty)
+                *return_type
             }
             Instr::Intrinsic(intr) => intr
                 .type_override()
