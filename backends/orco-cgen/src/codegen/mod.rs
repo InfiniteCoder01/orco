@@ -118,7 +118,9 @@ impl<'a> Context<'a> {
                 }
 
                 // Object
-                let ty = self.module.inline_ty(self.body.value_ty(idx + 1));
+                let ty = self
+                    .module
+                    .inline_ty(self.body.value_ty(self.module, idx + 1));
                 idx = self.instr(f, idx + 1, 2)?;
                 let orco::Type::Struct { fields } = ty else {
                     panic!("trying to access field #{field_idx} on a non-struct type {ty}");
@@ -137,7 +139,7 @@ impl<'a> Context<'a> {
                 Ok(idx)
             }
             Instr::Assign => {
-                if crate::ty::is_unit(&self.body.value_ty(idx + 1)) {
+                if crate::ty::is_unit(&self.body.value_ty(self.module, idx + 1)) {
                     // TODO: Skipping this is unsafe...
                     idx = self.body.skip_instr(idx + 1);
                 } else {
@@ -165,7 +167,7 @@ impl<'a> Context<'a> {
                 write!(f, "(")?;
                 let mut first = true;
                 for _ in 0..args {
-                    if crate::ty::is_unit(&self.body.value_ty(idx)) {
+                    if crate::ty::is_unit(&self.body.value_ty(self.module, idx)) {
                         // TODO: Skipping this is unsafe...
                         idx = self.body.skip_instr(idx);
                         continue;
@@ -183,7 +185,7 @@ impl<'a> Context<'a> {
 
             Instr::Return => {
                 write!(f, "return")?;
-                if crate::ty::is_unit(&self.body.value_ty(idx + 1)) {
+                if crate::ty::is_unit(&self.body.value_ty(self.module, idx + 1)) {
                     // TODO: Skipping this is unsafe...
                     Ok(self.body.skip_instr(idx + 1))
                 } else {
@@ -204,7 +206,7 @@ impl<'a> Context<'a> {
                     value |= segment as u128;
                 }
                 use orco::Type;
-                match self.body.value_ty(idx) {
+                match self.body.value_ty(self.module, idx) {
                     Type::Integer(size) => {
                         write!(f, "{}{}", value.cast_signed(), int_size_suffix(size))?
                     }

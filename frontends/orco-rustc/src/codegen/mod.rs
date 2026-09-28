@@ -133,7 +133,7 @@ impl CodegenCtx<'_> {
 
                     let idx = self.body.instructions.len();
                     self.op(discr);
-                    match self.body.value_ty(idx) {
+                    match self.body.value_ty(self.module, idx) {
                         orco::Type::Integer(is) => self.instr(Instr::IConst(value as _, is)),
                         orco::Type::Unsigned(is) => self.instr(Instr::UConst(value as _, is)),
                         orco::Type::Bool => {

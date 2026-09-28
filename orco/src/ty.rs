@@ -301,7 +301,6 @@ impl crate::Function {
             }
 
             for symbol in &mut body.symbols {
-                symbol.ty.instantiate(&map);
                 for ty in &mut symbol.generics {
                     ty.instantiate(&map);
                 }

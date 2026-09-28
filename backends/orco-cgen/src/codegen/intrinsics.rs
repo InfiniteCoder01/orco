@@ -21,16 +21,16 @@ pub fn format(
         Intrinsic::Rem => (5, "%"),
         Intrinsic::Neg => (3, "-"),
 
-        Intrinsic::And => match ctx.body.value_ty(idx) {
+        Intrinsic::And => match ctx.body.value_ty(ctx.module, idx) {
             orco::Type::Bool => (14, "&&"),
             _ => (11, "&"),
         },
-        Intrinsic::Or => match ctx.body.value_ty(idx) {
+        Intrinsic::Or => match ctx.body.value_ty(ctx.module, idx) {
             orco::Type::Bool => (15, "||"),
             _ => (13, "|"),
         },
         Intrinsic::Xor => (12, "^"),
-        Intrinsic::Not => match ctx.body.value_ty(idx) {
+        Intrinsic::Not => match ctx.body.value_ty(ctx.module, idx) {
             orco::Type::Bool => (3, "!"),
             _ => (3, "~"),
         },

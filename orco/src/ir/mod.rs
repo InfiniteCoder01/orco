@@ -40,7 +40,7 @@ impl Body {
     }
 
     /// Get type of a value generated at index.
-    pub fn value_ty(&self, idx: usize) -> crate::Type {
+    pub fn value_ty(&self, module: &crate::Module, idx: usize) -> crate::Type {
         use crate::Type;
         match self.instructions[idx] {
             Instr::Unit => Type::Unit,
@@ -49,10 +49,16 @@ impl Body {
             Instr::FConst(_, size) => Type::Float(size),
             Instr::BConst(_) => Type::Bool,
 
-            Instr::Global(id) => self.symbol(id).ty.clone(),
+            Instr::Global(id) => {
+                let symbol = self.symbol(id);
+                let guard = module.functions.guard();
+                let func = module.get_symbol(symbol.name, &guard);
+                func.ptr_type()
+                    .copy_instantiate(&func.generic_map(&symbol.generics))
+            }
             Instr::Var(id) => self.var(id).ty.clone(),
             Instr::Field(field_idx) => {
-                let ty = self.value_ty(idx + 1);
+                let ty = module.inline_ty(self.value_ty(module, idx + 1));
                 let Type::Struct { mut fields } = ty else {
                     panic!("trying to access field #{field_idx} on a non-struct type {ty}");
                 };
@@ -62,7 +68,7 @@ impl Body {
 
             Instr::AcfLabel(..) | Instr::AcfJump(..) | Instr::AcfCJump(..) => Type::Error,
             Instr::Call(..) => {
-                let ty = self.value_ty(idx + 1);
+                let ty = module.inline_ty(self.value_ty(module, idx + 1));
                 let Type::FnPtr { return_type, .. } = ty else {
                     panic!("trying to call a non-function of type {ty}");
                 };
@@ -70,7 +76,7 @@ impl Body {
             }
             Instr::Intrinsic(intr) => intr
                 .type_override()
-                .unwrap_or_else(|| self.value_ty(idx + 1)),
+                .unwrap_or_else(|| self.value_ty(module, idx + 1)),
             Instr::Return => Type::Error,
             Instr::Error => Type::Error,
         }
@@ -119,7 +125,7 @@ impl Body {
             }
 
             Instr::Field(field_idx) => {
-                let ty = module.inline_ty(self.value_ty(idx + 1));
+                let ty = module.inline_ty(self.value_ty(module, idx + 1));
                 idx = self.debug_instr(module, f, idx + 1)?;
                 let crate::Type::Struct { fields } = ty else {
                     panic!("trying to access field #{field_idx} on a non-struct type {ty}");

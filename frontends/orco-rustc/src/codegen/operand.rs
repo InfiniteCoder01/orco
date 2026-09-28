@@ -41,7 +41,6 @@ impl CodegenCtx<'_> {
                 let symbol = self.body.use_symbol(
                     func.0.name().into(),
                     crate::ty::convert_generic_args(&generics),
-                    self.module,
                 );
                 self.instr(Instr::Global(symbol));
             }
