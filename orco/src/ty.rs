@@ -250,18 +250,18 @@ pub fn fmt_generic_args(generics: &[Type]) -> String {
 /// Integer size
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum IntegerSize {
-    /// Number of bits. Not sure if non-powers-of-two
-    /// should be supported. Maybe even non-whole bytes (ex. u6 for 6 bit unsigned integer)
-    Bits(u8),
     /// Kinda like `usize`/`isize` in rust or `size_t`/`ssize_t` in C
     Size,
+    /// Number of bits. Not sure if non-powers-of-two
+    /// should be supported. Maybe even non-whole bytes (ex. u6 for 6 bit unsigned integer)
+    Bits(std::num::NonZeroU8),
 }
 
 impl std::fmt::Display for IntegerSize {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Bits(bits) => write!(f, "{bits}"),
             Self::Size => write!(f, "size"),
+            Self::Bits(bits) => write!(f, "{bits}"),
         }
     }
 }

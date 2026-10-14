@@ -33,7 +33,7 @@ impl std::fmt::Display for FmtType<'_> {
             OT::Integer(size) => match size {
                 IS::Bits(bits) => {
                     assert!(
-                        [8, 16, 32, 64].contains(bits),
+                        [8, 16, 32, 64].contains(&bits.get()),
                         "invalid or unsupported integer bit width {bits}"
                     );
 
@@ -45,7 +45,7 @@ impl std::fmt::Display for FmtType<'_> {
             OT::Unsigned(size) => match size {
                 IS::Bits(bits) => {
                     assert!(
-                        [8, 16, 32, 64].contains(bits),
+                        [8, 16, 32, 64].contains(&bits.get()),
                         "invalid or unsupported integer bit width {bits}"
                     );
 

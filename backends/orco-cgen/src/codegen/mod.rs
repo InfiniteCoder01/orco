@@ -90,8 +90,8 @@ impl<'a> Context<'a> {
         use orco::ty::IntegerSize;
         fn int_size_suffix(size: IntegerSize) -> &'static str {
             match size {
-                IntegerSize::Bits(bits) if bits > 32 => "ll",
-                IntegerSize::Bits(bits) if bits > 16 => "l",
+                IntegerSize::Bits(bits) if bits.get() > 32 => "ll",
+                IntegerSize::Bits(bits) if bits.get() > 16 => "l",
                 IntegerSize::Bits(_) => "",
                 IntegerSize::Size => "ll",
             }
