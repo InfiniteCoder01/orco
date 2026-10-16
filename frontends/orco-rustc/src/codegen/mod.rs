@@ -89,7 +89,28 @@ impl CodegenCtx<'_> {
                 self.op(a);
                 self.op(b);
             }
-            Rvalue::Cast(..) => todo!(),
+            Rvalue::Cast(kind, op, ty) => {
+                self.instr(Instr::Assign);
+                self.place(place);
+
+                let ty = self.body.intern_ty(crate::ty::convert(*ty));
+                use rustc_public::mir::CastKind;
+                match kind {
+                    CastKind::PointerExposeAddress => todo!("cast: {kind:?}"),
+                    CastKind::PointerWithExposedProvenance => todo!("cast: {kind:?}"),
+                    CastKind::PointerCoercion(..) => todo!("cast: {kind:?}"),
+                    CastKind::IntToInt => self.instr(Instr::Cast(ty)),
+                    CastKind::FloatToInt => self.instr(Instr::Cast(ty)),
+                    CastKind::FloatToFloat => self.instr(Instr::Cast(ty)),
+                    CastKind::IntToFloat => self.instr(Instr::Cast(ty)),
+                    CastKind::PtrToPtr => self.instr(Instr::Cast(ty)),
+                    CastKind::FnPtrToPtr => self.instr(Instr::Cast(ty)),
+                    CastKind::Transmute => self.instr(Instr::Transmute(ty)),
+                    CastKind::BoxDerefTransmute => todo!("cast: {kind:?}"),
+                    CastKind::Subtype => todo!("cast: {kind:?}"),
+                }
+                self.op(op);
+            }
             Rvalue::CopyForDeref(..) => todo!(),
             Rvalue::Discriminant(..) => todo!(),
             Rvalue::Len(..) => todo!(),

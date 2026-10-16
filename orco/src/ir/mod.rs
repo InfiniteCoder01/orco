@@ -4,6 +4,9 @@ pub use instr::Instruction as Instr;
 mod variable;
 pub use variable::{VariableId, VariableInfo};
 
+mod type_ref;
+pub use type_ref::TypeId;
+
 mod symbol_ref;
 pub use symbol_ref::{SymbolId, SymbolUse};
 
@@ -17,20 +20,23 @@ pub use intrinsics::Intrinsic;
 /// See also [`FmtBody`].
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Body {
-    /// All variables used in the body.
-    /// Index this with [`VariableId::0`].
-    pub variables: Vec<VariableInfo>,
-    /// All symbols referenced in this body.
-    pub symbols: Vec<SymbolUse>,
-    /// Reverse map of all used symbols inside [`Self::symbols`]
-    /// to their respecive [`SymbolId`] for quick interning.
-    interned_symbols: std::collections::HashMap<(crate::Symbol, Vec<crate::Type>), SymbolId>,
-    /// Debug names attached to labels.
-    /// Index this with [`LabelId::0`].
-    pub label_names: Vec<Option<String>>,
     /// A list of instructions, with values following inverse stack-based order.
     /// See [`Instr`]
     pub instructions: Vec<Instr>,
+
+    /// All variables used in the body.
+    /// Index this with [`VariableId::0`].
+    pub variables: Vec<VariableInfo>,
+
+    /// All types referenced in this body.
+    pub types: crate::ds::InternVec<crate::Type>,
+
+    /// All symbols referenced in this body.
+    pub symbols: crate::ds::InternVec<SymbolUse>,
+
+    /// Debug names attached to labels.
+    /// Index this with [`LabelId::0`].
+    pub label_names: Vec<Option<String>>,
 }
 
 impl Body {
@@ -78,6 +84,10 @@ impl Body {
                 .type_override()
                 .unwrap_or_else(|| self.value_ty(module, idx + 1)),
             Instr::Return => Type::Error,
+
+            Instr::Cast(ty) => self.interned_ty(ty).clone(),
+            Instr::Transmute(ty) => self.interned_ty(ty).clone(),
+
             Instr::Error => Type::Error,
         }
     }
@@ -173,6 +183,16 @@ impl Body {
             Instr::Intrinsic(intr) if intr.arg_count() == 1 => {
                 write!(f, "{intr}")?;
                 self.debug_instr(module, f, idx + 1)
+            }
+
+            Instr::Cast(ty) => {
+                write!(f, "cast<{}>", self.interned_ty(ty))?;
+                debug_args(idx + 1, f, 1)
+            }
+
+            Instr::Transmute(ty) => {
+                write!(f, "transmute<{}>", self.interned_ty(ty))?;
+                debug_args(idx + 1, f, 1)
             }
 
             instr => {

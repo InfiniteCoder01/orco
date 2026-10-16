@@ -300,11 +300,19 @@ impl crate::Function {
                 var.ty.instantiate(&map);
             }
 
-            for symbol in &mut body.symbols {
-                for ty in &mut symbol.generics {
+            body.types.update(|types| {
+                for ty in types {
                     ty.instantiate(&map);
                 }
-            }
+            });
+
+            body.symbols.update(|symbols| {
+                for symbol in symbols {
+                    for ty in &mut symbol.generics {
+                        ty.instantiate(&map);
+                    }
+                }
+            });
         }
 
         self.generics.clear(); // Clear the generic list as this function is no longer generic.

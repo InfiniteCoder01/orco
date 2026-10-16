@@ -1,6 +1,7 @@
 use crate::ty::IntegerSize;
 
 /// Intrinsics are operations built into the compier.
+#[repr(align(1))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Intrinsic {
     /// Adds two ints/floats.
@@ -93,12 +94,12 @@ impl Intrinsic {
     pub fn type_override(self) -> Option<crate::Type> {
         use crate::Type;
         Some(match self {
-            Intrinsic::Eq => Type::Bool,
-            Intrinsic::Ne => Type::Bool,
-            Intrinsic::Lt => Type::Bool,
-            Intrinsic::Le => Type::Bool,
-            Intrinsic::Gt => Type::Bool,
-            Intrinsic::Ge => Type::Bool,
+            Self::Eq => Type::Bool,
+            Self::Ne => Type::Bool,
+            Self::Lt => Type::Bool,
+            Self::Le => Type::Bool,
+            Self::Gt => Type::Bool,
+            Self::Ge => Type::Bool,
             _ => return None,
         })
     }

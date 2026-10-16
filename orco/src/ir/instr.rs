@@ -36,6 +36,12 @@ pub enum Instruction {
     Return,
     /// Intrinsic. See [`super::Intrinsic`].
     Intrinsic(super::Intrinsic),
+
+    /// Cast ints/ptrs/floats/chars/bools.
+    Cast(super::TypeId),
+    /// Transmute any types (aka reinterpret/bit cast).
+    Transmute(super::TypeId),
+
     /// Error value.
     Error,
 }
@@ -63,6 +69,10 @@ impl Instruction {
             Self::Call(args) => args + 1,
             Self::Return => 1,
             Self::Intrinsic(intr) => intr.arg_count(),
+
+            Self::Cast(..) => 1,
+            Self::Transmute(..) => 1,
+
             Self::Error => 0,
         }
     }
@@ -89,6 +99,10 @@ impl std::fmt::Display for Instruction {
             Self::Call(_) => write!(f, "call"),
             Self::Return => write!(f, "return"),
             Self::Intrinsic(intr) => intr.fmt(f),
+
+            Self::Cast(ty) => write!(f, "cast<{ty}>"),
+            Self::Transmute(ty) => write!(f, "transmute<{ty}>"),
+
             Self::Error => write!(f, "error"),
         }
     }

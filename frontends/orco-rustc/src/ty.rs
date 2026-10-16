@@ -22,11 +22,15 @@ pub fn convert(ty: rustc_public::ty::Ty) -> orco::Type {
         RigidTy::Char => orco::Type::Char(true),
         RigidTy::Int(sz) => orco::Type::Integer(match sz {
             rustc_public::ty::IntTy::Isize => orco::ty::IntegerSize::Size,
-            sz => orco::ty::IntegerSize::Bits(sz.num_bytes() as u8 * 8),
+            sz => orco::ty::IntegerSize::Bits(
+                std::num::NonZero::new(sz.num_bytes() as u8 * 8).unwrap(),
+            ),
         }),
         RigidTy::Uint(sz) => orco::Type::Unsigned(match sz {
             rustc_public::ty::UintTy::Usize => orco::ty::IntegerSize::Size,
-            sz => orco::ty::IntegerSize::Bits(sz.num_bytes() as u8 * 8),
+            sz => orco::ty::IntegerSize::Bits(
+                std::num::NonZero::new(sz.num_bytes() as u8 * 8).unwrap(),
+            ),
         }),
         RigidTy::Float(sz) => orco::Type::Float(match sz {
             FloatTy::F16 => 16,

@@ -81,24 +81,32 @@ fn visit_function(module: &Module, ctx: &mut Context, func: &mut Function) {
             visit_ty(module, ctx, &mut var.ty);
         }
 
-        for symbol in &mut body.symbols {
-            if symbol.generics.is_empty() {
-                continue;
+        body.types.update(|types| {
+            for ty in types {
+                visit_ty(module, ctx, ty);
             }
+        });
 
-            let moname = module.monomorphized_name(symbol.name, &symbol.generics);
-            if !exists(&mut ctx.functions, symbol.name, &symbol.generics) {
-                let mut func = module.get_symbol(symbol.name, &ctx.func_guard).clone();
-                func.instantiate(&symbol.generics);
-                visit_function(module, ctx, &mut func);
-                module
-                    .functions
-                    .insert(moname, func.into(), &ctx.func_guard);
+        body.symbols.update(|symbols| {
+            for symbol in symbols {
+                if symbol.generics.is_empty() {
+                    continue;
+                }
+
+                let moname = module.monomorphized_name(symbol.name, &symbol.generics);
+                if !exists(&mut ctx.functions, symbol.name, &symbol.generics) {
+                    let mut func = module.get_symbol(symbol.name, &ctx.func_guard).clone();
+                    func.instantiate(&symbol.generics);
+                    visit_function(module, ctx, &mut func);
+                    module
+                        .functions
+                        .insert(moname, func.into(), &ctx.func_guard);
+                }
+
+                symbol.name = moname;
+                symbol.generics.clear();
             }
-
-            symbol.name = moname;
-            symbol.generics.clear();
-        }
+        });
     }
 }
 

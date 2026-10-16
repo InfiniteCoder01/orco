@@ -80,7 +80,7 @@ impl<'a> Context<'a> {
 
     /// Codegen an instruction at `idx` with it's arguments into `f`.
     /// Set precedence to 255 to allow all expressions unparenthesised.
-    /// See https://en.cppreference.com/cpp/language/operator_precedence for other values.
+    /// See https://en.cppreference.com/c/language/operator_precedence for other values.
     pub fn instr(
         &self,
         f: &mut std::fmt::Formatter<'_>,
@@ -218,6 +218,30 @@ impl<'a> Context<'a> {
             }
 
             Instr::Intrinsic(_) => intrinsics::format(self, f, idx, precedence),
+
+            Instr::Cast(ty) => {
+                if precedence < 2 {
+                    write!(f, "(")?;
+                }
+
+                write!(
+                    f,
+                    "({})",
+                    crate::FmtType {
+                        ty: self.body.interned_ty(ty),
+                        constant: false,
+                        name: None
+                    }
+                )?;
+                idx = self.instr(f, idx + 1, 2)?;
+
+                if precedence < 2 {
+                    write!(f, ")")?;
+                }
+
+                Ok(idx)
+            }
+
             instr => todo!("{instr}"),
         }
     }

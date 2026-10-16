@@ -5,6 +5,9 @@ pub use papaya;
 pub use sinter;
 pub use sinter::IStr as Symbol;
 
+/// Various data structures.
+pub mod ds;
+
 /// Type enums
 pub mod ty;
 pub use ty::Type;

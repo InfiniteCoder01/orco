@@ -96,6 +96,20 @@ impl Module {
                 for var in &mut body.variables {
                     name_anonymous(self, &guard, &mut HashSet::new(), &mut var.ty, false);
                 }
+
+                body.types.update(|types| {
+                    for ty in types {
+                        name_anonymous(self, &guard, &mut HashSet::new(), ty, false);
+                    }
+                });
+
+                body.symbols.update(|symbols| {
+                    for symbol in symbols {
+                        for ty in &mut symbol.generics {
+                            name_anonymous(self, &guard, &mut HashSet::new(), ty, false);
+                        }
+                    }
+                });
             }
         }
     }

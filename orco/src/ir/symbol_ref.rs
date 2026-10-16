@@ -35,22 +35,13 @@ impl super::Body {
     pub fn symbol(&self, id: SymbolId) -> &SymbolUse {
         &self
             .symbols
-            .get(id.0 as usize)
+            .get(id.0)
             .unwrap_or_else(|| panic!("invalid symbol id {id}"))
     }
 
     /// Reference a symbol from the global namespace, adding it to the list of symbols
     /// (unless already there), returns the ID to be used with [`Self::symbol`].
     pub fn use_symbol(&mut self, name: Symbol, generics: Vec<Type>) -> SymbolId {
-        let symbol = (name, generics);
-        if let Some(id) = self.interned_symbols.get(&symbol) {
-            return *id;
-        }
-
-        let id = SymbolId(self.symbols.len() as _);
-        self.interned_symbols.insert(symbol.clone(), id);
-        let (name, generics) = symbol;
-        self.symbols.push(SymbolUse { name, generics });
-        id
+        SymbolId(self.symbols.insert(SymbolUse { name, generics }))
     }
 }

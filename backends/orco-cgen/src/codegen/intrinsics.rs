@@ -14,12 +14,12 @@ pub fn format(
     // Match the intrinsic
     use orco::ir::Intrinsic;
     let (op_precedence, operator) = match intr {
-        Intrinsic::Add => (6, "+"),
-        Intrinsic::Sub => (6, "-"),
-        Intrinsic::Mul => (5, "*"),
-        Intrinsic::Div => (5, "/"),
-        Intrinsic::Rem => (5, "%"),
-        Intrinsic::Neg => (3, "-"),
+        Intrinsic::Add => (4, "+"),
+        Intrinsic::Sub => (4, "-"),
+        Intrinsic::Mul => (3, "*"),
+        Intrinsic::Div => (3, "/"),
+        Intrinsic::Rem => (3, "%"),
+        Intrinsic::Neg => (2, "-"),
 
         Intrinsic::And => match ctx.body.value_ty(ctx.module, idx) {
             orco::Type::Bool => (14, "&&"),
@@ -45,7 +45,7 @@ pub fn format(
         Intrinsic::Gt => (9, ">"),
         Intrinsic::Ge => (9, ">="),
 
-        Intrinsic::AggregateLiteral(_) => todo!(),
+        Intrinsic::AggregateLiteral(_) => panic!("aggregate literal in intrinsic::format"),
     };
 
     // Precedence check
