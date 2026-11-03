@@ -24,28 +24,28 @@ impl rustc_codegen_ssa::traits::CodegenBackend for OrcoCodegenBackend {
         rustc_middle::mir::write_mir_pretty(tcx, &mut std::io::stdout()).unwrap();
 
         let mut module = orco::Module::new();
-        module.functions.pin().insert(
-            "core::mem::drop".into(),
-            orco::Function {
-                generics: vec!["T".into()],
-                params: vec![(None, orco::Type::Param("T".into()))],
-                return_type: orco::Type::Unit,
-                attrs: Default::default(),
-                body: None,
-            }
-            .into(),
-        );
+        // module.functions.pin().insert(
+        //     "core::mem::drop".into(),
+        //     orco::Function {
+        //         generics: vec!["T".into()],
+        //         params: vec![(None, orco::Type::Param("T".into()))],
+        //         return_type: orco::Type::Unit,
+        //         attrs: Default::default(),
+        //         body: None,
+        //     }
+        //     .into(),
+        // );
 
         rustc_public::rustc_internal::run(tcx, || {
-            crate::declare(rustc_public::local_crate(), &module);
-            crate::codegen(rustc_public::local_crate(), &module);
+            crate::declare(rustc_public::local_crate(), &mut module);
+            // crate::codegen(rustc_public::local_crate(), &mut module);
         })
         .unwrap();
 
-        module.monomorphize();
-        module.name_anonymous_structs();
+        // module.monomorphize();
+        // module.name_anonymous_structs();
         print!("{module}");
-        print!("{}", orco_cgen::FmtModule(&module));
+        // print!("{}", orco_cgen::FmtModule(&module));
 
         std::process::exit(0)
     }

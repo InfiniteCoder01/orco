@@ -17,7 +17,8 @@ fn convert_fn_attrs(
 }
 
 /// Declare a function from MIR.
-pub fn function(func: rustc_public::ty::FnDef, module: &orco::Module) {
+pub fn function(func: rustc_public::ty::FnDef, module: &mut orco::Module) {
+    tracing::info!("processing function {}", func.name());
     let sig = func.fn_sig().skip_binder();
 
     let (attrs, params) = crate::internal(func, |tcx, did| {
@@ -35,21 +36,22 @@ pub fn function(func: rustc_public::ty::FnDef, module: &orco::Module) {
         (attrs, params)
     });
 
-    module.functions.pin().insert(
-        func.name().into(),
-        orco::Function {
+    module.symbols.insert(
+        crate::cvt_id(func),
+        orco::Symbol::Function(orco::Function {
+            name: func.name().into(),
             generics: crate::ty::convert_generic_params(&func.generics_of()),
             params,
             return_type: crate::ty::convert(sig.output()),
             attrs,
-            body: None,
-        }
-        .into(),
+            // body: None,
+        }),
     );
 }
 
 /// Declare a struct type from MIR.
-pub fn struct_(adt: rustc_public::ty::AdtDef, module: &orco::Module) {
+pub fn struct_(adt: rustc_public::ty::AdtDef, module: &mut orco::Module) {
+    tracing::info!("processing struct {}", adt.name());
     let variant = adt.variants().into_iter().next().unwrap();
     let fields = variant
         .fields()
@@ -66,12 +68,12 @@ pub fn struct_(adt: rustc_public::ty::AdtDef, module: &orco::Module) {
         })
         .collect();
 
-    module.types.pin().insert(
-        adt.name().into(),
-        orco::TypeAlias {
+    module.types.insert(
+        crate::cvt_id(adt),
+        orco::ty::Alias {
+            name: adt.name().into(),
             generics: crate::ty::convert_generic_params(&adt.generics_of()),
-            type_: orco::Type::Struct { fields },
-        }
-        .into(),
+            ty: orco::Type::Struct { fields },
+        },
     );
 }

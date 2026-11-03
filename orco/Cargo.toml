@@ -8,5 +8,4 @@ description.workspace = true
 repository.workspace = true
 
 [dependencies]
-sinter = "0.1.1"
-papaya = "0.2.4"
+thin-vec = "0.2.21"

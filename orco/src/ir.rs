@@ -29,10 +29,10 @@ pub struct Body {
     pub variables: Vec<VariableInfo>,
 
     /// All types referenced in this body.
-    pub types: crate::ds::InternVec<crate::Type>,
+    pub types: crate::ds::Interner<crate::Type>,
 
     /// All symbols referenced in this body.
-    pub symbols: crate::ds::InternVec<SymbolUse>,
+    pub symbols: crate::ds::Interner<SymbolUse>,
 
     /// Debug names attached to labels.
     /// Index this with [`LabelId::0`].

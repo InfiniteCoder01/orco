@@ -145,7 +145,7 @@ impl From<Intrinsic> for super::Instr {
 
 impl super::Body {
     /// Pushes an arbitrarily-sized int literal,
-    /// possibly making use of [`Intrinsic::AggregateInt`].
+    /// possibly making use of [`Intrinsic::AggregateLiteral`].
     /// See also [`uint_literal`].
     pub fn int_literal(&mut self, mut value: i128, size: IntegerSize) {
         let mut segments = Vec::with_capacity(4);
@@ -168,7 +168,7 @@ impl super::Body {
     }
 
     /// Pushes an arbitrarily-sized unsigned int literal,
-    /// possibly making use of [`Intrinsic::AggregateInt`].
+    /// possibly making use of [`Intrinsic::AggregateLiteral`].
     /// See also [`int_literal`].
     pub fn uint_literal(&mut self, mut value: u128, size: IntegerSize) {
         let mut segments = Vec::with_capacity(4);

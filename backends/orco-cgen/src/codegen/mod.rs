@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use orco::ir::Instr;
-
 mod instructions;
 mod intrinsics;
 mod place_vars;

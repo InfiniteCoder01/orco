@@ -13,6 +13,7 @@ extern crate rustc_hir;
 extern crate rustc_metadata;
 extern crate rustc_middle;
 extern crate rustc_public;
+extern crate rustc_public_bridge;
 extern crate rustc_session;
 extern crate rustc_span;
 extern crate tracing;
@@ -26,9 +27,9 @@ pub mod rustc_backend;
 /// Symbol declaration routines
 pub mod symbols;
 
-/// Code generation is used to define functions and other items
-pub mod codegen;
-pub use codegen::codegen;
+// /// Code generation is used to define functions and other items
+// pub mod codegen;
+// pub use codegen::codegen;
 
 // // /// Intrinsic implementations
 // // pub mod intrinsics;
@@ -36,7 +37,7 @@ pub use codegen::codegen;
 
 /// Declare all the items using the backend provided.
 /// See [`TyCtxt::hir_crate_items`]
-pub fn declare(crate_: rustc_public::Crate, module: &orco::Module) {
+pub fn declare(crate_: rustc_public::Crate, module: &mut orco::Module) {
     // TODO: Type aliases
     for adt in crate_.adts() {
         use rustc_public::ty::AdtKind;
@@ -67,4 +68,10 @@ pub fn internal<R>(
         let did = rustc_public::rustc_internal::internal(ctxt.tcx, item.def_id());
         callback(ctxt.tcx, did)
     })
+}
+
+/// Convert a rustc def into some orco ID.
+fn cvt_id<T: From<usize>>(item: impl rustc_public::CrateDef) -> T {
+    use rustc_public_bridge::IndexedVal;
+    item.def_id().to_index().into()
 }

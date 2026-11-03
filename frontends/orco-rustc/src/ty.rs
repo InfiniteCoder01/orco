@@ -1,5 +1,3 @@
-use rustc_public::CrateDef as _;
-
 /// Convert a type from rust MIR to orco.
 #[must_use]
 pub fn convert(ty: rustc_public::ty::Ty) -> orco::Type {
@@ -8,12 +6,12 @@ pub fn convert(ty: rustc_public::ty::Ty) -> orco::Type {
         TyKind::RigidTy(ty) => ty,
         TyKind::Alias(_, alias) => {
             eprintln!("HUH? Alias? {:?}", ty.kind());
-            return orco::Type::Symbol(
-                alias.def_id.name().into(),
+            return orco::Type::Alias(
+                crate::cvt_id(alias.def_id),
                 convert_generic_args(&alias.args),
             );
         }
-        TyKind::Param(param) => return orco::Type::Param(param.name.as_str().into()),
+        TyKind::Param(param) => return orco::Type::Param(param.index),
         TyKind::Bound(_, _) => todo!(),
     };
 
@@ -39,7 +37,7 @@ pub fn convert(ty: rustc_public::ty::Ty) -> orco::Type {
             FloatTy::F128 => 128,
         }),
         RigidTy::Adt(def, args) => {
-            orco::Type::Symbol(def.name().into(), convert_generic_args(&args))
+            orco::Type::Alias(crate::cvt_id(def), convert_generic_args(&args))
         }
         RigidTy::Foreign(..) => todo!(),
         RigidTy::Str => orco::Type::Error,
@@ -58,8 +56,9 @@ pub fn convert(ty: rustc_public::ty::Ty) -> orco::Type {
         RigidTy::FnPtr(sig) => {
             let sig = sig.skip_binder();
             orco::Type::FnPtr {
-                params: sig.inputs().iter().copied().map(convert).collect(),
-                return_type: Box::new(convert(sig.output())),
+                types: std::iter::once(convert(sig.output()))
+                    .chain(sig.inputs().iter().map(|ty| convert(*ty)))
+                    .collect(),
             }
         }
         RigidTy::Dynamic(..) => todo!(),
@@ -86,19 +85,28 @@ fn convert_generic_arg(arg: &rustc_public::ty::GenericArgKind) -> Option<orco::T
 }
 
 /// Convert a list of generic args, see [`convert_generic_arg`]
-pub fn convert_generic_args(args: &rustc_public::ty::GenericArgs) -> Vec<orco::Type> {
-    args.0.iter().flat_map(convert_generic_arg).collect()
+pub fn convert_generic_args(args: &rustc_public::ty::GenericArgs) -> orco::ThinVec<orco::Type> {
+    args.0
+        .iter()
+        .flat_map(|arg| convert_generic_arg(arg))
+        .collect()
 }
 
 /// Get a list of generic param names
-pub fn convert_generic_params(generics: &rustc_public::ty::Generics) -> Vec<orco::Symbol> {
-    // TODO: parent?
-    let mut types = Vec::new();
+pub fn convert_generic_params(generics: &rustc_public::ty::Generics) -> Vec<orco::TyParam> {
+    let mut params = match generics.parent {
+        Some(parent) => convert_generic_params(&rustc_public::ty::ImplDef(parent.0).generics_of()),
+        None => Vec::new(),
+    };
+
     for param in &generics.params {
         if param.kind == rustc_public::ty::GenericParamDefKind::Lifetime {
             continue;
         }
-        types.push(param.name.as_str().into());
+
+        params.push(orco::TyParam {
+            name: Some(param.name.clone()),
+        });
     }
-    types
+    params
 }
