@@ -45,8 +45,8 @@ impl Body {
             Instr::CConst(_, utf8) => Type::Char(*utf8),
 
             Instr::Global(id, generics) => {
-                let mut ty = module.symbols[&id].ty();
-                ty.instantiate(&generics);
+                let mut ty = module.symbols[id].ty();
+                ty.instantiate(generics);
                 ty
             }
             Instr::Var(id) => self.var(*id).ty.clone(),

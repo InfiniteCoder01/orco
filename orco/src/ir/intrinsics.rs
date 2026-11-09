@@ -73,10 +73,7 @@ impl Intrinsic {
 
     /// Weather debug display should use infix notation for this intrinsic.
     pub fn infix(self) -> bool {
-        match self {
-            _ if self.arg_count() == 1 => false,
-            _ => true,
-        }
+        self.arg_count() >= 2
     }
 
     /// For some intrinsics yields their return type,

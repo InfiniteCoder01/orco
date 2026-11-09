@@ -38,7 +38,7 @@ impl CodegenCtx<'_> {
                         for (idx, op) in fields.iter().enumerate() {
                             self.instr(Instr::Assign);
                             self.instr(Instr::Field(idx as _));
-                            self.place(&place);
+                            self.place(place);
                             self.op(op);
                         }
                     }
@@ -197,7 +197,7 @@ impl CodegenCtx<'_> {
                 self.instr(Instr::Call(args.len() as _));
                 self.op(func);
                 for arg in args {
-                    self.op(&arg);
+                    self.op(arg);
                 }
 
                 if let Some(target) = target {
@@ -287,9 +287,8 @@ pub fn codegen(crate_: rustc_public::Crate, module: &mut orco::Module) {
             .symbols
             .get_mut(&symbol)
             .unwrap_or_else(|| panic!("undelcared function {}", func.name()));
-        function
-            .body
-            .replace(ir_body)
-            .map(|_| panic!("trying to define function {} twice", func.name()));
+        if function.body.replace(ir_body).is_some() {
+            panic!("trying to define function {} twice", func.name())
+        };
     }
 }

@@ -10,10 +10,7 @@ pub struct Display<'a, T: ?Sized> {
 impl<'a, T: ?Sized> Copy for Display<'a, T> {}
 impl<T: ?Sized> Clone for Display<'_, T> {
     fn clone(&self) -> Self {
-        Self {
-            module: self.module,
-            value: self.value,
-        }
+        *self
     }
 }
 

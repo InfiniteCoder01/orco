@@ -86,10 +86,7 @@ fn convert_generic_arg(arg: &rustc_public::ty::GenericArgKind) -> Option<orco::T
 
 /// Convert a list of generic args, see [`convert_generic_arg`]
 pub fn convert_generic_args(args: &rustc_public::ty::GenericArgs) -> orco::ThinVec<orco::Type> {
-    args.0
-        .iter()
-        .flat_map(|arg| convert_generic_arg(arg))
-        .collect()
+    args.0.iter().flat_map(convert_generic_arg).collect()
 }
 
 /// Get a list of generic param names

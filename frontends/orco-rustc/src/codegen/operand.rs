@@ -23,8 +23,6 @@ impl CodegenCtx<'_> {
     /// Codegen a constant value from [`rustc_public::ty::Allocation`].
     fn constant(&mut self, alloc: &rustc_public::ty::Allocation, ty: rustc_public::ty::Ty) {
         use orco::Type;
-        let x = 0i32;
-
         match crate::ty::convert(ty) {
             Type::Integer(sz) => {
                 let bits = match sz {
@@ -36,7 +34,7 @@ impl CodegenCtx<'_> {
                 };
 
                 let value = alloc.read_int().unwrap();
-                let sign_bit = value & 1 << bits - 1;
+                let sign_bit = value & 1 << (bits - 1);
                 let value = value | !((sign_bit << 1) - 1);
                 self.instr(Instr::IConst(value as _, sz))
             }
