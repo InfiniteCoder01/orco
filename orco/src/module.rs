@@ -3,7 +3,7 @@ use std::collections::HashMap;
 /// A single compilation unit.
 /// Note: Be careful with mutating the types,
 /// as [`Body`] caches them.
-#[derive(Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Default, PartialEq)]
 pub struct Module {
     #[allow(missing_docs)]
     pub types: HashMap<crate::ty::AliasId, crate::ty::Alias>,
@@ -43,7 +43,7 @@ impl std::fmt::Display for Module {
 }
 
 /// Symbol enum.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, PartialEq)]
 pub enum Symbol {
     /// See [`crate::Function`].
     Function(crate::Function),
@@ -54,6 +54,13 @@ impl Symbol {
     pub fn name(&self) -> Option<&str> {
         match self {
             Self::Function(func) => func.name.as_deref(),
+        }
+    }
+
+    /// Get the type of this symbol.
+    pub fn ty(&self) -> crate::Type {
+        match self {
+            Self::Function(func) => func.ptr_type(),
         }
     }
 }

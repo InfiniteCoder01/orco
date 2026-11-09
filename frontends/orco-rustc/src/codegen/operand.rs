@@ -23,13 +23,42 @@ impl CodegenCtx<'_> {
     /// Codegen a constant value from [`rustc_public::ty::Allocation`].
     fn constant(&mut self, alloc: &rustc_public::ty::Allocation, ty: rustc_public::ty::Ty) {
         use orco::Type;
+        let x = 0i32;
+
         match crate::ty::convert(ty) {
-            Type::Integer(sz) => self.body.int_literal(alloc.read_int().unwrap(), sz),
-            Type::Unsigned(sz) => self.body.uint_literal(alloc.read_uint().unwrap(), sz),
-            Type::Float(_) => todo!("float const"),
+            Type::Integer(sz) => {
+                let bits = match sz {
+                    orco::ty::IntegerSize::Size => {
+                        // Not sure if this is correct, but rustc does it as well
+                        rustc_public::target::MachineInfo::target_pointer_width().bytes()
+                    }
+                    orco::ty::IntegerSize::Bits(bits) => bits.get() as _,
+                };
+
+                let value = alloc.read_int().unwrap();
+                let sign_bit = value & 1 << bits - 1;
+                let value = value | !((sign_bit << 1) - 1);
+                self.instr(Instr::IConst(value as _, sz))
+            }
+            Type::Unsigned(sz) => self.instr(Instr::UConst(alloc.read_uint().unwrap() as _, sz)),
+            Type::Float(sz) => {
+                let value = alloc.read_uint().unwrap();
+                self.instr(Instr::FConst(
+                    match sz {
+                        16 => f16::from_bits(value as _) as _,
+                        32 => f32::from_bits(value as _) as _,
+                        64 => f64::from_bits(value as _),
+                        sz => panic!("unsupported float size {sz}"),
+                    },
+                    sz,
+                ))
+            }
             Type::Bool => self.instr(Instr::BConst(alloc.read_bool().unwrap())),
-            Type::Char(_) => todo!("char const"),
-            ty => panic!("complex (currently unsupported) const type {ty}"),
+            Type::Char(utf8) => self.instr(Instr::CConst(alloc.read_uint().unwrap() as _, utf8)),
+            ty => panic!(
+                "complex (currently unsupported) const type {}",
+                self.module.display(&ty)
+            ),
         }
     }
 
@@ -38,11 +67,10 @@ impl CodegenCtx<'_> {
         match ty.kind() {
             // TODO: We might need to do more
             TyKind::RigidTy(RigidTy::FnDef(func, generics)) => {
-                let symbol = self.body.use_symbol(
-                    func.0.name().into(),
+                self.instr(Instr::Global(
+                    crate::cvt_id(func),
                     crate::ty::convert_generic_args(&generics),
-                );
-                self.instr(Instr::Global(symbol));
+                ));
             }
             _ => {
                 let var = self

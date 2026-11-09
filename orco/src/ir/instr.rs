@@ -1,21 +1,23 @@
 /// Single instruction can be thought of a node in the AST-like IR,
 /// with it's children being flat written into a list of instructions right after.
 /// See [`super::Body::instructions`].
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum Instruction {
     /// Unit constant. See [`crate::Type::Unit`]
     Unit,
     /// Signed integer constant.
-    IConst(i32, crate::ty::IntegerSize),
+    IConst(i64, crate::ty::IntegerSize),
     /// Unsigned integer constant.
-    UConst(u32, crate::ty::IntegerSize),
+    UConst(u64, crate::ty::IntegerSize),
     /// Float constant.
-    FConst(f32, u16),
+    FConst(f64, u8),
     /// Bool constant.
     BConst(bool),
+    /// Character constant.
+    CConst(u32, bool),
 
     /// Load a global value (function, variable, etc.).
-    Global(super::SymbolId),
+    Global(crate::SymbolId, thin_vec::ThinVec<crate::Type>),
     /// Load the variable.
     Var(super::VariableId),
     /// Access a field at index.
@@ -38,9 +40,9 @@ pub enum Instruction {
     Intrinsic(super::Intrinsic),
 
     /// Cast ints/ptrs/floats/chars/bools.
-    Cast(super::TypeId),
+    Cast(Box<crate::Type>),
     /// Transmute any types (aka reinterpret/bit cast).
-    Transmute(super::TypeId),
+    Transmute(Box<crate::Type>),
 
     /// Error value.
     Error,
@@ -49,13 +51,14 @@ pub enum Instruction {
 impl Instruction {
     /// Number of arguments to follow this instruction with in
     /// [`super::Body::instructions`]
-    pub fn arg_count(self) -> u32 {
+    pub fn arg_count(&self) -> u32 {
         match self {
             Self::Unit
             | Self::IConst(..)
             | Self::UConst(..)
             | Self::FConst(..)
-            | Self::BConst(..) => 0,
+            | Self::BConst(..)
+            | Self::CConst(..) => 0,
 
             Self::Global(..) => 0,
             Self::Var(..) => 0,
@@ -74,36 +77,6 @@ impl Instruction {
             Self::Transmute(..) => 1,
 
             Self::Error => 0,
-        }
-    }
-}
-
-impl std::fmt::Display for Instruction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Unit => write!(f, "unit"),
-            Self::IConst(value, size) => write!(f, "{value}_i{size}"),
-            Self::UConst(value, size) => write!(f, "{value}_u{size}"),
-            Self::FConst(value, size) => write!(f, "{value}_f{size}"),
-            Self::BConst(value) => write!(f, "{value}"),
-
-            Self::Global(symbol) => write!(f, "{symbol}"),
-            Self::Var(id) => write!(f, "?{id}"),
-            Self::Field(idx) => write!(f, "field_{idx}"),
-            Self::Assign => write!(f, "assign"),
-
-            Self::AcfLabel(label) => write!(f, "label {label}"),
-            Self::AcfJump(label) => write!(f, "jump {label}"),
-            Self::AcfCJump(label) => write!(f, "cjump {label}"),
-
-            Self::Call(_) => write!(f, "call"),
-            Self::Return => write!(f, "return"),
-            Self::Intrinsic(intr) => intr.fmt(f),
-
-            Self::Cast(ty) => write!(f, "cast<{ty}>"),
-            Self::Transmute(ty) => write!(f, "transmute<{ty}>"),
-
-            Self::Error => write!(f, "error"),
         }
     }
 }

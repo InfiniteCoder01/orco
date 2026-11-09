@@ -93,22 +93,23 @@ impl CodegenCtx<'_> {
                 self.instr(Instr::Assign);
                 self.place(place);
 
-                let ty = self.body.intern_ty(crate::ty::convert(*ty));
+                let ty = Box::new(crate::ty::convert(*ty));
                 use rustc_public::mir::CastKind;
-                match kind {
+                let instr = match kind {
                     CastKind::PointerExposeAddress => todo!("cast: {kind:?}"),
                     CastKind::PointerWithExposedProvenance => todo!("cast: {kind:?}"),
                     CastKind::PointerCoercion(..) => todo!("cast: {kind:?}"),
-                    CastKind::IntToInt => self.instr(Instr::Cast(ty)),
-                    CastKind::FloatToInt => self.instr(Instr::Cast(ty)),
-                    CastKind::FloatToFloat => self.instr(Instr::Cast(ty)),
-                    CastKind::IntToFloat => self.instr(Instr::Cast(ty)),
-                    CastKind::PtrToPtr => self.instr(Instr::Cast(ty)),
-                    CastKind::FnPtrToPtr => self.instr(Instr::Cast(ty)),
-                    CastKind::Transmute => self.instr(Instr::Transmute(ty)),
+                    CastKind::IntToInt => Instr::Cast(ty),
+                    CastKind::FloatToInt => Instr::Cast(ty),
+                    CastKind::FloatToFloat => Instr::Cast(ty),
+                    CastKind::IntToFloat => Instr::Cast(ty),
+                    CastKind::PtrToPtr => Instr::Cast(ty),
+                    CastKind::FnPtrToPtr => Instr::Cast(ty),
+                    CastKind::Transmute => Instr::Transmute(ty),
                     CastKind::BoxDerefTransmute => todo!("cast: {kind:?}"),
                     CastKind::Subtype => todo!("cast: {kind:?}"),
-                }
+                };
+                self.instr(instr);
                 self.op(op);
             }
             Rvalue::CopyForDeref(..) => todo!(),
@@ -154,7 +155,7 @@ impl CodegenCtx<'_> {
 
                     let idx = self.body.instructions.len();
                     self.op(discr);
-                    match self.body.value_ty(self.module, idx) {
+                    match self.module.inline_ty(self.body.value_ty(self.module, idx)) {
                         orco::Type::Integer(is) => self.instr(Instr::IConst(value as _, is)),
                         orco::Type::Unsigned(is) => self.instr(Instr::UConst(value as _, is)),
                         orco::Type::Bool => {
@@ -164,10 +165,10 @@ impl CodegenCtx<'_> {
                             );
                             self.instr(Instr::BConst(value != 0))
                         }
-                        orco::Type::Symbol(name, _) => {
-                            todo!("symbol discriminant type in SwitchInt ({name})")
-                        }
-                        ty => panic!("invalid discriminant type in SwitchInt: {ty}"),
+                        ty => panic!(
+                            "invalid discriminant type in SwitchInt: {}",
+                            self.module.display(&ty)
+                        ),
                     }
                 }
 
@@ -269,24 +270,26 @@ pub fn body(
 
 /// Codegen all the functions using the backend provided.
 /// See [`crate::declare`]
-pub fn codegen(crate_: rustc_public::Crate, module: &orco::Module) {
+pub fn codegen(crate_: rustc_public::Crate, module: &mut orco::Module) {
     for func in crate_.fn_defs() {
         let Some(rs_body) = func.body() else {
             continue;
         };
 
-        let path: orco::Symbol = func.name().into();
-        let functions = module.functions.pin();
-        let mut function = functions
-            .get(&path)
-            .unwrap_or_else(|| panic!("undelcared function {path}"))
-            .write()
-            .unwrap();
-
+        let symbol: orco::SymbolId = crate::cvt_id(func);
+        let orco::Symbol::Function(function) = module
+            .symbols
+            .get(&symbol)
+            .unwrap_or_else(|| panic!("undelcared function {}", func.name()));
         let ir_body = body(function.create_def(), &rs_body, module);
+
+        let orco::Symbol::Function(function) = module
+            .symbols
+            .get_mut(&symbol)
+            .unwrap_or_else(|| panic!("undelcared function {}", func.name()));
         function
             .body
             .replace(ir_body)
-            .map(|_| panic!("trying to define function {path} twice"));
+            .map(|_| panic!("trying to define function {} twice", func.name()));
     }
 }

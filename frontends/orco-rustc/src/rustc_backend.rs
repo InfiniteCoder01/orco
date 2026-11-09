@@ -38,7 +38,7 @@ impl rustc_codegen_ssa::traits::CodegenBackend for OrcoCodegenBackend {
 
         rustc_public::rustc_internal::run(tcx, || {
             crate::declare(rustc_public::local_crate(), &mut module);
-            // crate::codegen(rustc_public::local_crate(), &mut module);
+            crate::codegen(rustc_public::local_crate(), &mut module);
         })
         .unwrap();
 

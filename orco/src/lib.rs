@@ -17,14 +17,14 @@ pub use ty::{TyParam, Type};
 /// Attributes are a way to pass information about symbols to the backend.
 pub mod attrs;
 
-// /// Body IR.
-// pub mod ir;
-// pub use ir::{Body, FmtBody};
+/// Body IR.
+pub mod ir;
+pub use ir::Body;
 
 // mod transformations;
 
 /// Function decl & body.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, PartialEq)]
 pub struct Function {
     /// Optional name.
     pub name: Option<String>,
@@ -37,23 +37,23 @@ pub struct Function {
     pub return_type: Type,
     /// Function attributes.
     pub attrs: crate::attrs::FunctionAttributes,
-    // /// Function body.
-    // pub body: Option<Body>,
+    /// Function body.
+    pub body: Option<Body>,
 }
 
 impl Function {
-    // /// Generate a function body with all argument variables pre-added.
-    // pub fn create_def(&self) -> Body {
-    //     let mut body = Body::new();
-    //     for (name, ty) in self.params.iter().cloned() {
-    //         body.variables.push(ir::VariableInfo {
-    //             ty,
-    //             arg: true,
-    //             name,
-    //         });
-    //     }
-    //     body
-    // }
+    /// Generate a function body with all argument variables pre-added.
+    pub fn create_def(&self) -> Body {
+        let mut body = Body::new();
+        for (name, ty) in self.params.iter().cloned() {
+            body.variables.push(ir::VariableInfo {
+                ty,
+                arg: true,
+                name,
+            });
+        }
+        body
+    }
 }
 
 impl std::fmt::Display for Display<'_, Function> {
@@ -82,9 +82,10 @@ impl std::fmt::Display for Display<'_, Function> {
         write!(f, ") -> ")?;
         self.project(&self.return_type).fmt(f)?;
 
-        // if let Some(body) = self.body {
-        //     self.project(self.body).fmt(f)?;
-        // }
+        if let Some(body) = &self.body {
+            write!(f, " ")?;
+            self.project(body).fmt(f)?;
+        }
 
         Ok(())
     }

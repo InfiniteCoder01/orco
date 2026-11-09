@@ -44,7 +44,7 @@ pub fn function(func: rustc_public::ty::FnDef, module: &mut orco::Module) {
             params,
             return_type: crate::ty::convert(sig.output()),
             attrs,
-            // body: None,
+            body: None,
         }),
     );
 }

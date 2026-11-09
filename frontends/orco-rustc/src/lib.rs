@@ -1,7 +1,6 @@
 //! rustc frontend for orco
 #![feature(rustc_private)]
 #![feature(f16)]
-#![feature(f128)]
 #![warn(missing_docs)]
 
 extern crate rustc_ast;
@@ -27,9 +26,9 @@ pub mod rustc_backend;
 /// Symbol declaration routines
 pub mod symbols;
 
-// /// Code generation is used to define functions and other items
-// pub mod codegen;
-// pub use codegen::codegen;
+/// Code generation is used to define functions and other items
+pub mod codegen;
+pub use codegen::codegen;
 
 // // /// Intrinsic implementations
 // // pub mod intrinsics;

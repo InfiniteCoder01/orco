@@ -16,7 +16,7 @@ pub enum Type {
     /// Unsigned integer.
     Unsigned(IntegerSize),
     /// IEEE (or not) floating point number with set number of bits.
-    Float(u16),
+    Float(u8),
     /// A boolean. Should be 1 byte I guess...
     Bool,
     /// Character, storing it's width (wide vs ascii).

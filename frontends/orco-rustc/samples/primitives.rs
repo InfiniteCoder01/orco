@@ -3,6 +3,7 @@ fn test(a: i32) {
 }
 
 fn main() {
+    test(0);
     drop(3.1415926);
     drop('a');
     // Variables can be type annotated.

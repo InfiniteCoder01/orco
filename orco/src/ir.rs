@@ -4,12 +4,6 @@ pub use instr::Instruction as Instr;
 mod variable;
 pub use variable::{VariableId, VariableInfo};
 
-mod type_ref;
-pub use type_ref::TypeId;
-
-mod symbol_ref;
-pub use symbol_ref::{SymbolId, SymbolUse};
-
 mod label;
 pub use label::LabelId;
 
@@ -28,12 +22,6 @@ pub struct Body {
     /// Index this with [`VariableId::0`].
     pub variables: Vec<VariableInfo>,
 
-    /// All types referenced in this body.
-    pub types: crate::ds::Interner<crate::Type>,
-
-    /// All symbols referenced in this body.
-    pub symbols: crate::ds::Interner<SymbolUse>,
-
     /// Debug names attached to labels.
     /// Index this with [`LabelId::0`].
     pub label_names: Vec<Option<String>>,
@@ -48,64 +36,70 @@ impl Body {
     /// Get type of a value generated at index.
     pub fn value_ty(&self, module: &crate::Module, idx: usize) -> crate::Type {
         use crate::Type;
-        match self.instructions[idx] {
+        match &self.instructions[idx] {
             Instr::Unit => Type::Unit,
-            Instr::IConst(_, size) => Type::Integer(size),
-            Instr::UConst(_, size) => Type::Unsigned(size),
-            Instr::FConst(_, size) => Type::Float(size),
+            Instr::IConst(_, size) => Type::Integer(*size),
+            Instr::UConst(_, size) => Type::Unsigned(*size),
+            Instr::FConst(_, size) => Type::Float(*size),
             Instr::BConst(_) => Type::Bool,
+            Instr::CConst(_, utf8) => Type::Char(*utf8),
 
-            Instr::Global(id) => {
-                let symbol = self.symbol(id);
-                let guard = module.functions.guard();
-                let func = module.get_symbol(symbol.name, &guard);
-                func.ptr_type()
-                    .copy_instantiate(&func.generic_map(&symbol.generics))
+            Instr::Global(id, generics) => {
+                let mut ty = module.symbols[&id].ty();
+                ty.instantiate(&generics);
+                ty
             }
-            Instr::Var(id) => self.var(id).ty.clone(),
+            Instr::Var(id) => self.var(*id).ty.clone(),
             Instr::Field(field_idx) => {
                 let ty = module.inline_ty(self.value_ty(module, idx + 1));
                 let Type::Struct { mut fields } = ty else {
-                    panic!("trying to access field #{field_idx} on a non-struct type {ty}");
+                    panic!(
+                        "trying to access field #{field_idx} on a non-struct type {}",
+                        module.display(&ty)
+                    );
                 };
-                fields.swap_remove(field_idx as _).1
+                fields.swap_remove(*field_idx as _).1
             }
             Instr::Assign => Type::Error,
 
             Instr::AcfLabel(..) | Instr::AcfJump(..) | Instr::AcfCJump(..) => Type::Error,
             Instr::Call(..) => {
                 let ty = module.inline_ty(self.value_ty(module, idx + 1));
-                let Type::FnPtr { return_type, .. } = ty else {
-                    panic!("trying to call a non-function of type {ty}");
+                let Type::FnPtr { types } = ty else {
+                    panic!(
+                        "trying to call a non-function of type {}",
+                        module.display(&ty)
+                    );
                 };
-                *return_type
+                types.into_iter().next().unwrap()
             }
             Instr::Intrinsic(intr) => intr
                 .type_override()
                 .unwrap_or_else(|| self.value_ty(module, idx + 1)),
             Instr::Return => Type::Error,
 
-            Instr::Cast(ty) => self.interned_ty(ty).clone(),
-            Instr::Transmute(ty) => self.interned_ty(ty).clone(),
+            Instr::Cast(ty) => ty.as_ref().clone(),
+            Instr::Transmute(ty) => ty.as_ref().clone(),
 
             Instr::Error => Type::Error,
         }
     }
 
-    /// Skip the instruction at `idx` and return the new index
+    /// Skip the instruction at `idx` and return the new index.
     pub fn skip_instr(&self, mut idx: usize) -> usize {
-        let instr = self.instructions[idx];
+        let instr = &self.instructions[idx];
         idx += 1;
         for _ in 0..instr.arg_count() {
             idx = self.skip_instr(idx);
         }
         idx
     }
+}
 
-    /// Debug-print an instruction at `idx` with it's arguments into `f`
+impl crate::Display<'_, Body> {
+    /// Debug-print an instruction at `idx` with it's arguments into `f`.
     pub fn debug_instr(
         &self,
-        module: &crate::Module,
         f: &mut std::fmt::Formatter<'_>,
         mut idx: usize,
     ) -> Result<usize, std::fmt::Error> {
@@ -115,33 +109,53 @@ impl Body {
                 if i > 0 {
                     write!(f, ", ")?;
                 }
-                idx = self.debug_instr(module, f, idx)?;
+                idx = self.debug_instr(f, idx)?;
             }
             write!(f, ")")?;
             Ok(idx)
         };
 
-        match self.instructions[idx] {
-            Instr::Global(id) => write!(f, "{}", self.symbol(id)).map(|_| idx + 1),
-            Instr::Var(id) => write!(f, "{}", self.var_debug_name(id)).map(|_| idx + 1),
+        match &self.instructions[idx] {
+            Instr::Unit => write!(f, "unit").map(|_| idx + 1),
+            Instr::IConst(value, size) => write!(f, "{value}_i{size}").map(|_| idx + 1),
+            Instr::UConst(value, size) => write!(f, "{value}_u{size}").map(|_| idx + 1),
+            Instr::FConst(value, size) => write!(f, "{value}_f{size}").map(|_| idx + 1),
+            Instr::BConst(value) => write!(f, "{value}").map(|_| idx + 1),
+            Instr::CConst(value, utf8) => match char::from_u32(*value) {
+                Some(chr) => write!(f, "{:?}", chr),
+                None => write!(f, "{}({value})", self.project(&crate::Type::Char(*utf8))),
+            }
+            .map(|_| idx + 1),
+
+            Instr::Global(id, generics) => write!(
+                f,
+                "{}{}",
+                self.project(id),
+                self.project(generics.as_slice())
+            )
+            .map(|_| idx + 1),
+            Instr::Var(id) => write!(f, "{}", self.var_debug_name(*id)).map(|_| idx + 1),
             Instr::Assign => {
-                idx = self.debug_instr(module, f, idx + 1)?;
+                idx = self.debug_instr(f, idx + 1)?;
                 write!(f, " = ")?;
-                self.debug_instr(module, f, idx)
+                self.debug_instr(f, idx)
             }
             Instr::Return => {
                 write!(f, "return ")?;
-                self.debug_instr(module, f, idx + 1)
+                self.debug_instr(f, idx + 1)
             }
 
             Instr::Field(field_idx) => {
-                let ty = module.inline_ty(self.value_ty(module, idx + 1));
-                idx = self.debug_instr(module, f, idx + 1)?;
+                let ty = self.module.inline_ty(self.value_ty(self.module, idx + 1));
+                idx = self.debug_instr(f, idx + 1)?;
                 let crate::Type::Struct { fields } = ty else {
-                    panic!("trying to access field #{field_idx} on a non-struct type {ty}");
+                    panic!(
+                        "trying to access field #{field_idx} on a non-struct type {}",
+                        self.project(&ty)
+                    );
                 };
 
-                match &fields[field_idx as usize].0 {
+                match &fields[*field_idx as usize].0 {
                     Some(name) => write!(f, ".{name}")?,
                     None => write!(f, ".field_{field_idx}")?,
                 }
@@ -150,21 +164,21 @@ impl Body {
             }
 
             Instr::AcfLabel(label) => {
-                write!(f, "{}:", self.label_debug_name(label)).map(|_| idx + 1)
+                write!(f, "{}:", self.label_debug_name(*label)).map(|_| idx + 1)
             }
             Instr::AcfJump(label) => {
-                write!(f, "jump {}", self.label_debug_name(label)).map(|_| idx + 1)
+                write!(f, "jump {}", self.label_debug_name(*label)).map(|_| idx + 1)
             }
             Instr::AcfCJump(label) => {
                 write!(f, "if ")?;
-                idx = self.debug_instr(module, f, idx + 1)?;
-                write!(f, " jump {}", self.label_debug_name(label))?;
+                idx = self.debug_instr(f, idx + 1)?;
+                write!(f, " jump {}", self.label_debug_name(*label))?;
                 Ok(idx)
             }
 
             Instr::Call(args) => {
-                idx = self.debug_instr(module, f, idx + 1)?;
-                debug_args(idx, f, args)
+                idx = self.debug_instr(f, idx + 1)?;
+                debug_args(idx, f, *args)
             }
 
             Instr::Intrinsic(intr) if intr.infix() => {
@@ -174,56 +188,49 @@ impl Body {
                     if i > 0 {
                         write!(f, " {intr} ")?;
                     }
-                    idx = self.debug_instr(module, f, idx)?;
+                    idx = self.debug_instr(f, idx)?;
                 }
                 write!(f, ")")?;
                 Ok(idx)
             }
 
-            Instr::Intrinsic(intr) if intr.arg_count() == 1 => {
+            Instr::Intrinsic(intr) => {
                 write!(f, "{intr}")?;
-                self.debug_instr(module, f, idx + 1)
+                match intr.arg_count() {
+                    0 => Ok(idx + 1),
+                    1 => self.debug_instr(f, idx + 1),
+                    args => debug_args(idx + 1, f, args),
+                }
             }
 
             Instr::Cast(ty) => {
-                write!(f, "cast<{}>", self.interned_ty(ty))?;
+                write!(f, "cast<{}>", self.project(ty.as_ref()))?;
                 debug_args(idx + 1, f, 1)
             }
 
             Instr::Transmute(ty) => {
-                write!(f, "transmute<{}>", self.interned_ty(ty))?;
+                write!(f, "transmute<{}>", self.project(ty.as_ref()))?;
                 debug_args(idx + 1, f, 1)
             }
 
-            instr => {
-                write!(f, "{instr}")?;
-                idx += 1;
-                let args = instr.arg_count();
-                if args > 0 {
-                    idx = debug_args(idx, f, args)?;
-                }
-                Ok(idx)
-            }
+            Instr::Error => write!(f, "error").map(|_| idx + 1),
         }
     }
 }
 
-/// Small wrapper implementing [`std::fmt::Display`] for [`Body`].
-pub struct FmtBody<'a>(pub &'a crate::Module, pub &'a Body);
-impl std::fmt::Display for FmtBody<'_> {
+impl std::fmt::Display for crate::Display<'_, Body> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let FmtBody(module, body) = self;
-        if body.variables.is_empty() && body.instructions.is_empty() {
+        if self.instructions.is_empty() {
             return write!(f, "{{}}");
         }
 
         writeln!(f, "{{")?;
-        for (idx, var) in body.variables.iter().enumerate() {
+        for (idx, var) in self.variables.iter().enumerate() {
             write!(
                 f,
                 "  let {}: {}",
-                body.var_debug_name(VariableId(idx as _)),
-                var.ty
+                self.var_debug_name(VariableId(idx as _)),
+                self.project(&var.ty)
             )?;
             if var.arg {
                 write!(f, " = <argument>")?;
@@ -233,15 +240,15 @@ impl std::fmt::Display for FmtBody<'_> {
         }
 
         let mut idx = 0;
-        while idx < body.instructions.len() {
-            if matches!(body.instructions[idx], Instr::AcfLabel(..)) {
-                idx = body.debug_instr(module, f, idx)?;
+        while idx < self.instructions.len() {
+            if matches!(self.instructions[idx], Instr::AcfLabel(..)) {
+                idx = self.debug_instr(f, idx)?;
                 writeln!(f)?;
                 continue;
             }
 
             write!(f, "  ")?;
-            idx = body.debug_instr(module, f, idx)?;
+            idx = self.debug_instr(f, idx)?;
             writeln!(f, ";")?;
         }
 
