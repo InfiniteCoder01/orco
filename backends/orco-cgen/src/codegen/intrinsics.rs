@@ -5,9 +5,9 @@ pub fn format(
     mut idx: usize,
     precedence: u8,
 ) -> Result<usize, std::fmt::Error> {
-    let instr = ctx.body.instructions[idx];
+    let instr = &ctx.body.instructions[idx];
     let orco::ir::Instr::Intrinsic(intr) = instr else {
-        panic!("Expected intrinsic, got {instr}");
+        panic!("Expected intrinsic, got {instr:?}");
     };
     idx += 1;
 
@@ -44,8 +44,6 @@ pub fn format(
         Intrinsic::Le => (9, "<="),
         Intrinsic::Gt => (9, ">"),
         Intrinsic::Ge => (9, ">="),
-
-        Intrinsic::AggregateLiteral(_) => panic!("aggregate literal in intrinsic::format"),
     };
 
     // Precedence check

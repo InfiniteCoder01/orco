@@ -32,10 +32,9 @@ impl std::fmt::Display for FmtModule<'_> {
         writeln!(f)?;
 
         let mut any = false;
-        for (name, alias) in module.types.pin().iter() {
-            let alias = alias.read().unwrap();
-            if matches!(alias.type_, orco::Type::Struct { .. }) {
-                let name = cname(*name);
+        for (id, alias) in &module.types {
+            if matches!(alias.ty, orco::Type::Struct { .. }) {
+                let name = ty_name(*id, alias);
                 writeln!(f, "typedef struct {name} {name};")?;
                 any = true;
             }
@@ -46,15 +45,16 @@ impl std::fmt::Display for FmtModule<'_> {
             any = false;
         }
 
-        topsort::visit(module, |name, ty| {
+        topsort::visit(module, |id, alias| {
             any = true;
             writeln!(
                 f,
                 "typedef {};",
                 FmtType {
-                    ty: &ty,
+                    module,
+                    ty: &alias.ty,
                     constant: false,
-                    name: Some(&cname(name))
+                    name: Some(&ty_name(id, alias))
                 }
             )
         })?;
@@ -64,26 +64,31 @@ impl std::fmt::Display for FmtModule<'_> {
             any = false;
         }
 
-        for (name, func) in module.functions.pin().iter() {
-            let func = func.read().unwrap();
+        for (id, symbol) in &module.symbols {
             any = true;
-            writeln!(
-                f,
-                "{};",
-                symbols::FmtFunction {
-                    name: &cname(*name),
-                    function: &func,
-                    name_all_args: false,
+            let name = sym_name(*id, symbol);
+            match symbol {
+                orco::Symbol::Function(func) => {
+                    writeln!(
+                        f,
+                        "{};",
+                        symbols::FmtFunction {
+                            module,
+                            name: &name,
+                            function: &func,
+                            name_all_args: false,
+                        }
+                    )?;
                 }
-            )?;
+            }
         }
 
         if any {
             writeln!(f)?;
         }
 
-        for (name, func) in module.functions.pin().iter() {
-            let func = func.read().unwrap();
+        for (id, symbol) in &module.symbols {
+            let orco::Symbol::Function(func) = symbol;
             let Some(body) = &func.body else {
                 continue;
             };
@@ -92,7 +97,8 @@ impl std::fmt::Display for FmtModule<'_> {
                 f,
                 "{} {}\n",
                 symbols::FmtFunction {
-                    name: &cname(*name),
+                    module,
+                    name: &sym_name(*id, symbol),
                     function: &func,
                     name_all_args: true,
                 },
@@ -105,7 +111,7 @@ impl std::fmt::Display for FmtModule<'_> {
 }
 
 /// Get the name of the symbol used in generated C code ("mangling")
-pub fn cname(name: orco::Symbol) -> String {
+pub fn cname(name: &str) -> String {
     // Take only the method name, not the path
     // FIXME: conflicts...
     let mut new_name = String::new();
@@ -126,4 +132,20 @@ pub fn cname(name: orco::Symbol) -> String {
     }
 
     new_name
+}
+
+/// Get name for a type.
+pub fn ty_name(id: orco::ty::AliasId, alias: &orco::ty::Alias) -> String {
+    match &alias.name {
+        Some(name) => cname(name),
+        None => format!("_ty{}", id.0),
+    }
+}
+
+/// Get name for a symbol.
+pub fn sym_name(id: orco::SymbolId, symbol: &orco::Symbol) -> String {
+    match symbol.name() {
+        Some(name) => cname(name),
+        None => format!("_ty{}", id.0),
+    }
 }

@@ -44,8 +44,8 @@ impl rustc_codegen_ssa::traits::CodegenBackend for OrcoCodegenBackend {
 
         // module.monomorphize();
         // module.name_anonymous_structs();
-        print!("{module}");
-        // print!("{}", orco_cgen::FmtModule(&module));
+        // print!("{module}");
+        print!("{}", orco_cgen::FmtModule(&module));
 
         std::process::exit(0)
     }

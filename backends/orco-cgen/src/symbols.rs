@@ -3,6 +3,8 @@ use orco::Function;
 
 /// Formats function signature
 pub struct FmtFunction<'a> {
+    /// Module this function is from.
+    pub module: &'a orco::Module,
     /// Function name.
     pub name: &'a str,
     /// Function itself.
@@ -14,6 +16,7 @@ pub struct FmtFunction<'a> {
 impl std::fmt::Display for FmtFunction<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let FmtFunction {
+            module,
             name,
             function,
             name_all_args,
@@ -47,6 +50,7 @@ impl std::fmt::Display for FmtFunction<'_> {
                 sig_noret,
                 "{}",
                 FmtType {
+                    module,
                     ty,
                     constant: false,
                     name: match name {
@@ -61,6 +65,7 @@ impl std::fmt::Display for FmtFunction<'_> {
         write!(sig_noret, ")")?;
 
         FmtType {
+            module,
             ty: &function.return_type,
             constant: false,
             name: Some(&sig_noret),

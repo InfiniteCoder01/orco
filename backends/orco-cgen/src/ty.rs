@@ -3,6 +3,7 @@
 /// also wraps optional name (variable name, parameter name, type name in typedef)
 #[allow(missing_docs)]
 pub struct FmtType<'a> {
+    pub module: &'a orco::Module,
     pub ty: &'a orco::Type,
     pub constant: bool,
     pub name: Option<&'a str>,
@@ -19,7 +20,12 @@ pub fn is_unit(ty: &orco::Type) -> bool {
 
 impl std::fmt::Display for FmtType<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let FmtType { ty, constant, name } = *self;
+        let FmtType {
+            module,
+            ty,
+            constant,
+            name,
+        } = *self;
 
         use orco::Type as OT;
         use orco::ty::IntegerSize as IS;
@@ -65,12 +71,14 @@ impl std::fmt::Display for FmtType<'_> {
             OT::Bool => write!(f, "bool"),
             OT::Char(false) => write!(f, "char"),
             OT::Char(true) => write!(f, "wchar_t"),
-            OT::Symbol(sym, generics) => {
+
+            OT::Alias(id, generics) => {
                 assert!(
                     generics.is_empty(),
-                    "generics type encountered in C backend ({ty}), did you forget to monomorphize types?",
+                    "generics type encountered in C backend ({}), did you forget to monomorphize types?",
+                    module.display(ty)
                 );
-                write!(f, "{}", crate::cname(*sym))
+                write!(f, "{}", crate::ty_name(*id, &self.module.types[id]))
             }
 
             OT::Array(ty, sz) => {
@@ -78,6 +86,7 @@ impl std::fmt::Display for FmtType<'_> {
                     f,
                     "{}[{sz}]",
                     FmtType {
+                        module,
                         ty,
                         constant: false,
                         name
@@ -105,6 +114,7 @@ impl std::fmt::Display for FmtType<'_> {
                         f,
                         "  {};",
                         FmtType {
+                            module,
                             ty,
                             constant: false,
                             name: Some(
@@ -125,6 +135,7 @@ impl std::fmt::Display for FmtType<'_> {
                     f,
                     "{}",
                     FmtType {
+                        module,
                         ty,
                         constant: !*pointee_mutable,
                         name: Some(
@@ -141,23 +152,23 @@ impl std::fmt::Display for FmtType<'_> {
                     }
                 );
             }
-            OT::FnPtr {
-                params,
-                return_type,
-            } => {
+            OT::FnPtr { types } => {
                 return write!(
                     f,
                     "{}",
                     FmtType {
-                        ty: return_type,
+                        module,
+                        ty: &types[0],
                         constant: false,
                         name: Some(&format!(
                             "{}({})",
                             name.unwrap_or_default(),
-                            params
+                            types
                                 .iter()
+                                .skip(1)
                                 .filter(|ty| is_unit(ty))
                                 .map(|ty| FmtType {
+                                    module,
                                     ty,
                                     constant: false,
                                     name

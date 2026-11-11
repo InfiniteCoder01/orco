@@ -1,14 +1,15 @@
+use orco::ty::AliasId;
 use std::collections::HashMap;
 
 /// Adds all symbols this type uses into `dependencies`
-fn type_dependencies(ty: &orco::Type, dependencies: &mut Vec<orco::Symbol>) {
+fn type_dependencies(ty: &orco::Type, dependencies: &mut Vec<AliasId>) {
     match ty {
-        orco::Type::Symbol(name, generics) => {
+        orco::Type::Alias(id, generics) => {
             assert!(
                 generics.is_empty(),
-                "generics type encountered in C backend ({ty}), did you forget to monomorphize types?",
+                "generics type encountered in C backend ({ty:?}), did you forget to monomorphize types?",
             );
-            dependencies.push(*name);
+            dependencies.push(*id);
         }
         orco::Type::Array(ty, sz) if *sz > 0 => type_dependencies(ty, dependencies),
         orco::Type::Struct { fields } => {
@@ -25,43 +26,44 @@ fn type_dependencies(ty: &orco::Type, dependencies: &mut Vec<orco::Symbol>) {
 /// (if false is encountered, loop is detected)
 fn topsort<E>(
     module: &orco::Module,
-    guard: &impl orco::papaya::Guard,
-    visited: &mut HashMap<orco::Symbol, bool>,
-    callback: &mut impl FnMut(orco::Symbol, &orco::Type) -> Result<(), E>,
-    name: orco::Symbol,
+    visited: &mut HashMap<AliasId, bool>,
+    callback: &mut impl FnMut(AliasId, &orco::ty::Alias) -> Result<(), E>,
+    id: AliasId,
 ) -> Result<(), E> {
     use std::collections::hash_map::Entry;
-    match visited.entry(name) {
+    match visited.entry(id) {
         Entry::Occupied(finished) if *finished.get() => return Ok(()),
         Entry::Occupied(_) => panic!(
-            "type dependency cycle detected on {name}, possibly an infinitely-recursive type",
+            "type dependency cycle detected on {}, possibly an infinitely-recursive type",
+            module.display(&id)
         ),
         Entry::Vacant(entry) => entry.insert(false),
     };
 
-    let ty = &module.get_ty(name, guard).type_;
+    let Some(ty) = module.types.get(&id) else {
+        panic!("invalid {id:?}");
+    };
+
     let mut dependencies = Vec::new();
-    type_dependencies(ty, &mut dependencies);
+    type_dependencies(&ty.ty, &mut dependencies);
 
     for dep in dependencies {
-        topsort(module, guard, visited, callback, dep)?;
+        topsort(module, visited, callback, dep)?;
     }
 
-    callback(name, ty)?;
-    visited.insert(name, true);
+    callback(id, ty)?;
+    visited.insert(id, true);
     Ok(())
 }
 
 /// Visit types in topological order (excluding pointers).
 pub fn visit<E>(
     module: &orco::Module,
-    mut callback: impl FnMut(orco::Symbol, &orco::Type) -> Result<(), E>,
+    mut callback: impl FnMut(AliasId, &orco::ty::Alias) -> Result<(), E>,
 ) -> Result<(), E> {
-    let guard = module.types.guard();
     let mut visited = HashMap::new();
-
-    for name in module.types.keys(&guard) {
-        topsort(&module, &guard, &mut visited, &mut callback, *name)?;
+    for id in module.types.keys() {
+        topsort(&module, &mut visited, &mut callback, *id)?;
     }
 
     Ok(())

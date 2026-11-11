@@ -37,7 +37,7 @@ pub fn instr(
     mut idx: usize,
 ) -> Result<usize, std::fmt::Error> {
     let assignment = match (
-        ctx.body.instructions[idx],
+        &ctx.body.instructions[idx],
         ctx.body.instructions.get(idx + 1),
     ) {
         (Instr::Assign, Some(Instr::Var(id))) => Some(*id),
@@ -56,29 +56,35 @@ pub fn instr(
             continue;
         }
 
-        writeln!(
-            f,
-            "  {};",
+        let decl = format!(
+            "{};",
             crate::ty::FmtType {
+                module: ctx.module,
                 ty: &var.ty,
                 constant: false,
                 name: Some(&ctx.var_names[id.0 as usize])
             }
-        )?;
+        );
+        for line in decl.split('\n') {
+            writeln!(f, "  {line}")?;
+        }
     }
 
     if fuse_assignment {
         let id = assignment.unwrap();
         let var = ctx.body.var(id);
-        write!(
-            f,
-            "  {} = ",
+        let decl = format!(
+            "{} = ",
             crate::ty::FmtType {
+                module: ctx.module,
                 ty: &var.ty,
                 constant: false,
                 name: Some(&ctx.var_names[id.0 as usize])
             }
-        )?;
+        );
+        for line in decl.split_inclusive('\n') {
+            write!(f, "  {line}")?;
+        }
 
         idx += 2;
     } else {

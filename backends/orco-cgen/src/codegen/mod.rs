@@ -55,7 +55,7 @@ impl<'a> Context<'a> {
                 continue;
             }
             var_names.push(match &var.name {
-                Some(name) => crate::cname(name.into()),
+                Some(name) => crate::cname(name),
                 None if var.arg => format!("arg{idx}"),
                 None => "var".to_owned(),
             });
@@ -67,7 +67,7 @@ impl<'a> Context<'a> {
         let mut label_names = Vec::with_capacity(body.label_names.len());
         for label in body.label_names.iter() {
             label_names.push(match &label {
-                Some(name) => crate::cname(name.into()),
+                Some(name) => crate::cname(name),
                 None => "label".to_owned(),
             });
         }
@@ -100,7 +100,7 @@ impl std::fmt::Display for Context<'_> {
         writeln!(f, "{{")?;
         let mut idx = 0;
         while idx < self.body.instructions.len() {
-            let instr = self.body.instructions[idx];
+            let instr = &self.body.instructions[idx];
 
             // Label
             if matches!(instr, orco::ir::Instr::AcfLabel(..)) {
