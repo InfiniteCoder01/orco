@@ -95,33 +95,34 @@ impl crate::Function {
     /// Instantiate this function with a set of generic args.
     /// See also [`Type::instantiate`].
     pub fn instantiate(&mut self, generics: &[Type]) {
+        self.generics.clear(); // Clear the generic list as this function is no longer generic.
+
         for (_, ty) in &mut self.params {
             ty.instantiate(generics);
         }
 
         self.return_type.instantiate(generics);
 
-        // if let Some(body) = &mut self.body {
-        //     for var in &mut body.variables {
-        //         var.ty.instantiate(generics);
-        //     }
+        let Some(body) = &mut self.body else {
+            return;
+        };
 
-        //     body.types.update(|types| {
-        //         for ty in types {
-        //             ty.instantiate(generics);
-        //         }
-        //     });
+        for var in &mut body.variables {
+            var.ty.instantiate(generics);
+        }
 
-        //     body.symbols.update(|symbols| {
-        //         for symbol in symbols {
-        //             for ty in &mut symbol.generics {
-        //                 ty.instantiate(generics);
-        //             }
-        //         }
-        //     });
-        // }
-
-        self.generics.clear(); // Clear the generic list as this function is no longer generic.
+        for instr in &mut body.instructions {
+            use crate::ir::Instr;
+            match instr {
+                Instr::Global(_, args) => {
+                    for ty in args {
+                        ty.instantiate(generics);
+                    }
+                }
+                Instr::Cast(ty) | Instr::Transmute(ty) => ty.instantiate(generics),
+                _ => (),
+            }
+        }
     }
 }
 

@@ -29,6 +29,13 @@ impl super::Context<'_> {
             }
             Instr::FConst(value, _) => write!(f, "{value}").map(|_| idx + 1),
             Instr::BConst(value) => write!(f, "{value}").map(|_| idx + 1),
+            Instr::CConst(value, utf8) => match char::from_u32(*value) {
+                Some(chr) if chr.is_ascii_graphic() => {
+                    write!(f, "{}{:?}", if *utf8 { "L" } else { "" }, chr)
+                }
+                _ => write!(f, "{value}"),
+            }
+            .map(|_| idx + 1),
 
             Instr::Global(id, generics) => {
                 assert!(generics.is_empty(), "generics in C land");

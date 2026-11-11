@@ -1,48 +1,78 @@
-use crate::*;
-use std::collections::{HashMap, HashSet};
-
-/// Map from symbol to it's possible sets of generic args.
-type InstanceMap = HashMap<Symbol, HashSet<Vec<Type>>>;
+use crate::{Module, SymbolId, Type, ty::AliasId};
+use std::collections::HashMap;
 
 /// Monomorphization context.
-struct Context<'a> {
-    types: InstanceMap,
-    functions: InstanceMap,
-    /// Guard on [`Module::types`]
-    type_guard: papaya::LocalGuard<'a>,
-    /// Guard on [`Module::functions`]
-    func_guard: papaya::LocalGuard<'a>,
+struct Context {
+    types: HashMap<AliasId, HashMap<Vec<Type>, AliasId>>,
+    symbols: HashMap<SymbolId, HashMap<Vec<Type>, SymbolId>>,
 }
 
-fn exists(instances: &mut InstanceMap, name: Symbol, args: &[Type]) -> bool {
-    let instances = instances.entry(name).or_default();
-    if instances.contains(args) {
-        return true;
+fn mono_id<K, V>(
+    store: &HashMap<K, V>,
+    instances: &mut HashMap<K, HashMap<Vec<Type>, K>>,
+    id: K,
+    args: &[Type],
+) -> (K, bool)
+where
+    K: Copy + std::hash::Hash + Eq + From<usize>,
+{
+    let instances = instances.entry(id).or_default();
+    if let Some(id) = instances.get(args) {
+        return (*id, false);
     }
 
-    instances.insert(args.to_vec());
-    false
+    // Uh-oh...
+    let mut id = 0;
+    for key in store.keys().take(100) {
+        use std::hash::BuildHasher;
+        id ^= store.hasher().hash_one(key);
+    }
+
+    loop {
+        let key = K::from(id as _);
+        if !store.contains_key(&key) {
+            instances.insert(args.to_vec(), key);
+            return (key, true);
+        }
+
+        id += 1;
+    }
+}
+
+fn mono_name(module: &Module, name: Option<&str>, args: &[Type]) -> Option<String> {
+    name.map(|name| {
+        use std::fmt::Write as _;
+        let mut name = name.to_owned();
+        for arg in args {
+            write!(&mut name, "#{}", module.display(arg)).unwrap();
+        }
+
+        name
+    })
 }
 
 /// Compute instances from a type decl.
-fn visit_ty(module: &Module, ctx: &mut Context, ty: &mut Type) {
+fn visit_ty(module: &mut Module, ctx: &mut Context, ty: &mut Type) {
     match ty {
-        Type::Symbol(name, args) if !args.is_empty() => {
-            let moname = module.monomorphized_name(*name, args);
-            if !exists(&mut ctx.types, *name, args) {
-                let mut new_ty = module.get_ty(*name, &ctx.type_guard).instantiate(&args);
-                visit_ty(module, ctx, &mut new_ty);
-                module.types.pin().insert(
-                    moname,
-                    TypeAlias {
+        Type::Alias(id, generics) if !generics.is_empty() => {
+            let (monoid, new) = mono_id(&module.types, &mut ctx.types, *id, generics);
+            if new {
+                let alias = &module.types[id];
+                let moname = mono_name(module, alias.name.as_deref(), generics);
+                let mut moty = alias.ty.copy_instantiate(&generics);
+                visit_ty(module, ctx, &mut moty);
+                module.types.insert(
+                    monoid,
+                    crate::ty::Alias {
+                        name: moname,
                         generics: Vec::new(),
-                        type_: new_ty,
+                        ty: moty,
                     }
                     .into(),
                 );
             }
 
-            *ty = Type::Symbol(moname, Vec::new());
+            *ty = Type::Alias(monoid, thin_vec::ThinVec::new());
         }
         Type::Array(ty, _) => visit_ty(module, ctx, ty),
         Type::Struct { fields } => {
@@ -51,15 +81,10 @@ fn visit_ty(module: &Module, ctx: &mut Context, ty: &mut Type) {
             }
         }
         Type::Ptr(ty, _) => visit_ty(module, ctx, ty),
-        Type::FnPtr {
-            params,
-            return_type,
-        } => {
-            for ty in params {
+        Type::FnPtr { types } => {
+            for ty in types {
                 visit_ty(module, ctx, ty);
             }
-
-            visit_ty(module, ctx, return_type);
         }
         Type::Param(param) => {
             panic!("[bug] generic param #{param} encountered while computing used generic symbols")
@@ -68,95 +93,92 @@ fn visit_ty(module: &Module, ctx: &mut Context, ty: &mut Type) {
     }
 }
 
-/// Compute type instances from a function.
-fn visit_function(module: &Module, ctx: &mut Context, func: &mut Function) {
+fn instantiate_symbol(
+    module: &mut Module,
+    ctx: &mut Context,
+    id: SymbolId,
+    generics: &[Type],
+) -> SymbolId {
+    let (monoid, new) = mono_id(&module.symbols, &mut ctx.symbols, id, generics);
+    if new {
+        let mut symbol = module.symbols[&id].clone();
+        let moname = mono_name(module, symbol.name(), generics);
+
+        let crate::Symbol::Function(func) = &mut symbol;
+        func.name = moname;
+        func.instantiate(generics);
+
+        visit_symbol(module, ctx, &mut symbol);
+        module.symbols.insert(monoid, symbol);
+    }
+
+    monoid
+}
+
+/// Compute type instances from a symbol.
+fn visit_symbol(module: &mut Module, ctx: &mut Context, symbol: &mut crate::Symbol) {
+    let crate::Symbol::Function(func) = symbol;
     for (_, ty) in &mut func.params {
         visit_ty(module, ctx, ty);
     }
 
     visit_ty(module, ctx, &mut func.return_type);
 
-    if let Some(body) = &mut func.body {
-        for var in &mut body.variables {
-            visit_ty(module, ctx, &mut var.ty);
+    let Some(body) = &mut func.body else {
+        return;
+    };
+
+    for var in &mut body.variables {
+        visit_ty(module, ctx, &mut var.ty);
+    }
+
+    for instr in &mut body.instructions {
+        use crate::ir::Instr;
+        match instr {
+            Instr::Global(id, generics) if !generics.is_empty() => {
+                *id = instantiate_symbol(module, ctx, *id, generics);
+                generics.clear();
+            }
+            Instr::Cast(ty) | Instr::Transmute(ty) => visit_ty(module, ctx, ty),
+            _ => (),
         }
-
-        body.types.update(|types| {
-            for ty in types {
-                visit_ty(module, ctx, ty);
-            }
-        });
-
-        body.symbols.update(|symbols| {
-            for symbol in symbols {
-                if symbol.generics.is_empty() {
-                    continue;
-                }
-
-                let moname = module.monomorphized_name(symbol.name, &symbol.generics);
-                if !exists(&mut ctx.functions, symbol.name, &symbol.generics) {
-                    let mut func = module.get_symbol(symbol.name, &ctx.func_guard).clone();
-                    func.instantiate(&symbol.generics);
-                    visit_function(module, ctx, &mut func);
-                    module
-                        .functions
-                        .insert(moname, func.into(), &ctx.func_guard);
-                }
-
-                symbol.name = moname;
-                symbol.generics.clear();
-            }
-        });
     }
 }
 
 impl Module {
-    /// Get a name for a monomorphized version of a symbol.
-    pub fn monomorphized_name(&self, name: Symbol, args: &[Type]) -> Symbol {
-        if args.is_empty() {
-            name
-        } else {
-            format!("{name}{}", crate::ty::fmt_generic_args(args)).into()
-        }
-    }
-
     /// Monomorphize the module (duplicate generic symbols for all usages).
     pub fn monomorphize(&mut self) {
         let mut ctx = Context {
             types: HashMap::new(),
-            functions: HashMap::new(),
-            type_guard: self.types.guard(),
-            func_guard: self.functions.guard(),
+            symbols: HashMap::new(),
         };
 
-        let types = self.types.pin();
-        for (name, alias) in types.iter() {
-            let mut alias = alias.write().unwrap();
+        let types = self.types.keys().copied().collect::<Vec<_>>();
+        for id in types {
+            let alias = &self.types[&id];
             if !alias.generics.is_empty() {
-                ctx.types.entry(*name).or_default();
                 continue;
             }
 
-            visit_ty(self, &mut ctx, &mut alias.type_);
+            let mut alias = self.types.remove(&id).unwrap();
+            visit_ty(self, &mut ctx, &mut alias.ty);
+            self.types.insert(id, alias);
         }
 
-        let functions = self.functions.pin();
-        for (name, func) in functions.iter() {
-            let mut func = func.write().unwrap();
-            if !func.generics.is_empty() {
-                ctx.functions.entry(*name).or_default();
+        let symbols = self.symbols.keys().copied().collect::<Vec<_>>();
+        for id in symbols {
+            let symbol = &self.symbols[&id];
+            if !symbol.generics().is_empty() {
                 continue;
             }
 
-            visit_function(self, &mut ctx, &mut func);
+            let mut symbol = self.symbols.remove(&id).unwrap();
+            visit_symbol(self, &mut ctx, &mut symbol);
+            self.symbols.insert(id, symbol);
         }
 
-        for (name, _) in ctx.types {
-            types.remove(&name);
-        }
-
-        for (name, _) in ctx.functions {
-            functions.remove(&name);
-        }
+        self.types.retain(|_, alias| alias.generics.is_empty());
+        self.symbols
+            .retain(|_, symbol| symbol.generics().is_empty());
     }
 }

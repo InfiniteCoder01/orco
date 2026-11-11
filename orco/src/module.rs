@@ -63,6 +63,13 @@ impl Symbol {
             Self::Function(func) => func.ptr_type(),
         }
     }
+
+    /// Get the type of this symbol.
+    pub fn generics(&self) -> &[crate::TyParam] {
+        match self {
+            Self::Function(func) => &func.generics,
+        }
+    }
 }
 
 impl std::fmt::Display for crate::Display<'_, Symbol> {

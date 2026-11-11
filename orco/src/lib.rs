@@ -21,7 +21,7 @@ pub mod attrs;
 pub mod ir;
 pub use ir::Body;
 
-// mod transformations;
+mod transformations;
 
 /// Function decl & body.
 #[derive(Clone, PartialEq)]
