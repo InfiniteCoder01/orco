@@ -81,6 +81,7 @@ impl Body {
             Instr::Cast(ty) => ty.as_ref().clone(),
             Instr::Transmute(ty) => ty.as_ref().clone(),
 
+            Instr::Comment(..) => Type::Error,
             Instr::Error => Type::Error,
         }
     }
@@ -213,6 +214,7 @@ impl crate::Display<'_, Body> {
                 debug_args(idx + 1, f, 1)
             }
 
+            Instr::Comment(comment) => write!(f, "// {comment}").map(|_| idx + 1),
             Instr::Error => write!(f, "error").map(|_| idx + 1),
         }
     }

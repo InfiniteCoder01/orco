@@ -154,6 +154,7 @@ impl super::Context<'_> {
                 Ok(idx)
             }
 
+            Instr::Comment(comment) => write!(f, "// {comment}").map(|_| idx + 1),
             instr => todo!("{instr:?}"),
         }
     }

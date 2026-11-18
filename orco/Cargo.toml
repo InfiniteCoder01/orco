@@ -8,4 +8,5 @@ description.workspace = true
 repository.workspace = true
 
 [dependencies]
+thin-string = "0.3.0"
 thin-vec = "0.2.21"

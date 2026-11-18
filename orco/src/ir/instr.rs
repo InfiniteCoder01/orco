@@ -44,6 +44,8 @@ pub enum Instruction {
     /// Transmute any types (aka reinterpret/bit cast).
     Transmute(Box<crate::Type>),
 
+    /// A comment, mainly for the generated code.
+    Comment(thin_string::ThinString),
     /// Error value.
     Error,
 }
@@ -76,6 +78,7 @@ impl Instruction {
             Self::Cast(..) => 1,
             Self::Transmute(..) => 1,
 
+            Self::Comment(..) => 0,
             Self::Error => 0,
         }
     }

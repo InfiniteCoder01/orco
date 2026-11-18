@@ -109,6 +109,14 @@ impl std::fmt::Display for Context<'_> {
                 continue;
             }
 
+            // Comment
+            if matches!(instr, orco::ir::Instr::Comment(..)) {
+                write!(f, "  ")?;
+                idx = self.instr(f, idx, 0)?;
+                writeln!(f)?;
+                continue;
+            }
+
             // Variables
             idx = place_vars::instr(f, self, idx)?;
         }

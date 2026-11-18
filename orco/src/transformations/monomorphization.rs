@@ -21,22 +21,9 @@ where
         return (*id, false);
     }
 
-    // Uh-oh...
-    let mut id = 0;
-    for key in store.keys().take(100) {
-        use std::hash::BuildHasher;
-        id ^= store.hasher().hash_one(key);
-    }
-
-    loop {
-        let key = K::from(id as _);
-        if !store.contains_key(&key) {
-            instances.insert(args.to_vec(), key);
-            return (key, true);
-        }
-
-        id += 1;
-    }
+    let id = super::create_id(store);
+    instances.insert(args.to_vec(), id);
+    return (id, true);
 }
 
 fn mono_name(module: &Module, name: Option<&str>, args: &[Type]) -> Option<String> {

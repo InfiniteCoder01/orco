@@ -8,7 +8,8 @@ struct Person<T> {
     age: u8,
 }
 
-type PersonI32 = Person<i32>;
+// type PersonI32 = Person<i32>;
+struct PersonI32(Person<i32>);
 
 // A unit struct
 struct Unit;

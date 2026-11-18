@@ -270,6 +270,7 @@ dependencies = [
 name = "orco"
 version = "0.0.1-prealpha"
 dependencies = [
+ "thin-string",
  "thin-vec",
 ]
 
@@ -393,6 +394,15 @@ name = "target-lexicon"
 version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1dd07eb858a2067e2f3c7155d54e929265c264e6f37efe3ee7a8d1b5a1dd0ba"
+
+[[package]]
+name = "thin-string"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54d159aaad1464522d9ed3c7d796a5380ce4f5c311c463c21bb2e92fb443dae6"
+dependencies = [
+ "thin-vec",
+]
 
 [[package]]
 name = "thin-vec"

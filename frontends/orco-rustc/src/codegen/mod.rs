@@ -27,6 +27,16 @@ impl CodegenCtx<'_> {
             _ => return,
         };
 
+        // Leave a like, comment & subscribe :)
+        let comment = format!("{:?}", rvalue);
+        self.instr(Instr::Comment(
+            match comment.split_once(|chr: char| !chr.is_alphanumeric()) {
+                Some((name, _)) => name.into(),
+                _ => comment.into(),
+            },
+        ));
+
+        // Actual expressions
         use rustc_public::mir::Rvalue;
         match rvalue {
             Rvalue::AddressOf(..) => todo!(),

@@ -1,116 +1,99 @@
-use crate::*;
-use std::collections::HashSet;
+use crate::{Module, Type};
 
 /// Replaces all anonymous structs by named structs, considers `ty`
 /// named if `root` is true.
-fn name_anonymous(
-    module: &Module,
-    guard: &impl papaya::Guard,
-    generics: &mut HashSet<Symbol>,
-    ty: &mut Type,
-    root: bool,
-) {
+fn name_anonymous(module: &mut Module, generics: &[crate::TyParam], ty: &mut Type, root: bool) {
     match ty {
-        Type::Symbol(_, symbol_generics) => {
-            for ty in symbol_generics {
-                name_anonymous(module, guard, generics, ty, false);
+        Type::Alias(_, alias_generics) => {
+            for ty in alias_generics {
+                name_anonymous(module, generics, ty, false);
             }
         }
-        Type::Array(ty, _) => name_anonymous(module, guard, generics, ty, false),
+        Type::Array(ty, _) => name_anonymous(module, generics, ty, false),
         Type::Struct { fields } => {
             for (_, ty) in fields {
-                name_anonymous(module, guard, generics, ty, false);
+                name_anonymous(module, generics, ty, false);
             }
         }
-        Type::Ptr(ty, _) => name_anonymous(module, guard, generics, ty, false),
-        Type::FnPtr {
-            params,
-            return_type,
-        } => {
-            for ty in params {
-                name_anonymous(module, guard, generics, ty, false);
+        Type::Ptr(ty, _) => name_anonymous(module, generics, ty, false),
+        Type::FnPtr { types } => {
+            for ty in types {
+                name_anonymous(module, generics, ty, false);
             }
-
-            name_anonymous(module, guard, generics, return_type, false);
-        }
-        Type::Param(param) => {
-            generics.insert(*param);
         }
         _ => (),
     }
 
-    if root {
-        return;
-    }
-
+    // Name anonymous
     let name = match ty {
+        _ if root => return,
         Type::Struct { fields } => fields
             .iter()
-            .map(|(_, ty)| ty.to_string())
-            .collect::<String>()
-            .into(),
+            .map(|(_, ty)| module.display(ty).to_string())
+            .collect(),
         _ => return,
     };
 
-    let generics = generics.iter().copied().collect::<Vec<_>>();
+    // Put it in
+    let id = super::create_id(&module.types);
     let ty = std::mem::replace(
         ty,
-        Type::Symbol(name, generics.iter().copied().map(Type::Param).collect()),
+        Type::Alias(id, (0..generics.len() as u32).map(Type::Param).collect()),
     );
 
     module.types.insert(
-        name,
-        TypeAlias {
-            generics,
-            type_: ty,
-        }
-        .into(),
-        guard,
+        id,
+        crate::ty::Alias {
+            name: Some(name),
+            generics: generics.to_vec(),
+            ty,
+        },
     );
+}
+
+/// Name all anonymous types in a symbol.
+fn visit_symbol(module: &mut Module, symbol: &mut crate::Symbol) {
+    let crate::Symbol::Function(func) = symbol;
+    for (_, ty) in &mut func.params {
+        name_anonymous(module, &func.generics, ty, false);
+    }
+
+    name_anonymous(module, &func.generics, &mut func.return_type, false);
+
+    let Some(body) = &mut func.body else {
+        return;
+    };
+
+    for var in &mut body.variables {
+        name_anonymous(module, &func.generics, &mut var.ty, false);
+    }
+
+    for instr in &mut body.instructions {
+        use crate::ir::Instr;
+        match instr {
+            Instr::Cast(ty) | Instr::Transmute(ty) => {
+                name_anonymous(module, &func.generics, ty, false)
+            }
+            _ => (),
+        }
+    }
 }
 
 impl Module {
     /// Replaces all anonymous structs by named structs.
     pub fn name_anonymous_structs(&mut self) {
-        let guard = self.types.guard();
-        for (_, alias) in self.types.iter(&guard) {
-            let mut alias = alias.write().unwrap();
-            name_anonymous(self, &guard, &mut HashSet::new(), &mut alias.type_, true);
+        let types = self.types.keys().copied().collect::<Vec<_>>();
+        for id in types {
+            let mut alias = self.types.remove(&id).unwrap();
+            name_anonymous(self, &alias.generics, &mut alias.ty, true);
+            self.types.insert(id, alias);
         }
 
-        for (_, func) in self.functions.pin().iter() {
-            let mut func = func.write().unwrap();
-            for (_, ty) in &mut func.params {
-                name_anonymous(self, &guard, &mut HashSet::new(), ty, false);
-            }
-
-            name_anonymous(
-                self,
-                &guard,
-                &mut HashSet::new(),
-                &mut func.return_type,
-                false,
-            );
-
-            if let Some(body) = &mut func.body {
-                for var in &mut body.variables {
-                    name_anonymous(self, &guard, &mut HashSet::new(), &mut var.ty, false);
-                }
-
-                body.types.update(|types| {
-                    for ty in types {
-                        name_anonymous(self, &guard, &mut HashSet::new(), ty, false);
-                    }
-                });
-
-                body.symbols.update(|symbols| {
-                    for symbol in symbols {
-                        for ty in &mut symbol.generics {
-                            name_anonymous(self, &guard, &mut HashSet::new(), ty, false);
-                        }
-                    }
-                });
-            }
+        let symbols = self.symbols.keys().copied().collect::<Vec<_>>();
+        for id in symbols {
+            let mut symbol = self.symbols.remove(&id).unwrap();
+            visit_symbol(self, &mut symbol);
+            self.symbols.insert(id, symbol);
         }
     }
 }
