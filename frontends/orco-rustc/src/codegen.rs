@@ -107,7 +107,7 @@ impl CodegenCtx<'_> {
                 use rustc_public::mir::CastKind;
                 let instr = match kind {
                     CastKind::PointerExposeAddress => todo!("cast: {kind:?}"),
-                    CastKind::PointerWithExposedProvenance => todo!("cast: {kind:?}"),
+                    CastKind::PointerWithExposedProvenance => Instr::Cast(ty),
                     CastKind::PointerCoercion(..) => todo!("cast: {kind:?}"),
                     CastKind::IntToInt => Instr::Cast(ty),
                     CastKind::FloatToInt => Instr::Cast(ty),
@@ -125,7 +125,15 @@ impl CodegenCtx<'_> {
             Rvalue::CopyForDeref(..) => todo!(),
             Rvalue::Discriminant(..) => todo!(),
             Rvalue::Len(..) => todo!(),
-            Rvalue::Ref(..) => todo!(),
+            Rvalue::Ref(_, kind, val) => {
+                self.instr(Instr::Assign);
+                self.place(place);
+                self.instr(Instr::Ref(matches!(
+                    kind.to_mutable_lossy(),
+                    rustc_public::mir::Mutability::Mut
+                )));
+                self.place(val);
+            }
             Rvalue::Repeat(..) => todo!(),
             Rvalue::ThreadLocalRef(..) => todo!(),
             Rvalue::UnaryOp(..) => todo!(),

@@ -115,7 +115,7 @@ pub fn cname(name: &str) -> String {
     // Take only the method name, not the path
     // FIXME: conflicts...
     let mut new_name = String::new();
-    for split in name.split([',', '<', '>', '{', '}']) {
+    for split in name.split([',', '<', '>', '{', '}', '#']) {
         let split = &split[split.rfind([':', '.']).map_or(0, |i| i + 1)..];
         if !split.is_empty() {
             match new_name.chars().last() {

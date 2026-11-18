@@ -7,7 +7,7 @@ impl CodegenCtx<'_> {
         for proj in place.projection.iter().rev() {
             use rustc_public::mir::ProjectionElem as PE;
             match proj {
-                PE::Deref => todo!(),
+                PE::Deref => self.instr(Instr::Deref),
                 PE::Field(field, _) => self.instr(Instr::Field(*field as _)),
                 PE::Index(_) => todo!(),
                 PE::ConstantIndex { .. } => todo!(),

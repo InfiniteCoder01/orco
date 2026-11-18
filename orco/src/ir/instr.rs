@@ -22,6 +22,10 @@ pub enum Instruction {
     Var(super::VariableId),
     /// Access a field at index.
     Field(u32),
+    /// Make a reference (pointer) to the value, stores mutability.
+    Ref(bool),
+    /// Dereference a pointer.
+    Deref,
     /// Assign the value to a place last expression references.
     Assign,
 
@@ -65,6 +69,8 @@ impl Instruction {
             Self::Global(..) => 0,
             Self::Var(..) => 0,
             Self::Field(..) => 1,
+            Self::Ref(..) => 1,
+            Self::Deref => 1,
             Self::Assign => 2,
 
             Self::AcfLabel(..) => 0,

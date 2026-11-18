@@ -44,7 +44,7 @@ impl super::Context<'_> {
             }
             Instr::Var(id) => write!(f, "{}", self.var_names[id.0 as usize]).map(|_| idx + 1),
             Instr::Field(field_idx) => {
-                if precedence < 2 {
+                if precedence < 1 {
                     write!(f, "(")?;
                 }
 
@@ -52,7 +52,6 @@ impl super::Context<'_> {
                 let ty = self
                     .module
                     .inline_ty(self.body.value_ty(self.module, idx + 1));
-                idx = self.instr(f, idx + 1, 2)?;
                 let orco::Type::Struct { fields } = ty else {
                     panic!(
                         "trying to access field #{field_idx} on a non-struct type {}",
@@ -60,11 +59,61 @@ impl super::Context<'_> {
                     );
                 };
 
+                // Combine deref with field access
+                if matches!(self.body.instructions[idx + 1], Instr::Deref) {
+                    idx = self.instr(f, idx + 2, 1)?;
+                    write!(f, "->")?;
+                } else {
+                    idx = self.instr(f, idx + 1, 1)?;
+                    write!(f, ".")?;
+                };
+
                 // Field
                 match &fields[*field_idx as usize].0 {
-                    Some(name) => write!(f, ".{name}")?,
-                    None => write!(f, "._{field_idx}")?,
+                    Some(name) => write!(f, "{name}")?,
+                    None => write!(f, "_{field_idx}")?,
                 }
+
+                if precedence < 1 {
+                    write!(f, ")")?;
+                }
+
+                Ok(idx)
+            }
+            Instr::Ref(mutable) => {
+                if precedence < 2 {
+                    write!(f, "(")?;
+                }
+
+                if !mutable {
+                    write!(
+                        f,
+                        "({})",
+                        crate::FmtType {
+                            module: self.module,
+                            ty: &self.body.value_ty(self.module, idx),
+                            constant: false,
+                            name: None
+                        }
+                    )?;
+                }
+
+                write!(f, "&")?;
+                idx = self.instr(f, idx + 1, 2)?;
+
+                if precedence < 2 {
+                    write!(f, ")")?;
+                }
+
+                Ok(idx)
+            }
+            Instr::Deref => {
+                if precedence < 2 {
+                    write!(f, "(")?;
+                }
+
+                write!(f, "*")?;
+                idx = self.instr(f, idx + 1, 2)?;
 
                 if precedence < 2 {
                     write!(f, ")")?;

@@ -60,6 +60,14 @@ impl Body {
                 };
                 fields.swap_remove(*field_idx as _).1
             }
+            Instr::Ref(mutable) => Type::Ptr(Box::new(self.value_ty(module, idx + 1)), *mutable),
+            Instr::Deref => match self.value_ty(module, idx + 1) {
+                Type::Ptr(ty, _) => *ty,
+                ty => panic!(
+                    "trying to dereference a non-pointer of type {}",
+                    module.display(&ty)
+                ),
+            },
             Instr::Assign => Type::Error,
 
             Instr::AcfLabel(..) | Instr::AcfJump(..) | Instr::AcfCJump(..) => Type::Error,
@@ -161,6 +169,25 @@ impl crate::Display<'_, Body> {
                     None => write!(f, ".field_{field_idx}")?,
                 }
 
+                Ok(idx)
+            }
+            Instr::Ref(mutable) => {
+                write!(
+                    f,
+                    "(&{} ",
+                    match mutable {
+                        true => "mut",
+                        false => "const",
+                    }
+                )?;
+                idx = self.debug_instr(f, idx + 1)?;
+                write!(f, ")")?;
+                Ok(idx)
+            }
+            Instr::Deref => {
+                write!(f, "(*")?;
+                idx = self.debug_instr(f, idx + 1)?;
+                write!(f, ")")?;
                 Ok(idx)
             }
 
